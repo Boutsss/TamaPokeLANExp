@@ -42,4 +42,5 @@ void gameEvent(GameEv ev, int16_t arg = 0);
 
 #define GAME_EV_SINKS 10
 bool gameEventSubscribe(GameEvSink sink);
+bool gameEventUnsubscribe(GameEvSink sink);
 void gameEventClearSinks();  // tests only
