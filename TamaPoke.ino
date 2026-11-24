@@ -50,6 +50,7 @@
 #include "friends.h"
 #include "casino.h"
 #include "casino_art.h"
+#include "ghost.h"
 #include "noart.h"   // speciesHasArt(): the friends visit draws a number when no art
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
@@ -372,6 +373,7 @@ bool gymHard = false;   // which ladder the list is showing
 // LAN battle. `lanOpen` is the pairing screen; once both squads are known the
 // normal battle screen takes over with btlLink set.
 bool lanOpen = false;
+bool lanPractice = false;   // the LAN screen is listing remembered rivals
 Link lan;
 // What the shared region chooser is being used FOR. It only changes the
 // subtitle and whether there is a way back: at first boot every count would
@@ -501,6 +503,14 @@ bool btlPetIn = false;       // was the live pet in the squad?
 uint8_t btlTrainGain = 0;    // what the win trained, for the win screen
 uint8_t btlTrainWhich = 0;
 bool btlLink = false;      // this fight is against another device
+// A PRACTICE fight against a remembered LAN rival (ghost.h): their real team,
+// the AI choosing for them, no radio and no rewards. Reset by every battle start.
+bool btlGhost = false;
+uint8_t btlGhostIdx = 0;
+// THE one answer to "is the foe a stored squad (switching through
+// btlFoeSquad), not a trainer list rebuilt from species?" -- asked by the faint
+// check and by the swap, which used to test btlLink each on their own.
+static bool btlFoeIsSquad() { return btlLink || btlGhost; }
 bool btlLinkHost = false;
 
 // "Waiting for the rival" has no upper bound of its own -- the idle heartbeat
@@ -1116,6 +1126,7 @@ void setup() {
   rankBegin();   // after tower/challenge: the score reads both
   friendsBegin();
   casinoBegin();
+  ghostsBegin();
   tasksRefresh();
 
   audioBegin();  // ES8311 + I2S + amplificador (suena un jingle de arranque)
@@ -1844,7 +1855,12 @@ void onSwipeV(int dir) {
 
   // Modals and sheets: down backs out, up has nowhere deeper to go.
   if (pickOpen)     { if (back) pickOpen = false; return; }
-  if (lanOpen)      { if (back) { lanLeave(); lanOpen = false; } return; }
+  if (lanOpen)      {
+    if (!back) return;
+    if (lanPractice) { lanPractice = false; return; }   // the rival list, then the LAN screen
+    lanLeave(); lanOpen = false;
+    return;
+  }
   if (trainOpen)    { if (back) trainOpen = false; return; }
   if (bagOpen)      { if (back) bagOpen = false; return; }
   if (movePickOpen) { if (back) movePickOpen = false; return; }
@@ -2455,6 +2471,7 @@ void onTap(int16_t x, int16_t y) {
       gymOpen = false; gymPick = false;
       lan.state = LINK_OFF;
       lanOpen = true;
+      lanPractice = false;
       sfxPlay(SFX_TAP);
       return;
     }
@@ -2490,6 +2507,7 @@ void onTap(int16_t x, int16_t y) {
       gymOpen = false;
       lan.state = LINK_OFF;
       lanOpen = true;
+      lanPractice = false;
       sfxPlay(SFX_TAP);
       return;
     }
@@ -4337,6 +4355,7 @@ void startLinkBattle() {
   if (!btlSquadN) return;
   btlYou = btlSquad[0];
   btlLink = true;
+  btlGhost = false;
   btlLinkHost = lan.isHost;
   btlWild = false;
   btlTrainer = -1;
@@ -4346,6 +4365,8 @@ void startLinkBattle() {
   for (uint8_t i = 0; i < lan.theirsN && i < TRAINER_TEAM_MAX; i++)
     linkMonTo(btlFoeSquad[btlFoeSquadN++], lan.theirs[i]);
   btlFoe = btlFoeSquad[0];
+  // Remember this rival's team for PRACTICE, exactly as it arrived.
+  ghostRemember(linkNowPeerMac(), lan.peerName, lan.theirs, lan.theirsN);
   btlMyAct = 0;
   btlMsgCount = 0;
   btlOver = false;
@@ -4366,6 +4387,49 @@ void startLinkBattle() {
 }
 
 static void btlOpenTeam(const TrainerMon *team, uint8_t n, uint8_t iv, bool smart, const char *name);
+
+// PRACTICE against a remembered LAN rival: their exact creatures (stats and
+// moves as they brought them), the smart AI choosing for them, your team
+// uncapped like a real LAN fight. No radio, no rewards, no badge -- only the
+// practice record on the rival's entry.
+void startGhostBattle(uint8_t i) {
+  if (i >= ghostCount() || pet.isEgg() || pet.ceremony != CER_NONE) return;
+  const Ghost &gh = ghostAt(i);
+  if (!gh.n) return;
+  buildSquad(0, TRAINER_TEAM_MAX, squadMask);
+  if (!btlSquadN) return;
+  btlYou = btlSquad[0];
+  btlLink = false;
+  btlGhost = true;
+  btlGhostIdx = i;
+  btlWild = false;
+  btlTrainer = -1;
+  btlHard = false;
+  btlSmart = true;
+  btlReward.n = 0;
+  snprintf(btlFoeName, sizeof(btlFoeName), "%s", gh.name);
+  btlFoeAt = 0;
+  btlFoeSquadN = 0;
+  for (uint8_t k = 0; k < gh.n && k < TRAINER_TEAM_MAX; k++)
+    linkMonTo(btlFoeSquad[btlFoeSquadN++], gh.mon[k]);   // clamped exactly as off the wire
+  btlFoe = btlFoeSquad[0];
+  btlMsgCount = 0;
+  btlOver = false;
+  btlWon = false;
+  btlMenu = 0;
+  btlWinUntil = 0;
+  btlSwapWho = -1;
+  btlFaintUntil[0] = btlFaintUntil[1] = 0;
+  btlEnterUntil[0] = btlEnterUntil[1] = 0;
+  btlHpShown[0] = btlYou.maxHp;
+  btlHpShown[1] = btlFoe.maxHp;
+  btlSyncSprite(0, btlYou);
+  btlSyncSprite(1, btlFoe);
+  audioMusic(MUS_BATTLE);
+  lanOpen = false;
+  lanPractice = false;
+  battleOpen = true;
+}
 
 void startTrainerBattle(uint8_t idx, bool hard) {
   if (idx >= TRAINER_COUNT || pet.isEgg() || pet.ceremony != CER_NONE) return;
@@ -4456,6 +4520,7 @@ static void btlOpenTeam(const TrainerMon *team, uint8_t n, uint8_t iv, bool smar
   btlReward.n = 0;
   btlWild = false;
   btlLink = false;
+  btlGhost = false;
   btlFoeAt = 0;
   foeFromSpecies(btlFoe, btlTeam[0].dex, btlTeam[0].level, btlTeamIv);
   btlMsgCount = 0;
@@ -4788,7 +4853,7 @@ static void btlResolve(uint8_t yourMove) {
   // Someone went down. The replacement is NOT swapped in here -- that made the
   // change instant and read as a jump cut. Flag it, let the sprite drop out of
   // frame, and swap when the player dismisses the message.
-  if (btlFoe.fainted() && btlLink && btlFoeAt + 1 < btlFoeSquadN) {
+  if (btlFoe.fainted() && btlFoeIsSquad() && btlFoeAt + 1 < btlFoeSquadN) {
     btlFaintUntil[1] = millis() + BTL_FAINT_MS;
     btlSwapWho = 1;
     return;
@@ -4806,6 +4871,7 @@ static void btlResolve(uint8_t yourMove) {
   if (btlFoe.fainted() || btlYou.fainted()) {
     btlOver = true;
     btlWon = btlFoe.fainted();
+    if (btlGhost) ghostResult(btlGhostIdx, btlWon);
     btlNewBadge = false;
     btlTrainGain = 0;
     if (btlWon && btlTrainer >= 0) {
@@ -5256,7 +5322,7 @@ void renderBattle() {
 // Brings on the flagged replacement and starts its entrance.
 static void btlDoSwap() {
   uint32_t now = millis();
-  if (btlSwapWho == 1 && btlLink) {
+  if (btlSwapWho == 1 && btlFoeIsSquad()) {
     btlFoeSquad[btlFoeAt] = btlFoe;
     // the next one still standing, not simply the next index
     uint8_t nxt = btlFoeAt;
@@ -5268,7 +5334,7 @@ static void btlDoSwap() {
     btlSyncSprite(1, btlFoe);
     btlLungeUntil[1] = btlHitUntil[1] = btlFaintUntil[1] = 0;
     btlEnterUntil[1] = now + BTL_ENTER_MS;
-    btlSay(T(S_BTL_SENDS), lan.peerName, btlFoe.name);
+    btlSay(T(S_BTL_SENDS), btlLink ? lan.peerName : btlFoeName, btlFoe.name);
   } else if (btlSwapWho == 1) {
     btlFoeAt++;
     foeFromSpecies(btlFoe, btlTeam[btlFoeAt].dex, btlTeam[btlFoeAt].level, btlTeamIv);
@@ -5341,6 +5407,7 @@ static bool btlBackTap(int16_t x, int16_t y) {
 // Where a finished trainer fight goes back to: the tower screen after a tower
 // floor (so CONTINUE is one tap away), the ladder after a rematch.
 static void btlReturnHome() {
+  if (btlGhost) { btlGhost = false; lanOpen = true; lanPractice = true; return; }   // back to the list
   if (btlTrainer < 0 || btlLink || btlWild) return;
   if (btlKind == BK_TOWER) towerOpen = true;
   else if (btlKind == BK_REMATCH) { gymOpen = true; gymPick = false; }
@@ -5962,13 +6029,61 @@ void pickTap(int16_t x, int16_t y) {
 // Pairing on a touch-only screen: one device hosts, the other joins, and the
 // protocol does the rest. There is no MAC entry because there is no keyboard
 // worth typing one on.
+// The LAN screen's rows while no link is up: HOST, JOIN, FRIENDS, PRACTICE --
+// and the same four slots list remembered rivals in the PRACTICE view. Asked
+// by the renderer, the tap handler and the tests alike.
+#define LAN_ROWS 4
+#define LAN_ROW_H 56
+int lanRowTop(uint8_t i) { return 96 + i * 66; }
+int lanRowCenterY(uint8_t i) { return lanRowTop(i) + LAN_ROW_H / 2; }
+static int lanRowAt(int16_t x, int16_t y) {
+  if (x < 90 || x > 376) return -1;
+  for (uint8_t i = 0; i < LAN_ROWS; i++)
+    if (y >= lanRowTop(i) && y < lanRowTop(i) + LAN_ROW_H) return i;
+  return -1;
+}
+static void lanRow(uint8_t i, const char *label, bool dim) {
+  int y = lanRowTop(i);
+  gfx->fillRoundRect(90, y, 286, LAN_ROW_H, 12, dim ? UI_TRACK : UI_BG_DAY);
+  gfx->drawRoundRect(90, y, 286, LAN_ROW_H, 12, UI_INK);
+  gfx->setTextColor(dim ? 0x8410 : UI_INK);
+  gfx->setTextSize(2);
+  gfx->setCursor(CX - (int)strlen(label) * 6, y + LAN_ROW_H / 2 - 8);
+  gfx->print(label);
+}
+
+// PRACTICE: the rivals remembered from LAN battles (ghost.h), most recent first.
+static void renderLanPractice() {
+  gfx->setTextColor(UI_TRACK);
+  gfx->setTextSize(1);
+  const char *sub = ghostCount() ? T(S_LAN_PRACTICE_HINT) : T(S_LAN_NO_RIVALS);
+  gfx->setCursor(CX - (int)strlen(sub) * 3, 76);
+  gfx->print(sub);
+  char l[40];
+  for (uint8_t i = 0; i < ghostCount() && i < LAN_ROWS; i++) {
+    const Ghost &g = ghostAt(i);
+    snprintf(l, sizeof(l), "%s x%u  %u-%u", g.name, (unsigned)g.n, (unsigned)g.wins, (unsigned)g.losses);
+    lanRow(i, l, pet.isEgg());
+  }
+}
+
 void renderLan() {
   gfx->fillScreen(RGB565_BLACK);
   gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
   gfx->setTextColor(UI_INK);
   gfx->setTextSize(2);
-  gfx->setCursor(CX - strlen(T(S_LAN)) * 6, 44);
-  gfx->print(T(S_LAN));
+  const char *title = lanPractice ? T(S_LAN_PRACTICE) : T(S_LAN);
+  gfx->setCursor(CX - strlen(title) * 6, 44);
+  gfx->print(title);
+  if (lanPractice) {
+    renderLanPractice();
+    gfx->setTextColor(UI_INK_SOFT);
+    gfx->setTextSize(2);
+    gfx->setCursor(CX - strlen(T(S_BACK)) * 6, 392);
+    gfx->print(T(S_BACK));
+    gfx->flush();
+    return;
+  }
 
   const char *msg = T(S_LAN_PICK);
   switch (lan.state) {
@@ -5989,16 +6104,8 @@ void renderLan() {
 
   if (lan.state == LINK_OFF || lan.state == LINK_REFUSED ||
       lan.state == LINK_LOST) {
-    const char *lab[3] = { T(S_LAN_HOST), T(S_LAN_JOIN), T(S_FR_TITLE) };
-    for (int i = 0; i < 3; i++) {
-      int y = 120 + i * 70;
-      gfx->fillRoundRect(90, y, 286, 56, 12, UI_BG_DAY);
-      gfx->drawRoundRect(90, y, 286, 56, 12, UI_INK);
-      gfx->setTextColor(UI_INK);
-      gfx->setTextSize(2);
-      gfx->setCursor(CX - (int)strlen(lab[i]) * 6, y + 20);
-      gfx->print(lab[i]);
-    }
+    const char *lab[LAN_ROWS] = { T(S_LAN_HOST), T(S_LAN_JOIN), T(S_FR_TITLE), T(S_LAN_PRACTICE) };
+    for (uint8_t i = 0; i < LAN_ROWS; i++) lanRow(i, lab[i], false);
   } else if (lan.state == LINK_READY) {
     char l[40];
     if (lan.peerName[0]) {
@@ -6096,12 +6203,27 @@ static void lanOffer(bool host) {
 }
 
 void lanTap(int16_t x, int16_t y) {
+  if (lanPractice) {
+    int r = lanRowAt(x, y);
+    if (r >= 0 && r < ghostCount()) {
+      if (pet.isEgg() || pet.ceremony != CER_NONE) { sfxPlay(SFX_DENY); return; }
+      sfxPlay(SFX_TAP);
+      startGhostBattle((uint8_t)r);
+      return;
+    }
+    if (y > 370) { sfxPlay(SFX_TAP); lanPractice = false; }   // back to the LAN screen
+    return;
+  }
   if (lan.state == LINK_OFF || lan.state == LINK_REFUSED ||
       lan.state == LINK_LOST) {
-    for (int i = 0; i < 3; i++) {
-      int by = 120 + i * 70;
-      if (x < 90 || x > 376 || y < by || y > by + 56) continue;
+    for (int i = 0; i < LAN_ROWS; i++) {
+      if (lanRowAt(x, y) != i) continue;
       sfxPlay(SFX_TAP);
+      if (i == 3) {           // PRACTICE: the remembered rivals, no radio
+        lanLeave();
+        lanPractice = true;
+        return;
+      }
       if (i == 2) {           // FRIENDS: gifts and visits, its own screen and session
         lanLeave();
         lanOpen = false;
@@ -7769,6 +7891,7 @@ bool startWildBattle(uint8_t region, bool hard) {
   btlWild = true;
   gameEvent(EV_WILD_SEEN, dex);
   btlLink = false;
+  btlGhost = false;
   btlTrainer = -1;
   btlHard = hard;
   btlFoeAt = 0;

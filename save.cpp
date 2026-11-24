@@ -66,6 +66,8 @@ const SaveField SAVE_FIELDS[] = {
   // the Rocket Game Corner: coins ride the player checkpoint (legacy "coin");
   // prizes owned and equipped (casino.cpp)
   { "coin", SK_U16 },  { "casino", SK_BYTES },
+  // LAN rivals remembered for PRACTICE (ghost.cpp)
+  { "ghosts", SK_BYTES },
   { "frId", SK_U32 },  { "frGday", SK_U32 },  { "frVday", SK_U32 },  { "frJrn", SK_BYTES },
 };
 const uint16_t SAVE_FIELD_COUNT = sizeof(SAVE_FIELDS) / sizeof(SAVE_FIELDS[0]);

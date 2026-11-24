@@ -27,7 +27,7 @@ extern const char *const SCREEN_NAME[];
 static bool onScreen(const char *n) { return !strcmp(SCREEN_NAME[uiCurrentScreen()], n); }
 extern Pet pet; extern Link lan; extern bool lanOpen, friendsOpen;
 extern bool g_emuRadioUp;
-int frRowCenterY(uint8_t r); int frRowAt(int16_t x, int16_t y);
+int frRowCenterY(uint8_t r); int lanRowCenterY(uint8_t i); int frRowAt(int16_t x, int16_t y);
 static int bad=0;
 static void ck(bool ok,const char*w){printf("%s  %s\n",ok?"PASS":"FAIL",w); if(!ok)bad++;}
 
@@ -69,7 +69,7 @@ int main(){
 
   // ---- in from the LAN screen
   lanOpen = true; render();
-  onTap(233, 120 + 2 * 70 + 28);         // the LAN screen's third row: FRIENDS
+  onTap(233, lanRowCenterY(2));           // the LAN screen's third row: FRIENDS
   render();
   ck(friendsOpen && !lanOpen && onScreen("friends"), "FRIENDS on the LAN screen opens the friends screen");
   ck(frRowAt(233, frRowCenterY(0)) == 0 && frRowAt(233, frRowCenterY(1)) == 1, "its rows answer at their own centres");
