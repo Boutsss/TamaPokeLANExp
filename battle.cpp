@@ -1,6 +1,7 @@
 #include "battle.h"
 #include "dex.h"
 #include "types.h"
+#include "game_events.h"
 
 // ---------- building a combatant ----------
 
@@ -90,12 +91,20 @@ uint16_t battleDamage(const Combatant &atk, const Combatant &def, uint8_t mv,
 // ---------- turn order ----------
 
 bool battleMovesFirst(const Combatant &a, uint8_t ma,
-                      const Combatant &b, uint8_t mb) {
+                      const Combatant &b, uint8_t mb, uint8_t *claw) {
+  if (claw) *claw = ITEM_NONE;
   int pa = (ma && ma < MOVE_COUNT && MOVE_TBL[ma].effect == EF_PRIORITY)
                ? MOVE_TBL[ma].param : 0;
   int pb = (mb && mb < MOVE_COUNT && MOVE_TBL[mb].effect == EF_PRIORITY)
                ? MOVE_TBL[mb].param : 0;
   if (pa != pb) return pa > pb;
+  bool qa = a.held == IT_QUICK_CLAW && !a.fainted() && random(100) < ITEM_TBL[IT_QUICK_CLAW].param;
+  bool qb = b.held == IT_QUICK_CLAW && !b.fainted() && random(100) < ITEM_TBL[IT_QUICK_CLAW].param;
+  if (qa != qb) {
+    if (claw) *claw = qa ? 1 : 2;
+    gameEvent(EV_ITEM_USED, IT_QUICK_CLAW);
+    return qa;
+  }
   uint16_t sa = effStat(a, SI_SPE), sb = effStat(b, SI_SPE);
   if (sa != sb) return sa > sb;
   return random(2) == 0;               // a genuine speed tie is a coin flip
@@ -121,6 +130,31 @@ static void heal(Combatant &c, uint16_t amount) {
   c.hp = v > c.maxHp ? c.maxHp : (uint16_t)v;
 }
 
+static void itemFired(Combatant &c, uint8_t &slot) {
+  c.itemUsed = true;
+  slot = c.held;
+  gameEvent(EV_ITEM_USED, c.held);
+}
+static void checkBerry(Combatant &c, uint8_t &logItem) {
+  if (c.itemUsed || c.fainted()) return;
+  if (c.held == IT_LUM_BERRY) {
+    if (c.ailment == AIL_NONE && !c.confuseTurns) return;
+    c.ailment = AIL_NONE; c.ailTurns = 0; c.confuseTurns = 0;
+    itemFired(c, logItem); return;
+  }
+  if (c.held != IT_ORAN_BERRY && c.held != IT_SITRUS_BERRY) return;
+  if ((uint32_t)c.hp * 2 > c.maxHp) return;
+  uint16_t amount = c.held == IT_ORAN_BERRY ? (uint16_t)ITEM_TBL[IT_ORAN_BERRY].param
+      : (uint16_t)((uint32_t)c.maxHp * ITEM_TBL[IT_SITRUS_BERRY].param / 100);
+  heal(c, amount ? amount : 1);
+  itemFired(c, logItem);
+}
+static uint16_t sashCap(Combatant &c, uint16_t damage, uint8_t &logItem) {
+  if (c.held != IT_FOCUS_SASH || c.itemUsed || c.hp != c.maxHp || c.hp < 2 || damage < c.hp) return damage;
+  itemFired(c, logItem);
+  return c.hp - 1;
+}
+
 void battleAct(Combatant &atk, Combatant &def, uint8_t mv, TurnLog &log) {
   log = TurnLog();
   log.move = mv;
@@ -143,8 +177,10 @@ void battleAct(Combatant &atk, Combatant &def, uint8_t mv, TurnLog &log) {
     if (random(100) < 33) {               // hits itself instead
       uint16_t self = (2UL * atk.level / 5 + 2) * 40 *
                           atk.base[SI_ATK] / (atk.base[SI_DEF] ? atk.base[SI_DEF] : 1) / 50 + 2;
+      self = sashCap(atk, self, log.atkItem);
       hurt(atk, self);
       log.hurtSelf = true;
+      checkBerry(atk, log.atkItem);
       log.damage = self;
       return;
     }
@@ -189,6 +225,7 @@ void battleAct(Combatant &atk, Combatant &def, uint8_t mv, TurnLog &log) {
   for (uint8_t h = 0; h < hits; h++) {
     bool crit = random(16) == 0;                 // ~6%, the series' base rate
     uint16_t d = battleDamage(atk, def, mv, crit, (uint8_t)(217 + random(39)));
+    d = sashCap(def, d, log.defItem);
     total += d;
     if (crit) log.crit = true;
     hurt(def, d);
@@ -223,6 +260,8 @@ void battleAct(Combatant &atk, Combatant &def, uint8_t mv, TurnLog &log) {
       }
     }
   }
+  checkBerry(def, log.defItem);
+  checkBerry(atk, log.atkItem);
   log.targetFainted = def.fainted();
 }
 
@@ -239,6 +278,14 @@ void battleEndTurn(Combatant &c, TurnLog &log) {
     log.inflicted = c.ailment;
     log.targetFainted = c.fainted();
   }
+  if (c.fainted()) return;
+  if (c.held == IT_LEFTOVERS && c.hp < c.maxHp) {
+    uint16_t amount = c.maxHp / 16;
+    heal(c, amount ? amount : 1);
+    log.atkItem = IT_LEFTOVERS;
+    gameEvent(EV_ITEM_USED, IT_LEFTOVERS);
+  }
+  checkBerry(c, log.atkItem);
 }
 
 // ---------- move choice ----------
