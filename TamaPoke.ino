@@ -4167,6 +4167,8 @@ static void btlSfxFor(const TurnLog &lg) {
 static void btlNarrate(const Combatant &actor, const Combatant &target, const TurnLog &lg) {
   if (lg.skipped) return;
   btlSfxFor(lg);
+  if (lg.atkItem) btlSay(T(S_BTL_USED), actor.name, itemEntry(lg.atkItem).name);
+  if (lg.defItem) btlSay(T(S_BTL_USED), target.name, itemEntry(lg.defItem).name);
   if (lg.hurtSelf) { btlSay(T(S_BTL_HURTSELF)); return; }
   if (lg.charged) { btlSay(T(S_BTL_USED), actor.name, moveName(lg.move)); return; }
   if (lg.move) btlSay(T(S_BTL_USED), actor.name, moveName(lg.move));
