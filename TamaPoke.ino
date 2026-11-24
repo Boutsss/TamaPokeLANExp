@@ -31,6 +31,7 @@
 #include "pet.h"
 #include "items.h"
 #include "inventory.h"
+#include "held_items.h"
 #include "wild.h"
 #include "sdmon.h"
 #include "rtcbat.h"
@@ -4199,14 +4200,18 @@ static void buildSquad(uint8_t maxLvl, uint8_t maxCount, uint16_t mask) {
     Pet tmp = pet;                       // a copy: the real pet is untouched
     if (maxLvl && tmp.level() > maxLvl)
       tmp.ageMinutes = (uint32_t)(maxLvl - 1) * MINUTES_PER_LEVEL;
-    combatantFromPet(btlSquad[btlSquadN++], tmp);
+    combatantFromPet(btlSquad[btlSquadN], tmp);
+    btlSquad[btlSquadN].holder = HOLDER_PET;
+    btlSquadN++;
     btlPetIn = true;      // the training reward goes to whoever fought for it
   }
   for (int i = 0; i < PARTY_SLOTS && btlSquadN < maxCount; i++) {
     if (party.slots[i].empty() || !(mask & (1 << (i + 1)))) continue;
     PartyMon m = party.slots[i];
     if (maxLvl && m.level > maxLvl) m.level = maxLvl;
-    combatantFromParty(btlSquad[btlSquadN++], m);
+    combatantFromParty(btlSquad[btlSquadN], m);
+    btlSquad[btlSquadN].holder = HOLDER_PARTY(i);
+    btlSquadN++;
   }
   if (btlSquadN) btlYou = btlSquad[0];
 }
@@ -4600,6 +4605,7 @@ static void btlResolve(uint8_t yourMove) {
     battleEndTurn(btlFoe, lg);
     if (lg.damage) btlNarrate(btlFoe, btlFoe, lg);
   }
+  heldBattleSync(pet, party, btlYou);
   // Someone went down. The replacement is NOT swapped in here -- that made the
   // change instant and read as a jump cut. Flag it, let the sprite drop out of
   // frame, and swap when the player dismisses the message.
