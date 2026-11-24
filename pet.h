@@ -579,7 +579,7 @@ public:
   // already marked dirty wrote nothing at all and quietly depended on the next
   // autosave to notice. Defined out of line: save() is private and declared
   // further down.
-  void saveNow();
+  bool saveNow();
 
 private:
   Preferences prefs;
