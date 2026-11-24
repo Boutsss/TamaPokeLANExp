@@ -50,6 +50,8 @@ const SaveField SAVE_FIELDS[] = {
   { "dxgf", SK_U8 },    { "dxrw", SK_U8 },
   // the daycare's queued egg, waiting IVs and cooldown (breed.cpp)
   { "dcare", SK_BYTES },
+  // the live creature's personality (legacy mirror of the checkpoint byte)
+  { "prsn", SK_U8 },
 };
 const uint16_t SAVE_FIELD_COUNT = sizeof(SAVE_FIELDS) / sizeof(SAVE_FIELDS[0]);
 

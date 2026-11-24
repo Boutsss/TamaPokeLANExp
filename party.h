@@ -56,6 +56,9 @@ struct PartyMon {
   uint32_t ageMinutes = 0;
   // Held item appended after every older field; zero means no item.
   uint8_t held = 0;
+  // Personality (persona.h). Lives in what was padding after `held`, so the
+  // record size did not change; 0 = none (banked before personalities).
+  uint8_t persona = 0;
 
   bool empty() const { return dex < 1; }
   bool hasCareState() const { return stateVersion >= 1; }

@@ -187,6 +187,21 @@ enum StrId : uint8_t {
   S_DC_NONE,        // daycare: the picker has nobody to show
   S_DC_SAVEFAIL,    // daycare: the breed did not save
   S_EVO_BOND_FMT,  // card: a friendship evolution waiting on the bond, "BOND 32/50"
+  S_PT_GLUTTON,    // trait
+  S_PT_SLEEPY,     // trait
+  S_PT_PLAYFUL,    // trait
+  S_PT_TIDY,       // trait
+  S_PT_CUDDLY,     // trait
+  S_PT_ENERGETIC,  // trait
+  S_PT_PICKY,      // trait (keep the 7 in PT_ order)
+  S_PTL_GLUTTON,   // what the trait loves
+  S_PTL_SLEEPY,    // loves
+  S_PTL_PLAYFUL,   // loves
+  S_PTL_TIDY,      // loves
+  S_PTL_CUDDLY,    // loves
+  S_PTL_ENERGETIC, // loves
+  S_PTL_PICKY,     // loves (keep the 7 in PT_ order)
+  S_PT_LOVES_FMT,  // card: "<trait> - loves <thing>"
   STR_COUNT
 };
 

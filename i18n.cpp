@@ -56,7 +56,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "vencido: %u vez", "vencido: %u veces", "perdiste: %u vez", "perdiste: %u veces",
     "TIENDA POKE", "1 paso = $1", "tus pasos de toda la vida: %lu", "Wallet: $%lu", "Comprar %s?", "COSTE: $%lu",
      "GUARDERIA", "ELEGIR", "CRIAR", "CAMBIAR", "SEGURO?", "ELIGE DOS", "EL MISMO DOS VECES", "DOS DITTO NO", "LEGENDARIOS NO", "SIN TIPO COMUN", "HUEVO NO DISPONIBLE", "COMPATIBLES", "YA HAY UN HUEVO", "VUELVE MANANA", "PUEDE CRIAR HOY", "HUEVO LISTO!", "HUEVO CAMBIADO", "PROXIMO: %s", "NADIE GUARDADO", "NO SE GUARDO",
-     "VINCULO %u/%u", },
+     "VINCULO %u/%u",
+     "GLOTON", "DORMILON", "JUGUETON", "PULCRO", "MIMOSO", "ENERGICO", "EXIGENTE", "comer", "dormir", "jugar", "el bano", "mimos", "entrenar", "su baya", "%s - le gusta %s", },
   // ---------------- EN ----------------
   {
     "Evolving!", "Yum yum!", "It likes it!", "It's hungry!", "Needs a bath!",
@@ -104,7 +105,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "defeated: %u time", "defeated: %u times", "lost to: %u time", "lost to: %u times",
     "POKE MART", "1 pedometer step = $1", "your lifetime step count: %lu", "Wallet: $%lu", "Buy %s?", "COST: $%lu",
      "DAYCARE", "PICK", "BREED", "SWAP IN", "SURE?", "PICK TWO", "SAME ONE TWICE", "NOT TWO DITTO", "NO LEGENDARIES", "NO SHARED TYPE", "EGG NOT AVAILABLE", "COMPATIBLE", "AN EGG IS WAITING", "COME BACK TOMORROW", "CAN BREED TODAY", "EGG READY!", "EGG SWAPPED IN", "NEXT EGG: %s", "NONE BANKED", "SAVE FAILED",
-     "BOND %u/%u", },
+     "BOND %u/%u",
+     "GLUTTON", "SLEEPY", "PLAYFUL", "TIDY", "CUDDLY", "ENERGETIC", "PICKY", "food", "bedtime", "play", "baths", "cuddles", "training", "its berry", "%s - loves %s", },
   // ---------------- FR ----------------
   {
     "Il evolue!", "Miam miam!", "Il aime ca!", "Il a faim!", "Besoin d'un bain!",
@@ -151,7 +153,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "vaincu: %u fois", "vaincu: %u fois", "perdu contre: %u fois", "perdu contre: %u fois",
     "POKE MART", "1 pas = $1", "tes pas de toute la vie: %lu", "Wallet: $%lu", "Acheter %s?", "COUT: $%lu",
      "PENSION", "CHOISIR", "ELEVER", "ECHANGER", "SUR?", "CHOISIS DEUX", "LE MEME DEUX FOIS", "PAS DEUX DITTO", "PAS DE LEGENDAIRE", "AUCUN TYPE COMMUN", "OEUF INDISPONIBLE", "COMPATIBLES", "UN OEUF ATTEND", "REVIENS DEMAIN", "ELEVAGE POSSIBLE", "OEUF PRET!", "OEUF ECHANGE", "SUIVANT: %s", "PERSONNE", "ECHEC SAUVEGARDE",
-     "LIEN %u/%u", },
+     "LIEN %u/%u",
+     "GOURMAND", "DORMEUR", "JOUEUR", "SOIGNE", "CALIN", "ENERGIQUE", "DIFFICILE", "manger", "dodo", "jouer", "le bain", "calins", "l'entrainement", "sa baie", "%s - aime %s", },
   // ---------------- DE ----------------
   {
     "Entwickelt sich!", "Mampf mampf!", "Gefaellt ihm!", "Hat Hunger!", "Braucht ein Bad!",
@@ -198,7 +201,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "besiegt: %u Mal", "besiegt: %u Mal", "verloren gegen: %u Mal", "verloren gegen: %u Mal",
     "POKE MART", "1 Schritt = $1", "deine schritte insgesamt: %lu", "Wallet: $%lu", "%s kaufen?", "KOSTEN: $%lu",
      "PENSION", "WAHLEN", "ZUCHTEN", "TAUSCHEN", "SICHER?", "WAHLE ZWEI", "ZWEIMAL DERSELBE", "NICHT ZWEI DITTO", "KEINE LEGENDEN", "KEIN GLEICHER TYP", "EI NICHT VERFUGBAR", "KOMPATIBEL", "EIN EI WARTET", "MORGEN WIEDER", "HEUTE MOGLICH", "EI BEREIT!", "EI GETAUSCHT", "NACHSTES: %s", "NIEMAND", "SPEICHERN FEHLER",
-     "BINDUNG %u/%u", },
+     "BINDUNG %u/%u",
+     "VIELFRASS", "SCHLAFMUETZE", "VERSPIELT", "ORDENTLICH", "VERSCHMUST", "ENERGISCH", "WAEHLERISCH", "Essen", "Schlaf", "Spielen", "Baden", "Kuscheln", "Training", "seine Beere", "%s - liebt %s", },
   // ---------------- IT ----------------
   {
     "Si evolve!", "Gnam gnam!", "Gli piace!", "Ha fame!", "Vuole un bagno!",
@@ -245,7 +249,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "battuto: %u volta", "battuto: %u volte", "perso contro: %u volta", "perso contro: %u volte",
     "POKE MART", "1 passo = $1", "i tuoi passi di sempre: %lu", "Wallet: $%lu", "Comprare %s?", "COSTO: $%lu",
      "ASILO", "SCEGLI", "ALLEVA", "SCAMBIA", "SICURO?", "SCEGLINE DUE", "LO STESSO DUE VOLTE", "NON DUE DITTO", "NIENTE LEGGENDARI", "NESSUN TIPO COMUNE", "UOVO NON DISPONIBILE", "COMPATIBILI", "UN UOVO ASPETTA", "TORNA DOMANI", "SI PUO OGGI", "UOVO PRONTO!", "UOVO SCAMBIATO", "PROSSIMO: %s", "NESSUNO", "SALVATAGGIO FALLITO",
-     "LEGAME %u/%u", },
+     "LEGAME %u/%u",
+     "GOLOSO", "DORMIGLIONE", "GIOCOSO", "ORDINATO", "COCCOLONE", "ENERGICO", "SCHIZZINOSO", "cibo", "nanna", "giocare", "il bagno", "coccole", "allenarsi", "la sua bacca", "%s - ama %s", },
   // ---------------- PT ----------------
   {
     "Evoluindo!", "Nham nham!", "Ele gosta!", "Esta com fome!", "Precisa de banho!",
@@ -292,7 +297,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "derrotado: %u vez", "derrotado: %u vezes", "perdeste: %u vez", "perdeste: %u vezes",
     "POKE MART", "1 passo = $1", "teus passos de sempre: %lu", "Wallet: $%lu", "Comprar %s?", "CUSTO: $%lu",
      "CRECHE", "ESCOLHER", "CRIAR", "TROCAR", "CERTEZA?", "ESCOLHA DOIS", "O MESMO DUAS VEZES", "DOIS DITTO NAO", "SEM LENDARIOS", "SEM TIPO COMUM", "OVO INDISPONIVEL", "COMPATIVEIS", "UM OVO ESPERA", "VOLTE AMANHA", "PODE CRIAR HOJE", "OVO PRONTO!", "OVO TROCADO", "PROXIMO: %s", "NINGUEM", "FALHA AO SALVAR",
-     "LACO %u/%u", },
+     "LACO %u/%u",
+     "GULOSO", "DORMINHOCO", "BRINCALHAO", "ASSEADO", "CARINHOSO", "ENERGICO", "EXIGENTE", "comer", "dormir", "brincar", "banho", "carinho", "treinar", "sua baga", "%s - adora %s", },
 };
 
 // Nombres de medalla en sus tres longitudes [idioma][medalla].

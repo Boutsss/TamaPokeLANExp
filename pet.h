@@ -4,6 +4,7 @@
 #include "dex.h"
 #include "trainers.h"   // GYM_REGIONS sizes the badge masks
 #include "party.h"
+#include "persona.h"
 
 // 1 tick = 1 minuto de juego. Baja este valor para probar mas rapido
 // (p. ej. 5000UL = las estadisticas caen 12x mas rapido).
@@ -156,7 +157,8 @@ public:
   uint8_t trAtk = 0, trDef = 0, trSpe = 0;
   bool berryKnown = false;  // ya descubrio su baya favorita
   bool shiny = false;       // variante de color rara (se sortea en el huevo)
-  uint8_t held = 0;         // held item; persisted in the checkpoint's reserved byte
+  uint8_t held = 0;         // held item; persisted in the checkpoint's pad0 byte
+  uint8_t persona = 0;      // personality (persona.h); the checkpoint's PET_TAIL_RSVD byte
   uint32_t ageMinutes = 0;
   int16_t speciesId = -1;      // numero de Pokedex (1..DEX_COUNT), -1 = huevo
   int16_t prevSpeciesId = -1;  // para la animacion de evolucion
@@ -678,6 +680,11 @@ private:
   void tick();
   void applyAutoSleep();
   void hatch();
+  // Every care path's one question to the personality (persona.cpp): applies
+  // its extra joy and bond, shows the heart on its favourite care. Returns the
+  // effect so a caller can fold `food` into its own number.
+  PersonaEffect enjoy(uint8_t care, uint8_t baseJoy);
+  uint32_t nudgeTick = 0;   // the personality's minute counter (ageMinutes freezes for companions)
   void registerSpecies(int16_t dex);
   bool saveCoreSnapshot();
   bool loadCoreSnapshot();

@@ -498,6 +498,28 @@ becomes your **next egg**. The parents are not used up or changed.
 A queued egg whose region pack has left the card waits in the queue instead of
 hatching as a number.
 
+### Personalities
+
+Every creature rolls **one of seven traits** when it hatches or is caught, and
+keeps it for life — banked, revived or raised again. It is on the stats card
+with what it loves. Its favourite care shows a heart and is worth more; a few
+traits also nudge its **awake** needs by about ¼ point a minute.
+
+| Trait | Loves | Extra | Awake nudge |
+|---|---|---|---|
+| Glutton | food (berries, candy) | +6 joy | food −¼/min |
+| Sleepy | being put to bed | +8 joy; asleep, energy refills +8/min instead of +6 | energy −¼/min |
+| Playful | the ball game, play | its joy **doubled** | joy −¼/min |
+| Tidy | a bath | +10 joy, +2 bond | joy −1/min while poop is out |
+| Cuddly | being petted | +5 joy, +1 bond | — |
+| Energetic | training | +8 joy, +1 bond | food −¼/min, energy +¼/min |
+| Picky | its favourite berry | +10 joy, +2 bond; any other berry fills 5 less | — |
+
+**Nights are never harder.** Asleep — screen off at night, or the board switched
+off — no trait changes food, joy or hygiene at all; the only thing a trait does
+asleep is Sleepy's faster energy refill. A creature from before this update
+rolls its trait the first time it loads.
+
 ### Held items, Pokédex rewards and the charms
 
 Open the **Bag**, tap a held item, then pick who holds it — the live creature

@@ -4045,11 +4045,24 @@ void renderCardProfile() {
            (unsigned long)(pet.ageMinutes / 1440));
   gfx->setTextColor(UI_INK);
   gfx->setTextSize(2);
-  gfx->setCursor(CX - strlen(info) * 6, 296);
+  gfx->setCursor(CX - strlen(info) * 6, 290);
   gfx->print(info);
 
+  // The personality, and what it loves -- the one thing a player needs to know
+  // to make it happy (persona.h). Size 1 if the language's line is long.
+  if (personaValid(pet.persona)) {
+    char pt[48];
+    snprintf(pt, sizeof(pt), T(S_PT_LOVES_FMT), personaName(pet.persona), personaLoves(pet.persona));
+    int ts = (int)strlen(pt) * 12 <= uiSafeHalfWidth(316) * 2 - 24 ? 2 : 1;
+    gfx->setTextColor(C565(0xd4, 0x52, 0x7e));
+    gfx->setTextSize(ts);
+    gfx->setCursor(CX - (int)strlen(pt) * 3 * ts, ts == 2 ? 312 : 316);
+    gfx->print(pt);
+    gfx->setTextSize(2);
+  }
+
   gfx->setTextColor(UI_INK_SOFT);
-  gfx->setCursor(CX - strlen(T(S_RENAME_HINT)) * 6, 332);
+  gfx->setCursor(CX - strlen(T(S_RENAME_HINT)) * 6, 338);
   gfx->print(T(S_RENAME_HINT));
 }
 
@@ -7422,6 +7435,7 @@ PartyMon wildToPartyMon() {
   m.stateVersion = 1;
   m.ageMinutes = (uint32_t)(wildLvl ? wildLvl - 1 : 0) * MINUTES_PER_LEVEL;
   m.lastLearnLevel = wildLvl;   // do not replay gates it already passed
+  m.persona = personaRoll();    // a caught creature has a personality like any hatched one
   return m;
 }
 

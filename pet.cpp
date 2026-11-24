@@ -543,6 +543,12 @@ void Pet::begin() {
       trainerName[sizeof(trainerName) - 1] = 0;
       if (prefs.putString("tnam", trainerName) == 0) logKeyFailure("pet", "tnam");
     }
+    // A creature from before personalities has none: give it one, once. Marked
+    // pending rather than saved here, for the same reason as the name above.
+    if (!isEgg() && !personaValid(persona)) {
+      persona = personaRoll();
+      pendingSave = true;
+    }
   }
   lastTick = millis();
 }
@@ -584,6 +590,7 @@ void Pet::newEgg() {
   sleeping = false;
   frozen = false;
   held = 0;
+  persona = PT_NONE;   // an egg has no personality until it hatches
   const bool landed = save();
   if (opened) {
     if (bred && landed) breedCommitTaken();   // step 3: only once the egg is durable
@@ -635,7 +642,8 @@ void Pet::syncClock(uint32_t nowEpoch) {
       continue;
     }
     if (sleeping) {  // descanso: baja lento y con suelo, igual que en vivo
-      energy = clamp100(energy + 6);
+      // the same answer as the live tick: asleep, a trait only ever helps
+      energy = clamp100(energy + 6 - personaDrain(persona, ageMinutes, poops, true).energy);
       if (ageMinutes % 2 == 0) {
         fullness = dropTo(fullness, 1, 30);
         joy = dropTo(joy, 1, 35);
@@ -694,7 +702,9 @@ void Pet::tick() {
   // cero, sin descuidos ni escapadas). despierto: comida -2/min, hig/joy -1/min.
   // El peso aun se quema y el descanso cuenta para la DEF (ver defTick).
   if (sleeping) {
-    energy = clamp100(energy + 6);
+    // A trait changes nothing asleep but SLEEPY's faster refill (persona.cpp),
+    // so the sleep floors -- the overnight safety net -- are untouched.
+    energy = clamp100(energy + 6 - personaDrain(persona, ageMinutes, poops, true).energy);
     if (weight > 0 && ageMinutes % 3 == 0) weight--;
     if (ageMinutes % 2 == 0) {                 // ~4x mas lento que despierto
       fullness = dropTo(fullness, 1, 30);
@@ -709,8 +719,11 @@ void Pet::tick() {
 
   if (ageMinutes % MINUTES_PER_LEVEL == 0) sfxPlay(SFX_LEVEL);  // subio de nivel (despierto)
 
-  fullness = clamp100(fullness - 2);
-  energy = clamp100(energy - 1);
+  // The personality's nudge, awake only. Counted on its own minute counter, not
+  // ageMinutes, which stands still for a frozen (revived) companion.
+  const PersonaDrain pd = personaDrain(persona, ++nudgeTick, poops, false);
+  fullness = clamp100(fullness - 2 - pd.food);
+  energy = clamp100(energy - 1 - pd.energy);
   if (fullness > 40 && poops < 3 && random(100) < 15) poops++;
 
   hygiene = clamp100(hygiene - 1 - 4 * poops);
@@ -720,7 +733,7 @@ void Pet::tick() {
 
   defTick(false);  // la calma forja la defensa
 
-  int dJoy = -1;
+  int dJoy = -1 - personaDrain(persona, nudgeTick, poops, false).joy;  // TIDY minds the poop
   if (fullness < 30) dJoy -= 2;
   if (hygiene < 30) dJoy -= 2;
   joy = clamp100(joy + dJoy);
@@ -770,6 +783,7 @@ void Pet::reviveFrom(const PartyMon &m) {
   starterPick = false;
   shiny = m.shiny != 0;
   held = itemIsHeld(m.held) ? m.held : ITEM_NONE;
+  persona = personaValid(m.persona) ? m.persona : PT_NONE;
   ivAtk = m.ivAtk; ivDef = m.ivDef; ivSpe = m.ivSpe; ivHp = m.ivHp;
   trAtk = m.trAtk; trDef = m.trDef; trSpe = m.trSpe;
   for (int i = 0; i < MOVE_SLOTS; i++) moves[i] = m.moves[i];
@@ -830,6 +844,7 @@ PartyMon Pet::toPartyMon() const {
   m.lastLearnLevel = lastLearnLevel;
   m.ageMinutes = ageMinutes;
   m.held = held;
+  m.persona = persona;
   return m;
 }
 
@@ -846,6 +861,7 @@ bool Pet::switchTo(const PartyMon &m) {
   starterPick = false;
   shiny = m.shiny != 0;
   held = itemIsHeld(m.held) ? m.held : ITEM_NONE;
+  persona = personaValid(m.persona) ? m.persona : PT_NONE;
   ivAtk = m.ivAtk; ivDef = m.ivDef; ivSpe = m.ivSpe; ivHp = m.ivHp;
   trAtk = m.trAtk; trDef = m.trDef; trSpe = m.trSpe;
   for (int i = 0; i < MOVE_SLOTS; i++) moves[i] = m.moves[i];
@@ -1609,6 +1625,9 @@ void Pet::hatch() {
   uint8_t inherited[4];
   const bool bredHatch = opened && breedTakeLive(speciesId, inherited);
   rollIVs(bredHatch ? inherited : nullptr);
+  // One personality, rolled once, for life. Only the player's own creature: a
+  // scratch Pet (a battle foe) has no use for one and must not spend a roll.
+  persona = opened ? personaRoll() : PT_NONE;
   trAtk = trDef = trSpe = 0;
   goodTicks = 0;
   berryKnown = false;
@@ -1763,6 +1782,14 @@ void Pet::evolve() {
   save();
 }
 
+PersonaEffect Pet::enjoy(uint8_t care, uint8_t baseJoy) {
+  PersonaEffect e = personaCare(persona, care, baseJoy);
+  if (e.joy) joy = clamp100(joy + e.joy);
+  if (e.bond) addBond(e.bond);
+  if (e.fav) heartUntil = millis() + HEART_MS;
+  return e;
+}
+
 void Pet::feed() {
   feedBerry(0);
 }
@@ -1776,8 +1803,10 @@ void Pet::feedBerry(uint8_t color) {
     heartUntil = millis() + HEART_MS;  // "le encanta!"
     berryKnown = true;                 // descubierto: se muestra en la ficha
     addBond(2);
+    enjoy(PC_FAV_BERRY, 10);
   } else {
-    fullness = clamp100(fullness + 25);
+    // PICKY sniffs at a berry it does not love: a little less filling
+    fullness = clamp100(fullness + 25 + enjoy(PC_BERRY, 0).food);
   }
   eatUntil = millis() + EAT_ANIM_MS;
   registerCare();
@@ -1791,6 +1820,7 @@ void Pet::feedCandy() {
   fullness = clamp100(fullness + 10);
   joy = clamp100(joy + 12);
   weight = clamp100(weight + 12);  // las chuches pasan factura
+  enjoy(PC_CANDY, 12);
   eatUntil = millis() + EAT_ANIM_MS;
   registerCare();
   save();
@@ -1809,7 +1839,9 @@ uint8_t Pet::playResult(uint8_t score) {
   uint16_t v = (uint16_t)trDef + gain;
   trDef = v > trMaxDef() ? trMaxDef() : (uint8_t)v;
   gain = trDef - before;
-  joy = clamp100(joy + 5 + (score > 15 ? 30 : score * 2));
+  const uint8_t baseJoy = (uint8_t)(5 + (score > 15 ? 30 : score * 2));
+  joy = clamp100(joy + baseJoy);
+  enjoy(PC_PLAY, baseJoy);   // PLAYFUL: doubles whatever the session was worth
   energy = dropTo(energy, 10 + score / 2, 5);
   fullness = dropTo(fullness, 5, 5);
   int burn = (int)weight - score * 2;  // el ejercicio quema peso
@@ -1863,6 +1895,7 @@ uint8_t Pet::trainSpeed(uint16_t hits) {
   int burn = (int)weight - hits / 2;
   weight = burn > 0 ? burn : 0;
   joy = clamp100(joy + 4);
+  enjoy(PC_TRAIN, 4);
   if (hits > spdHi) spdHi = hits;
   // Training bonds, and it scales with the session: a token effort is worth the
   // base, a full one is worth more. The daily cap in addBond() still stops it
@@ -1888,6 +1921,7 @@ uint8_t Pet::trainStrength(uint16_t hits) {
   int burn = (int)weight - hits / 3;  // tambien quema peso
   weight = burn > 0 ? burn : 0;
   joy = clamp100(joy + 6);
+  enjoy(PC_TRAIN, 6);
   if (hits >= 20) heartUntil = millis() + HEART_MS;
   if (hits > strHi) strHi = hits;   // record de golpes
   // Training bonds, and it scales with the session: a token effort is worth the
@@ -1905,6 +1939,7 @@ void Pet::play() {
   if (ceremony != CER_NONE) return;
   if (isEgg() || sleeping) return;
   joy = clamp100(joy + 25);
+  enjoy(PC_PLAY, 25);
   energy = clamp100(energy - 10);
   fullness = clamp100(fullness - 5);
   heartUntil = millis() + HEART_MS;
@@ -1968,6 +2003,7 @@ void Pet::toggleLight() {
   if (ceremony != CER_NONE) return;
   if (isEgg()) return;
   sleeping = !sleeping;
+  if (sleeping) enjoy(PC_LIGHTS_OFF, 0);   // SLEEPY loves being put to bed
   // The player's hand beats the clock until morning: waking it at 23:00 must
   // not be undone a minute later by the auto-sleep, and neither must putting
   // it to bed early.
@@ -1980,6 +2016,7 @@ void Pet::clean() {
   poops = 0;
   hygiene = 100;
   addBond(1);
+  if (!isEgg()) enjoy(PC_BATH, 0);
   registerCare();
   gameEvent(EV_CLEAN, 1);
   save();
@@ -1991,6 +2028,7 @@ void Pet::caress() {
   joy = clamp100(joy + 5);
   heartUntil = millis() + HEART_MS;
   addBond(1);
+  enjoy(PC_CARESS, 5);   // CUDDLY: +5 joy, +1 bond more
   registerCare();
 }
 
@@ -2037,7 +2075,7 @@ bool Pet::saveCoreSnapshot() {
   // The pending handover rides along, so the new egg and the creature it
   // replaced commit in the same write.
   buf[PET_TAIL_KIND] = endedKind;
-  buf[PET_TAIL_RSVD] = 0;
+  buf[PET_TAIL_RSVD] = persona;   // was always 0 before personalities: reads as none
   ckptWr16(buf + PET_TAIL_MONLEN, (uint16_t)sizeof(PartyMon));
   memcpy(buf + PET_TAIL_MON, &endedMon, sizeof(PartyMon));
 
@@ -2087,6 +2125,7 @@ bool Pet::loadCoreSnapshot() {
   // The v2 tail, if this record has one. A v1 blob stops at PET_FIXED and both
   // fields keep their initialisers, which reads as "nothing waiting for a slot".
   const size_t body = n - CKPT_CRC;
+  persona = (body > PET_TAIL_RSVD && personaValid(buf[PET_TAIL_RSVD])) ? buf[PET_TAIL_RSVD] : PT_NONE;
   endedKind = CER_NONE;
   endedMon = PartyMon();
   if (body >= PET_TAIL_MON) {
@@ -2205,6 +2244,7 @@ bool Pet::save() {
   SAVE_KEY(prefs.putBool("bk", berryKnown), "bk");
   SAVE_KEY(prefs.putBool("shy", shiny), "shy");
   SAVE_KEY(prefs.putBool("eshy", eggShiny), "eshy");
+  SAVE_KEY(prefs.putUChar("prsn", persona), "prsn");
   SAVE_KEY(prefs.putBool("stpk", starterPick), "stpk");
   SAVE_KEY(prefs.putUChar("evop", evoPen), "evop");
   SAVE_KEY(prefs.putUChar("slpa", sleepAuto), "slpa");
@@ -2268,6 +2308,7 @@ void Pet::load() {
   berryKnown = prefs.getBool("bk", false);
   shiny = prefs.getBool("shy", false);
   eggShiny = prefs.getBool("eshy", false);
+  { uint8_t t = prefs.getUChar("prsn", 0); persona = personaValid(t) ? t : PT_NONE; }
   starterPick = prefs.getBool("stpk", false);
   evoPen = prefs.getUChar("evop", 0);
   sleepAuto = prefs.getUChar("slpa", SLEEP_NONE);
