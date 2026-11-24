@@ -154,7 +154,7 @@ uint8_t tasksProgress(uint8_t s){return s<TASK_SLOTS?prog[s]:0;}
 bool tasksDone(uint8_t s){return s<TASK_SLOTS&&prog[s]>=rowOf(s).target;}
 bool tasksClaimed(uint8_t s){return s<TASK_SLOTS&&(claimed&(1u<<s));}
 bool tasksClaim(uint8_t s){
-  if(!opened)return false;tasksRefresh();if(pending&&!reconcilePending())return false;
+  if(!opened)return false;tasksRefresh();if(pending&&!reconcilePending())return false;tasksRefresh();
   if(s>=TASK_SLOTS||!tasksDone(s)||tasksClaimed(s))return false;
   const TaskDef &d=rowOf(s);return beginClaim(s,d.item,d.qty);
 }
@@ -162,7 +162,7 @@ bool tasksBonusClaimed(){return(claimed&BONUS_BIT)!=0;}
 bool tasksBonusReady(){if(!have||tasksBonusClaimed())return false;for(uint8_t i=0;i<TASK_DAILY;i++)if(!(claimed&(1u<<i)))return false;return true;}
 ItemKey tasksBonusItem(){static const ItemKey items[]={IT_GREATBALL,IT_HYPERPOTION,IT_PROTEIN,IT_POKEBALL};return items[curDay%4];}
 uint8_t tasksBonusQty(){return tasksBonusItem()==IT_GREATBALL?2:1;}
-bool tasksClaimBonus(){if(!opened)return false;tasksRefresh();if(pending&&!reconcilePending())return false;if(!tasksBonusReady())return false;return beginClaim(BONUS_SLOT,tasksBonusItem(),tasksBonusQty());}
+bool tasksClaimBonus(){if(!opened)return false;tasksRefresh();if(pending&&!reconcilePending())return false;tasksRefresh();if(!tasksBonusReady())return false;return beginClaim(BONUS_SLOT,tasksBonusItem(),tasksBonusQty());}
 uint8_t tasksClaimable(){if(!have)return 0;uint8_t n=0;for(uint8_t i=0;i<TASK_SLOTS;i++)if(tasksDone(i)&&!tasksClaimed(i))n++;if(tasksBonusReady())n++;return n;}
 uint32_t tasksDay(){return curDay;}
 uint32_t tasksWeek(){return curWeek;}
