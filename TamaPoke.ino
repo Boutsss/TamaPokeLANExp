@@ -267,6 +267,7 @@ void renderBox();
 // and the emulator's generated proto.h would hide that -- see the note above.
 void renderBag();
 void bagTap(int16_t x, int16_t y);
+static uint8_t bagHeldWhoCount();
 void renderTasks();
 void tasksTap(int16_t x, int16_t y);
 uint8_t bagPages();
