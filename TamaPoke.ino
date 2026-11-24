@@ -1987,6 +1987,7 @@ void partyTap(int16_t x, int16_t y) {
       sfxPlay(SFX_TAP);
       return;
     }
+    heldReturn(party.slots[i].held);  // the replaced creature leaves the team
     party.replaceAt(i, pet.endedMon);
     snprintf(partyBannerName, sizeof(partyBannerName), "%s",
              pet.endedMon.nick[0] ? pet.endedMon.nick : DEX_TBL[pet.endedMon.dex].name);
@@ -4593,7 +4594,12 @@ static void btlResolve(uint8_t yourMove) {
   }
   (void)foeSwitched;
 
-  bool youFirst = battleMovesFirst(btlYou, yourMove, btlFoe, foeMove);
+  uint8_t clawSide = 0;
+  bool youFirst = battleMovesFirst(btlYou, yourMove, btlFoe, foeMove, &clawSide);
+  if (clawSide) {
+    const Combatant &clawUser = clawSide == 1 ? btlYou : btlFoe;
+    btlSay(T(S_BTL_USED), clawUser.name, itemEntry(IT_QUICK_CLAW).name);
+  }
   Combatant *a = youFirst ? &btlYou : &btlFoe;
   Combatant *b = youFirst ? &btlFoe : &btlYou;
   uint8_t ma = youFirst ? yourMove : foeMove;
@@ -6908,7 +6914,8 @@ bool startWildBattle(uint8_t region, bool hard) {
   // Bonus 0: nothing in this build earns one yet, so every wild shiny is the
   // flat 1/4096. The parameter stays because it is where a farewell reward
   // would land, and wild_test already pins the curve it would follow.
-  wildShiny = wildShinyForRoll((uint32_t)random(WILD_SHINY_SCALE), 0);
+  wildShiny = wildShinyForRollWithCharm((uint32_t)random(WILD_SHINY_SCALE), 0,
+                                       bag.has(IT_SHINY_CHARM));
   wildApplyShiny(wildShiny, wildIv[0], wildIv[1], wildIv[2], wildIv[3]);
   wildCaught = false;
   wildDropN = 0;
