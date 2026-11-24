@@ -80,6 +80,16 @@ public:
   uint8_t boxCount() const;
   int boxFirstFree() const;
   bool boxAdd(const PartyMon &m);     // into the first free box slot
+  // For a TRADE (and anything else that must not be lost): into the first free
+  // party slot, else the first free box slot, written and READ BACK. True only
+  // if the record is verifiably on flash; on any failure RAM is put back and
+  // nothing is claimed. `where` = 0..5 party, 6..23 box (the breed.h indices).
+  bool storeDurably(const PartyMon &m, int8_t *where);
+  // Takes out the record at `where` only if it is still exactly `expect` (the
+  // slot may have changed since it was offered), WITHOUT returning its held
+  // item to the bag -- a traded creature takes its item with it. Written and
+  // read back; true only if the slot is verifiably empty on flash.
+  bool takeOutExact(int8_t where, const PartyMon &expect);
   void boxReleaseAt(uint8_t i);
   bool boxSave();
   // Swaps a party slot with a box slot. Either may be empty, so this doubles as

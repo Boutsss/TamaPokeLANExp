@@ -324,6 +324,12 @@ static int shotMode(const char *screen, const char *out, int lvl, int iv, int de
     if (!strcmp(screen, "dcpick")) { dcDebugPick(0, 0xFF); dcView = 1; }
   }
   else if (!strcmp(screen, "tower")) { pet.winBadge(0, 12, false); towerOpen = true; }
+  else if (!strcmp(screen, "trade")) {
+    extern bool tradeOpen;
+    Pet a; a.dbgHatchAs(25, false); a.ageMinutes = 1800; lan.tMine = a.toPartyMon(); lan.tOffering = true;
+    Pet b; b.dbgHatchAs(64, false); b.ageMinutes = 2400; lan.tTheirs = b.toPartyMon(); lan.tTheirSeq = 1;
+    tradeOpen = true;
+  }
   else if (!strcmp(screen, "arcade")) { void arcadeOpenFromTrain(); arcadeOpenFromTrain(); }
   else if (!strcmp(screen, "rank")) { for (int i = 0; i < 9; i++) pet.winBadge(0, i, false); playerOpen = true; playerPage = GYM_REGIONS + 1; rankUpdate(); }
   else if (!strcmp(screen, "challenge")) { pet.winBadge(0, 0, false); chalOpen = true; }

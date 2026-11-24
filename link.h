@@ -39,7 +39,7 @@
 // whole handshake without a radio, and a deliberately lossy transport exercises
 // all of the above. Only the radio itself is unverifiable here.
 
-#define LINK_PROTO 3        // bump on ANY wire change; a mismatch is refused
+#define LINK_PROTO 4        // bump on ANY wire change; a mismatch is refused (4: trading)
 #define LINK_MAX_PAYLOAD 200
 #define LINK_NAME_LEN 12
 
@@ -102,6 +102,10 @@ enum LinkMsg : uint8_t {
   LM_PING,       // idle heartbeat: liveness only, no payload, not `keep`d --
                  // tick() sends a fresh one each idle beat rather than
                  // resending one until "superseded" by nothing
+  // ---- trading (ported from Tubiana/TamaPoke, storage-first fix applied) ----
+  LM_TOFFER,     // [seq][PartyMon] what I put on the table; seq 0 = nothing
+  LM_TACCEPT,    // [your seq][my seq] I take yours for mine
+  LM_TDONE,      // [your seq][my seq] ...and yours is now DURABLY stored here
 };
 
 // A creature on the wire. Deliberately not `Combatant` itself: that carries
@@ -130,6 +134,8 @@ struct LinkResult {
   uint8_t hostIdx, guestIdx;   // which squad member is out on each side
   uint8_t flags;               // bit0 crit, bit1 super, bit2 a faint happened
 };
+
+#include "party.h"      // PartyMon: what a trade moves
 
 struct Link {
   uint8_t state = LINK_OFF;
@@ -198,7 +204,54 @@ struct Link {
   // the host's own action is its own business; this is the guest's, and it
   // only counts once it has actually arrived
   bool hasPeerAct() const { return isHost && pendingAct != 0; }
+
+  // ---- trading, one creature for one, on a READY link ----
+  //
+  // NEVER LOSE A CREATURE. A radio cannot promise both sides learn the outcome
+  // (the two generals), so the order is chosen for the failure that does not
+  // hurt: each side STORES the other's creature first, and gives up its own
+  // only once the peer says it has stored ours. A link or a power cut between
+  // the two leaves a creature on both devices -- a duplicate -- never on neither.
+  //
+  // THE FIX over the original (Tubiana's link sent DONE from tradeCommit(),
+  // before the app had stored anything, so a failed store on one side still
+  // told the other to release): the link only raises tArrived. The APP stores
+  // tTheirs, verifies the write, and only then calls tradeStored(), which is
+  // the one thing that sends LM_TDONE. A store that fails never says DONE, so
+  // the peer never lets go of its creature.
+  //
+  // Offers carry a sequence number that only grows during a session, and every
+  // accept names BOTH offers it is for. Changing an offer voids any accept of
+  // the old one, and a resend of an old accept or done can never match a newer
+  // deal.
+  PartyMon tMine, tTheirs;
+  uint8_t tMySeq = 0;          // my latest offer's number (never reused)
+  bool tOffering = false;      // tMine is on the table
+  uint8_t tTheirSeq = 0;       // theirs, 0 = nothing offered
+  uint8_t tTheirDone = 0;      // their offer in the last deal: its resends are stale
+  bool tIAccepted = false, tPeerAccepted = false, tPeerDone = false;
+  uint8_t tPhase = 0;          // 0 dealing, 1 agreed (store theirs), 2 mine is gone too
+  bool tArrived = false;       // agreed: the app must store tTheirs, then call tradeStored()
+  bool tStored = false;        // the app stored tTheirs durably; LM_TDONE now says so
+
+  void tradeOffer(const PartyMon &m);
+  void tradeWithdraw();        // nothing on the table (also voids my accept)
+  void tradeAccept();          // OK on the current pair of offers
+  void tradeStored();          // the app's verified write of tTheirs landed
+  void tradeReleased();        // the app removed tMine: this deal is finished here
+  void tradeReset();           // a new deal; keeps the sequence counter
+  bool tradeHasTheirs() const { return tTheirSeq != 0; }
+  // Mine may go only when BOTH are true: theirs is safely here, and they told
+  // us ours is safely there.
+  bool tradeCanRelease() const { return tPhase == 1 && tStored && tPeerDone; }
 };
+
+// A creature that arrived over the radio: every field clamped to something
+// that can index a table or be drawn, whatever the bytes were. False = refuse.
+bool tradeSanitize(PartyMon &m);
+// The species that evolve when traded in the games (no item needed): what it
+// becomes on arrival, or 0. Never into something this card cannot draw.
+int16_t tradeEvolution(int16_t dex);
 
 // Everything that must match for two builds to narrate the same fight. NOT the
 // firmware version: a build differing only in, say, a colour is perfectly

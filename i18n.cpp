@@ -67,7 +67,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "AY!", "TABLERO!", "RONDA %u", "TU TURNO", "MIRA", "RECREATIVOS", "RECORD %u", "NUEVO RECORD!", "1ER S: %s!", "4 S: %s x%u!", "ALEGRIA +%u VINC +%u", "PREMIO: %s!", "TOCA PARA SEGUIR",
      "HOY: S", "HOY: A", "PREMIOS DE HOY: YA", "RANGO A/S: PREMIOS",
      "ATRAPA BAYAS", "PAREJAS", "ECO", "TOPOS", "ATRAPA, EVITA ROCAS", "BUSCA PAREJAS", "MIRA Y REPITE", "GOLPEA, NO LA BOMBA",
-     "DAR DE COMER", "BAYA FAVORITA", "LIMPIAR", "JUGAR", "ENTRENAR", "DIAS DE CUIDADO", "ECLOSIONAR", "EVOLUCIONAR", "VICTORIAS EN GIMNASIO", "REVANCHAS GANADAS", "VER SALVAJES", "VENCER SALVAJES", "CAPTURAR", "TAREAS DIARIAS", "TAREAS SEMANALES", "PREMIO DIARIO", "TOCA PARA COBRAR", "COBRADO", "TAREAS", },
+     "DAR DE COMER", "BAYA FAVORITA", "LIMPIAR", "JUGAR", "ENTRENAR", "DIAS DE CUIDADO", "ECLOSIONAR", "EVOLUCIONAR", "VICTORIAS EN GIMNASIO", "REVANCHAS GANADAS", "VER SALVAJES", "VENCER SALVAJES", "CAPTURAR", "TAREAS DIARIAS", "TAREAS SEMANALES", "PREMIO DIARIO", "TOCA PARA COBRAR", "COBRADO", "TAREAS",
+     "CAMBIAR", "TU OFRECES", "OFRECE", "toca para elegir", "nada aun", "ACEPTAR", "esperando al otro", "CAMBIO HECHO!", "sin sitio libre", "no se guardo, nada perdido", "%s evoluciono!", },
   // ---------------- EN ----------------
   {
     "Evolving!", "Yum yum!", "It likes it!", "It's hungry!", "Needs a bath!",
@@ -126,7 +127,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "OUCH!", "BOARD CLEAR!", "ROUND %u", "YOUR TURN", "WATCH", "ARCADE", "BEST %u", "NEW BEST!", "FIRST S: %s!", "ALL 4 S: %s x%u!", "JOY +%u BOND +%u", "PRIZE: %s!", "TAP TO GO ON",
      "TODAY: S", "TODAY: A", "ALL PRIZES TODAY: WON", "RANK A OR S: PRIZES",
      "BERRY CATCH", "MEMORY", "ECHO", "POP-UP", "CATCH, DODGE ROCKS", "FIND THE PAIRS", "WATCH AND REPEAT", "BOP THEM, NOT BOMBS",
-     "FEED", "FAVOURITE BERRIES", "CLEAN", "PLAY", "TRAIN", "CARE DAYS", "HATCH", "EVOLVE", "GYM WINS", "REMATCH WINS", "SEE WILD POKEMON", "BEAT WILD POKEMON", "CATCH POKEMON", "DAILY TASKS", "WEEKLY TASKS", "DAILY BONUS", "TAP TO CLAIM", "CLAIMED", "TASKS", },
+     "FEED", "FAVOURITE BERRIES", "CLEAN", "PLAY", "TRAIN", "CARE DAYS", "HATCH", "EVOLVE", "GYM WINS", "REMATCH WINS", "SEE WILD POKEMON", "BEAT WILD POKEMON", "CATCH POKEMON", "DAILY TASKS", "WEEKLY TASKS", "DAILY BONUS", "TAP TO CLAIM", "CLAIMED", "TASKS",
+     "TRADE", "YOU OFFER", "THEY OFFER", "tap to choose", "nothing yet", "ACCEPT", "waiting for them", "TRADE COMPLETE!", "no room in party or box", "save failed - nothing lost", "%s evolved!", },
   // ---------------- FR ----------------
   {
     "Il evolue!", "Miam miam!", "Il aime ca!", "Il a faim!", "Besoin d'un bain!",
@@ -184,7 +186,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "AIE!", "GRILLE OK!", "MANCHE %u", "A TOI", "REGARDE", "ARCADE", "RECORD %u", "RECORD!", "1ER S: %s!", "4 S: %s x%u!", "JOIE +%u LIEN +%u", "PRIX: %s!", "TOUCHE POUR SUIVRE",
      "AUJ.: S", "AUJ.: A", "PRIX DU JOUR: GAGNES", "RANG A/S: DES PRIX",
      "CUEILLETTE", "MEMORY", "ECHO", "TAUPES", "ATTRAPE, EVITE", "TROUVE LES PAIRES", "REGARDE, REPETE", "TAPE, PAS LA BOMBE",
-     "NOURRIR", "BAIES PREFEREES", "NETTOYER", "JOUER", "ENTRAINER", "JOURS DE SOINS", "FAIRE ECLORE", "FAIRE EVOLUER", "VICTOIRES ARENE", "REVANCHES GAGNEES", "VOIR DES SAUVAGES", "BATTRE DES SAUVAGES", "CAPTURER", "TACHES DU JOUR", "TACHES DE LA SEMAINE", "BONUS DU JOUR", "TOUCHE: RECLAMER", "RECU", "TACHES", },
+     "NOURRIR", "BAIES PREFEREES", "NETTOYER", "JOUER", "ENTRAINER", "JOURS DE SOINS", "FAIRE ECLORE", "FAIRE EVOLUER", "VICTOIRES ARENE", "REVANCHES GAGNEES", "VOIR DES SAUVAGES", "BATTRE DES SAUVAGES", "CAPTURER", "TACHES DU JOUR", "TACHES DE LA SEMAINE", "BONUS DU JOUR", "TOUCHE: RECLAMER", "RECU", "TACHES",
+     "ECHANGER", "TU OFFRES", "IL OFFRE", "touche: choisir", "rien encore", "ACCEPTER", "en attente", "ECHANGE FAIT!", "plus de place", "echec - rien perdu", "%s a evolue!", },
   // ---------------- DE ----------------
   {
     "Entwickelt sich!", "Mampf mampf!", "Gefaellt ihm!", "Hat Hunger!", "Braucht ein Bad!",
@@ -242,7 +245,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "AUA!", "GESCHAFFT!", "RUNDE %u", "DEIN ZUG", "SCHAU", "SPIELHALLE", "BESTE %u", "REKORD!", "ERSTES S: %s!", "4 S: %s x%u!", "FREUDE +%u BAND +%u", "PREIS: %s!", "TIPPEN: WEITER",
      "HEUTE: S", "HEUTE: A", "ALLE PREISE ERHALTEN", "RANG A/S: PREISE",
      "BEERENFANG", "MEMORY", "ECHO", "MAULWURF", "FANGEN, AUSWEICHEN", "FINDE PAARE", "SCHAU, WIEDERHOLE", "HAUEN, KEINE BOMBE",
-     "FUETTERN", "LIEBLINGSBEEREN", "PUTZEN", "SPIELEN", "TRAINIEREN", "PFLEGETAGE", "AUSBRUETEN", "ENTWICKELN", "ARENA-SIEGE", "REVANCHEN GEWONNEN", "WILDE SEHEN", "WILDE BESIEGEN", "FANGEN", "TAGESAUFGABEN", "WOCHENAUFGABEN", "TAGESBONUS", "TIPPEN: ABHOLEN", "ERHALTEN", "AUFGABEN", },
+     "FUETTERN", "LIEBLINGSBEEREN", "PUTZEN", "SPIELEN", "TRAINIEREN", "PFLEGETAGE", "AUSBRUETEN", "ENTWICKELN", "ARENA-SIEGE", "REVANCHEN GEWONNEN", "WILDE SEHEN", "WILDE BESIEGEN", "FANGEN", "TAGESAUFGABEN", "WOCHENAUFGABEN", "TAGESBONUS", "TIPPEN: ABHOLEN", "ERHALTEN", "AUFGABEN",
+     "TAUSCHEN", "DU BIETEST", "ANGEBOT", "tippen: waehlen", "noch nichts", "ANNEHMEN", "warte auf ihn", "TAUSCH FERTIG!", "kein Platz frei", "Fehler - nichts verloren", "%s entwickelt!", },
   // ---------------- IT ----------------
   {
     "Si evolve!", "Gnam gnam!", "Gli piace!", "Ha fame!", "Vuole un bagno!",
@@ -300,7 +304,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "AHI!", "FATTO!", "TURNO %u", "TOCCA A TE", "GUARDA", "SALA GIOCHI", "RECORD %u", "RECORD!", "PRIMA S: %s!", "4 S: %s x%u!", "GIOIA +%u LEGAME +%u", "PREMIO: %s!", "TOCCA: AVANTI",
      "OGGI: S", "OGGI: A", "PREMI DI OGGI: PRESI", "GRADO A/S: PREMI",
      "PRENDI BACCHE", "MEMORY", "ECO", "TALPE", "PRENDI, SCHIVA", "TROVA LE COPPIE", "GUARDA E RIPETI", "COLPISCI, NO BOMBE",
-     "NUTRIRE", "BACCHE PREFERITE", "PULIRE", "GIOCARE", "ALLENARE", "GIORNI DI CURA", "SCHIUDERE", "EVOLVERE", "VITTORIE PALESTRA", "RIVINCITE VINTE", "VEDERE SELVATICI", "BATTERE SELVATICI", "CATTURARE", "MISSIONI DEL GIORNO", "MISSIONI SETTIMANALI", "BONUS GIORNALIERO", "TOCCA: RISCATTA", "RISCATTATO", "MISSIONI", },
+     "NUTRIRE", "BACCHE PREFERITE", "PULIRE", "GIOCARE", "ALLENARE", "GIORNI DI CURA", "SCHIUDERE", "EVOLVERE", "VITTORIE PALESTRA", "RIVINCITE VINTE", "VEDERE SELVATICI", "BATTERE SELVATICI", "CATTURARE", "MISSIONI DEL GIORNO", "MISSIONI SETTIMANALI", "BONUS GIORNALIERO", "TOCCA: RISCATTA", "RISCATTATO", "MISSIONI",
+     "SCAMBIA", "TU OFFRI", "OFFRE", "tocca: scegli", "ancora niente", "ACCETTA", "in attesa", "SCAMBIO FATTO!", "nessun posto libero", "errore - niente perso", "%s si e evoluto!", },
   // ---------------- PT ----------------
   {
     "Evoluindo!", "Nham nham!", "Ele gosta!", "Esta com fome!", "Precisa de banho!",
@@ -358,7 +363,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "AI!", "LIMPO!", "RODADA %u", "SUA VEZ", "OLHE", "FLIPERAMA", "RECORDE %u", "RECORDE!", "1O S: %s!", "4 S: %s x%u!", "ALEGRIA +%u LACO +%u", "PREMIO: %s!", "TOQUE P/ SEGUIR",
      "HOJE: S", "HOJE: A", "PREMIOS DE HOJE: JA", "NOTA A/S: PREMIOS",
      "PEGA BAGAS", "MEMORIA", "ECO", "TOUPEIRAS", "PEGUE, DESVIE", "ACHE OS PARES", "OLHE E REPITA", "BATA, SEM BOMBAS",
-     "ALIMENTAR", "BAGAS FAVORITAS", "LIMPAR", "BRINCAR", "TREINAR", "DIAS DE CUIDADO", "CHOCAR", "EVOLUIR", "VITORIAS NO GINASIO", "REVANCHES VENCIDAS", "VER SELVAGENS", "VENCER SELVAGENS", "CAPTURAR", "TAREFAS DIARIAS", "TAREFAS SEMANAIS", "BONUS DIARIO", "TOQUE: RESGATAR", "RESGATADO", "TAREFAS", },
+     "ALIMENTAR", "BAGAS FAVORITAS", "LIMPAR", "BRINCAR", "TREINAR", "DIAS DE CUIDADO", "CHOCAR", "EVOLUIR", "VITORIAS NO GINASIO", "REVANCHES VENCIDAS", "VER SELVAGENS", "VENCER SELVAGENS", "CAPTURAR", "TAREFAS DIARIAS", "TAREFAS SEMANAIS", "BONUS DIARIO", "TOQUE: RESGATAR", "RESGATADO", "TAREFAS",
+     "TROCAR", "VOCE OFERECE", "OFERECE", "toque: escolher", "nada ainda", "ACEITAR", "esperando o outro", "TROCA FEITA!", "sem espaco livre", "falhou - nada perdido", "%s evoluiu!", },
 };
 
 // Nombres de medalla en sus tres longitudes [idioma][medalla].

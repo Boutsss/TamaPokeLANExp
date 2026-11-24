@@ -111,6 +111,61 @@ bool Party::boxSave() {
   return true;
 }
 
+// The same bytes as the record on flash? (PartyMon has padding, so compare the
+// key's blob as it is stored rather than field by field.)
+static bool readBackMatches(Preferences &pr, const char *key, const void *ram, size_t n) {
+  if (pr.getBytesLength(key) != n) return false;
+  uint8_t *tmp = (uint8_t *)malloc(n);
+  if (!tmp) return false;
+  bool ok = pr.getBytes(key, tmp, n) == n && memcmp(tmp, ram, n) == 0;
+  free(tmp);
+  return ok;
+}
+
+static bool sameMon(const PartyMon &a, const PartyMon &b) {
+  return a.dex == b.dex && a.level == b.level && a.ageMinutes == b.ageMinutes &&
+         a.ivAtk == b.ivAtk && a.ivDef == b.ivDef && a.ivSpe == b.ivSpe && a.ivHp == b.ivHp &&
+         a.trAtk == b.trAtk && a.trDef == b.trDef && a.trSpe == b.trSpe &&
+         a.shiny == b.shiny && !memcmp(a.moves, b.moves, sizeof(a.moves)) &&
+         !strncmp(a.nick, b.nick, sizeof(a.nick));
+}
+
+bool Party::storeDurably(const PartyMon &m, int8_t *where) {
+  if (m.empty()) return false;
+  int i = firstFree();
+  if (i >= 0) {
+    PartyMon old = slots[i];
+    slots[i] = m;
+    if (save() && readBackMatches(prefs, "party", slots, sizeof(slots))) { if (where) *where = (int8_t)i; return true; }
+    slots[i] = old;
+    save();
+    return false;
+  }
+  i = boxFirstFree();
+  if (i < 0) return false;
+  PartyMon old = box[i];
+  box[i] = m;
+  if (boxSave() && readBackMatches(prefs, "box", box, sizeof(box))) { if (where) *where = (int8_t)(PARTY_SLOTS + i); return true; }
+  box[i] = old;
+  boxSave();
+  return false;
+}
+
+bool Party::takeOutExact(int8_t where, const PartyMon &expect) {
+  if (where < 0 || where >= PARTY_SLOTS + BOX_SLOTS) return false;
+  bool inBox = where >= PARTY_SLOTS;
+  PartyMon &s = inBox ? box[where - PARTY_SLOTS] : slots[where];
+  if (s.empty() || !sameMon(s, expect)) return false;
+  PartyMon old = s;
+  s = PartyMon();
+  bool ok = inBox ? (boxSave() && readBackMatches(prefs, "box", box, sizeof(box)))
+                  : (save() && readBackMatches(prefs, "party", slots, sizeof(slots)));
+  if (ok) return true;
+  s = old;
+  if (inBox) boxSave(); else save();
+  return false;
+}
+
 uint8_t Party::boxCount() const {
   uint8_t n = 0;
   for (auto &s : box)

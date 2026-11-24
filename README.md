@@ -647,6 +647,27 @@ bringing. A running **head-to-head record** is kept against each rival —
 keyed by their device, not their typed name, so renaming doesn't reset the
 score — and shown on the pairing screen the next time you two fight.
 
+### Trading
+
+Pair two boards on the **LAN** screen as for a battle, then tap **TRADE**
+instead of FIGHT. Tap your card to choose what to offer (anyone in your party or
+box), wait for the other player's offer to appear, and both tap **ACCEPT**.
+Changing your offer cancels any accept already given. The creature keeps
+everything it had: level, IVs, training, moves, nickname, personality and its
+held item.
+
+| | |
+|---|---|
+| Where it lands | the first free party slot, else the first free box slot |
+| No room | the trade waits: nothing leaves either board until there is space |
+| Trade evolutions | Kadabra, Machoke, Graveler, Haunter, Boldore, Gurdurr, Phantump and Pumpkaboo evolve on arrival (if the evolved form can be drawn on that board) |
+
+**A creature is never lost.** Each board stores the creature it receives
+first, checks the write really landed, and only then tells the other board;
+each gives up its own creature only once the other has said that. If the
+radio drops, a board powers off or a write fails partway, the worst case is
+the same creature on both boards, never on neither.
+
 ### The three endings, retiring, and your party
 
 Every life ends one of three ways. You choose and witness each — none ever

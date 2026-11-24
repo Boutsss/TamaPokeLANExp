@@ -311,6 +311,17 @@ enum StrId : uint16_t {
   S_TK_CLAIM,      // tasks: claimable
   S_TK_CLAIMED,    // tasks: paid
   S_TK_MENU,       // menu row
+  S_TRD_BTN,       // LAN: trade
+  S_TRD_YOU,       // trade: my side
+  S_TRD_THEY,      // trade: their side
+  S_TRD_PICK,      // trade: empty card
+  S_TRD_NONE,      // trade: nothing offered
+  S_TRD_ACCEPT,    // trade: accept
+  S_TRD_WAIT,      // trade: waiting
+  S_TRD_DONE,      // trade: finished
+  S_TRD_NOROOM,    // trade: party and box full
+  S_TRD_FAIL,      // trade: our store failed
+  S_TRD_EVOLVED,   // trade: evolved on arrival
   STR_COUNT
 };
 
