@@ -1,7 +1,15 @@
 #!/usr/bin/env python3
-"""Player avatars: pret/pokered overworld sprites -> avatars.h
+"""Player avatars: pret/pokered + pret/pokecrystal overworld sprites -> avatars.h
 
-    python3 tools/gen_avatars.py
+    python3 tools/gen_avatars.py                 # fetch with curl
+    python3 tools/gen_avatars.py --local DIR     # DIR/pokered, DIR/pokecrystal clones
+
+The first AVATAR_BASE_COUNT (8) are the free starting set and their order is
+FROZEN: Pet::avatar stores the index raw in NVS. The Rocket Game Corner's
+prize avatars (SHOP) are APPENDED after them, in a frozen order of their own --
+casino.cpp stores ownership as a bit per shop index. New ones go at the END.
+It also emits all six frames of the Team Rocket grunt for the casino dealer,
+and avatar_names.h (names only, no pixels) for code that must not pull the art.
 
 Downloads eight 16x16 overworld sprites from the pokered disassembly, takes the
 first (front-facing) frame of each sheet and packs them 8bpp with a four-entry
@@ -28,7 +36,8 @@ import zlib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, '..', 'avatars.h')
-BASE = 'https://raw.githubusercontent.com/pret/pokered/master/gfx/sprites/%s.png'
+BASE = 'https://raw.githubusercontent.com/pret/%s/master/gfx/sprites/%s.png'
+OUT_NAMES = os.path.join(HERE, '..', 'avatar_names.h')
 SIZE = 16
 
 # (file, label shown in the UI, accent for shade 1)
@@ -46,6 +55,54 @@ PICKS = [
     ('sailor',        'SAILOR',   0x7E3D),
     ('youngster',     'YOUNGSTER',0xFECB),
 ]
+
+# The casino's prize avatars, APPEND-ONLY (see the docstring). (repo, file,
+# label, accent). Labels <= 10 characters, unaccented ASCII.
+RED, GSC = 'pokered', 'pokecrystal'
+SHOP = [
+    (RED, 'agatha', 'AGATHA', 0x9A5F), (RED, 'bruno', 'BRUNO', 0xC364),
+    (RED, 'lorelei', 'LORELEI', 0x5D7F), (RED, 'lance', 'LANCE', 0xE8E4),
+    (RED, 'koga', 'KOGA', 0x8A31), (RED, 'giovanni', 'GIOVANNI', 0x7BCF),
+    (RED, 'oak', 'PROF OAK', 0xBDF7), (RED, 'daisy', 'DAISY', 0xFD20),
+    (RED, 'mom', 'MOM', 0xFB2C), (RED, 'mr_fuji', 'MR FUJI', 0xA514),
+    (RED, 'rocket', 'ROCKET', 0x4208), (RED, 'scientist', 'SCIENTIST', 0x867D),
+    (RED, 'gambler', 'GAMBLER', 0xD6A0), (RED, 'gentleman', 'GENTLEMAN', 0x6B4D),
+    (RED, 'beauty', 'BEAUTY', 0xF8B2), (RED, 'biker', 'BIKER', 0x52AA),
+    (RED, 'rocker', 'ROCKER', 0xC81F), (RED, 'fisher', 'FISHER', 0x2D7F),
+    (RED, 'fishing_guru', 'FISH GURU', 0x3D8E), (RED, 'super_nerd', 'NERD', 0x7E0F),
+    (RED, 'channeler', 'CHANNELER', 0xB596), (RED, 'captain', 'CAPTAIN', 0x2A9F),
+    (RED, 'cook', 'CHEF', 0xE30C), (RED, 'waiter', 'WAITER', 0x39E7),
+    (RED, 'nurse', 'NURSE', 0xFC9F), (RED, 'clerk', 'CLERK', 0x2D5B),
+    (RED, 'guard', 'GUARD', 0x3A7A), (RED, 'gym_guide', 'GYM GUIDE', 0xFC00),
+    (RED, 'warden', 'WARDEN', 0x9C6A), (RED, 'safari_zone_worker', 'SAFARI', 0x8E4A),
+    (RED, 'silph_president', 'PRESIDENT', 0x6B6D), (RED, 'silph_worker_m', 'SILPH M', 0x4E7F),
+    (RED, 'silph_worker_f', 'SILPH F', 0xFB9A), (RED, 'brunette_girl', 'LASS', 0xF4D7),
+    (RED, 'little_boy', 'LITTLE BOY', 0x5E7F), (RED, 'little_girl', 'LITTLEGIRL', 0xFB56),
+    (RED, 'gameboy_kid', 'GAME KID', 0x8410), (RED, 'gramps', 'GRAMPS', 0xAD55),
+    (RED, 'granny', 'GRANNY', 0xC618), (RED, 'balding_guy', 'BALD GUY', 0xCC83),
+    (RED, 'middle_aged_man', 'DAD', 0x6C9F), (RED, 'middle_aged_woman', 'AUNT', 0xE34F),
+    (RED, 'link_receptionist', 'TRADE DESK', 0xFA8A), (RED, 'bike_shop_clerk', 'BIKE SHOP', 0x3666),
+    (GSC, 'chris', 'GOLD', 0xFEA0), (GSC, 'kris', 'KRIS', 0x4E9F),
+    (GSC, 'rival', 'SILVER', 0xC9A6), (GSC, 'red', 'CHAMP RED', 0xF800),
+    (GSC, 'elm', 'PROF ELM', 0x9EF7), (GSC, 'bill', 'BILL', 0x7C1F),
+    (GSC, 'kurt', 'KURT', 0x8C51), (GSC, 'falkner', 'FALKNER', 0x6D9F),
+    (GSC, 'bugsy', 'BUGSY', 0x9E62), (GSC, 'whitney', 'WHITNEY', 0xFBDF),
+    (GSC, 'morty', 'MORTY', 0x781F), (GSC, 'chuck', 'CHUCK', 0xB2A5),
+    (GSC, 'jasmine', 'JASMINE', 0xA48A), (GSC, 'pryce', 'PRYCE', 0x9F1F),
+    (GSC, 'clair', 'CLAIR', 0x2A1F), (GSC, 'will', 'WILL', 0xB01F),
+    (GSC, 'karen', 'KAREN', 0x5ACB), (GSC, 'brock', 'BROCK', 0xA3C6),
+    (GSC, 'misty', 'MISTY', 0x2C9F), (GSC, 'surge', 'LT SURGE', 0xFFE0),
+    (GSC, 'erika', 'ERIKA', 0x4E66), (GSC, 'janine', 'JANINE', 0xA11F),
+    (GSC, 'sabrina', 'SABRINA', 0xD99F), (GSC, 'blaine', 'BLAINE', 0xF9E0),
+    (GSC, 'rocket_girl', 'ROCKET F', 0x4A49), (GSC, 'black_belt', 'BLACK BELT', 0xD69A),
+    (GSC, 'bug_catcher', 'BUG KID', 0x7EE0), (GSC, 'kimono_girl', 'KIMONO', 0xE8C9),
+    (GSC, 'lass', 'LASS GSC', 0xFAD2), (GSC, 'officer', 'OFFICER', 0x2A7F),
+    (GSC, 'pharmacist', 'PHARMACIST', 0x5F3F), (GSC, 'pokefan_m', 'POKEFAN M', 0xFA60),
+    (GSC, 'pokefan_f', 'POKEFAN F', 0xFCB2), (GSC, 'sage', 'SAGE', 0xAC86),
+    (GSC, 'teacher', 'TEACHER', 0xF5B6), (GSC, 'twin', 'TWINS', 0xFAAA),
+    (GSC, 'elder', 'ELDER', 0x94B2), (GSC, 'cal', 'CAL', 0x5D1F),
+]
+DEALER = (RED, 'rocket')   # all six frames: the casino dealer animates
 
 OUTLINE = 0x18C4     # same ink as the rest of the UI
 HIGHLIGHT = 0xEF7D   # a soft off-white, so it reads on the cream card
@@ -92,10 +149,63 @@ def read_png_2bpp(data, path):
     return w, h, px
 
 
+LOCAL = None
+
+
+def fetch(repo, fn):
+    if LOCAL:
+        return open(os.path.join(LOCAL, repo, 'gfx', 'sprites', fn + '.png'), 'rb').read()
+    url = BASE % (repo, fn)
+    sys.stderr.write('fetching %s\n' % url)
+    # curl rather than urllib: the stock python.org build on macOS ships
+    # without a usable CA bundle and fails to verify github.com.
+    r = subprocess.run(['curl', '-fsSL', url], capture_output=True)
+    if r.returncode != 0:
+        raise SystemExit('fetch failed (%s): %s' % (url, r.stderr.decode().strip()))
+    return r.stdout
+
+
+def frames(repo, fn, accent, count=1):
+    """Index arrays for the first `count` 16x16 frames of a sheet."""
+    w, h, px = read_png_2bpp(fetch(repo, fn), fn)
+    if w != SIZE or h % SIZE:
+        raise SystemExit('%s: expected a %dpx-wide sheet, got %dx%d' % (fn, SIZE, w, h))
+    out = []
+    for f in range(min(count, h // SIZE)):
+        idx = []
+        for y in range(SIZE):
+            for x in range(SIZE):
+                v = px[f * SIZE + y][x]
+                idx.append(0xFF if v == 3 else v)   # 3 = white = transparent
+        out.append(idx)
+    return out
+
+
+def emit(out, sym, pal, idx):
+    out.append('static const uint16_t %s_PAL[3] = { %s };'
+               % (sym, ', '.join('0x%04X' % c for c in pal)))
+    out.append('static const uint8_t %s_IDX[%d] = {' % (sym, len(idx)))
+    for r in range(len(idx) // SIZE):
+        row = idx[r * SIZE:(r + 1) * SIZE]
+        out.append('  ' + ' '.join('0x%02X,' % v for v in row))
+    out.append('};')
+    out.append('')
+
+
 def main():
+    global LOCAL
+    if '--local' in sys.argv:
+        LOCAL = sys.argv[sys.argv.index('--local') + 1]
+    outPath = OUT
+    namesPath = OUT_NAMES
+    if '--out' in sys.argv:
+        d = sys.argv[sys.argv.index('--out') + 1]
+        outPath = os.path.join(d, 'avatars.h')
+        namesPath = os.path.join(d, 'avatar_names.h')
     out = ['// GENERATED by tools/gen_avatars.py from pret/pokered - do not edit',
            '#pragma once',
            '#include <stdint.h>',
+           '#include "avatar_names.h"   // the counts and the shop names',
            '',
            '// Player avatars: Gen 1 overworld sprites, 16x16, 8bpp indexed with',
            '// a four-entry RGB565 palette. Index 0xFF is transparent.',
@@ -105,50 +215,49 @@ def main():
            '']
     names = []
     for fn, label, accent in PICKS:
-        url = BASE % fn
-        sys.stderr.write('fetching %s\n' % url)
-        # curl rather than urllib: the stock python.org build on macOS ships
-        # without a usable CA bundle and fails to verify github.com.
-        r = subprocess.run(['curl', '-fsSL', url], capture_output=True)
-        if r.returncode != 0:
-            raise SystemExit('fetch failed (%s): %s'
-                             % (url, r.stderr.decode().strip()))
-        data = r.stdout
-        w, h, px = read_png_2bpp(data, fn)
-        if w != SIZE or h % SIZE:
-            raise SystemExit('%s: expected a %dpx-wide sheet, got %dx%d'
-                             % (fn, SIZE, w, h))
-        pal = [OUTLINE, accent, HIGHLIGHT]
-        idx = []
-        for y in range(SIZE):                 # frame 0 only: front-facing
-            for x in range(SIZE):
-                v = px[y][x]
-                idx.append(0xFF if v == 3 else v)   # 3 = white = transparent
         sym = 'AV_' + fn.upper()
-        names.append((sym, label))
-        out.append('static const uint16_t %s_PAL[3] = { %s };'
-                   % (sym, ', '.join('0x%04X' % c for c in pal)))
-        out.append('static const uint8_t %s_IDX[%d] = {' % (sym, SIZE * SIZE))
-        for r in range(SIZE):
-            row = idx[r * SIZE:(r + 1) * SIZE]
-            out.append('  ' + ' '.join('0x%02X,' % v for v in row))
-        out.append('};')
-        out.append('')
-
+        names.append((sym, label, fn))
+        emit(out, sym, [OUTLINE, accent, HIGHLIGHT], frames(RED, fn, accent)[0])
+    shopNames = []
+    for repo, fn, label, accent in SHOP:
+        sym = 'AV_%s_%s' % ('G1' if repo == RED else 'G2', fn.upper())
+        names.append((sym, label, repo + '/' + fn))
+        shopNames.append(label)
+        emit(out, sym, [OUTLINE, accent, HIGHLIGHT], frames(repo, fn, accent)[0])
+    # The dealer: every frame, back to back (frame f at f*256).
+    dl = frames(DEALER[0], DEALER[1], 0x4208, 6)
+    emit(out, 'AV_DEALER', [OUTLINE, 0x4208, HIGHLIGHT], [v for f in dl for v in f])
+    out.append('#define DEALER_FRAMES %d' % len(dl))
+    out.append('')
     out.append('struct AvatarArt {')
     out.append('  const uint8_t *idx;')
     out.append('  const uint16_t *pal;')
     out.append('  const char *name;')
     out.append('};')
     out.append('#define AVATAR_PX %d' % SIZE)
-    out.append('#define AVATAR_COUNT %d' % len(names))
     out.append('static const AvatarArt AVATARS[AVATAR_COUNT] = {')
-    for (sym, label), (fn, _, _) in zip(names, PICKS):
-        out.append('  { %s_IDX, %s_PAL, "%s" },   // %s' % (sym, sym, label, fn))
+    for sym, label, src in names:
+        out.append('  { %s_IDX, %s_PAL, "%s" },   // %s' % (sym, sym, label, src))
     out.append('};')
     out.append('')
-    open(OUT, 'w').write('\n'.join(out))
-    sys.stderr.write('wrote %s (%d avatars)\n' % (OUT, len(names)))
+    open(outPath, 'w').write('\n'.join(out))
+    # Names only, for code that must not link the pixels (casino.cpp, tests).
+    nm = ['// GENERATED by tools/gen_avatars.py - do not edit',
+          '#pragma once',
+          '// The Rocket Game Corner prize avatars: shop index i is AVATARS[AVATAR_BASE_COUNT + i].',
+          '// Code that only needs to COUNT or NAME avatars includes this, not avatars.h',
+          '// (which carries ~25 KB of pixels into every translation unit that includes it).',
+          '#define AVATAR_BASE_COUNT %d   // the free set; index order FROZEN (stored raw in NVS)' % len(PICKS),
+          '#define AVATAR_COUNT %d' % len(names),
+          '#define SHOP_AVATAR_FIRST AVATAR_BASE_COUNT',
+          '#define SHOP_AVATAR_COUNT %d' % len(shopNames),
+          'static const char *const SHOP_AVATAR_NAMES[SHOP_AVATAR_COUNT] = {']
+    for i in range(0, len(shopNames), 6):
+        nm.append('  ' + ' '.join('"%s",' % n for n in shopNames[i:i + 6]))
+    nm.append('};')
+    nm.append('')
+    open(namesPath, 'w').write('\n'.join(nm))
+    sys.stderr.write('wrote %s (%d avatars, %d in the shop)\n' % (outPath, len(names), len(shopNames)))
 
 
 if __name__ == '__main__':

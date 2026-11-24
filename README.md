@@ -705,6 +705,14 @@ auto-fires:
 - 👋 **Release** — long-press the creature on the main screen to let it go on
   your terms, no conditions.
 
+**One egg per creature.** A creature that has already said goodbye (or been
+retired or released) and is raised again with **RAISE THIS ONE** is never
+offered the farewell a second time. If an egg was waiting when you raised it,
+that egg is set aside rather than lost, and the next ending gives you that same
+egg back. With no egg set aside, a creature that already gave its egg cannot be
+retired or released for a new one (unless your party and box are otherwise
+empty, so nobody can ever get stuck).
+
 **Farewell and release bank the creature** into your party (6 slots) instead
 of ending the relationship — species, nickname, shiny status, IVs, training,
 moves, level and its whole care state, frozen until you raise it again.
