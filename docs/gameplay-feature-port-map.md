@@ -33,6 +33,21 @@ Feature-only UI files also include arcade, challenge, daycare, friends, habitat,
 hub, persona, rank, tasks, tower, training and weather screens. Some concepts
 may overlap with newer base screens; compare behavior before importing.
 
+## Event plumbing now integrated
+
+The base firmware now publishes these gameplay events through the append-only
+event bus: care-day registration, hatch, evolution, feed (including favourite
+berry as argument 1), clean, play (score as argument), training (gain as
+argument), first gym badge win, gym rematch win, wild encounter, wild battle
+win, and successful capture. Event publication is deliberately additive and
+does not itself change existing game behavior or require new NVS keys.
+
+The daily/weekly task engine is not yet ported. Its original implementation
+also depends on feature-fork-only Pet fields, breeding/tower APIs, and an item
+catalogue that is not compatible with the base `ItemKey` system. Port it with
+a base-compatible subset and explicit reward mapping rather than copying
+`tasks.cpp` unchanged.
+
 ## Persistent state additions to the base save manifest
 
 The feature save table adds these keys that are not in the base table:
