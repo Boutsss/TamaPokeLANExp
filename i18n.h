@@ -203,6 +203,17 @@ enum StrId : uint8_t {
   S_PTL_PICKY,     // loves (keep the 7 in PT_ order)
   S_PT_LOVES_FMT,  // card: "<trait> - loves <thing>"
   S_CHAIN_FMT,     // explore: a live shiny chain, "CHAIN PIDGEY x5"
+  S_TW_TITLE,      // tower: screen title
+  S_TW_WHY,        // tower: why it is locked
+  S_TW_FLOOR_FMT,  // tower: "FLOOR 3"
+  S_TW_STREAK_FMT, // tower: "STREAK 2  BEST 9"
+  S_TW_NEXTRW_FMT, // tower: next reward floor
+  S_TW_RULES,      // tower: the rules
+  S_TW_SMART,      // tower: expert AI from floor 7
+  S_TW_START,      // tower: start a run
+  S_TW_CONT,       // tower: continue a run
+  S_TW_BTN,        // gym chooser: the tower button
+  S_RM_PILL,       // ladder pill: rematch mode
   STR_COUNT
 };
 

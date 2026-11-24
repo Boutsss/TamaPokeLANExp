@@ -415,6 +415,26 @@ stat past what its IV allows. Banked members are frozen at what they were banked
 with, and battling already costs the live pet energy — that, not a cooldown, is
 what rate-limits rematching. A fully trained creature is told so.
 
+### Battle Tower and gym rematches
+
+Both open once you have beaten a **champion** (either difficulty for the tower;
+**easy** for that region's rematches). The tower is the **TOWER** button beside
+LAN BATTLE on the gym chooser; rematches are a third state on a ladder's
+difficulty pill: `EASY → HARD → REMATCH`.
+
+| Battle Tower | |
+|---|---|
+| Format | **3 vs 3**, **everyone at Lv.50** for the fight (your creatures raised or lowered; nothing is saved to them) |
+| Opponents | drawn from a base-stat band that climbs **10 per floor** from 380 to 600; IVs climb from 16 (floor 1) to 31 (floor 15); expert AI from **floor 7**; no legendaries before **floor 22** |
+| Run | a win is a floor; a **loss or running** ends the run (your best streak is kept) |
+| Rewards | every **7th** floor: 3 Ultra Balls + 2 Sitrus/Lum Berries; every **14th** adds Leftovers / Focus Sash / Quick Claw in turn |
+
+| Gym rematches | |
+|---|---|
+| Team | every original creature at **level × 5/4 + 10** (max 100), evolved where that level allows, filled to **six** with the leader's own type; IVs 24 |
+| Order | sequential, like the ladder; your level is capped to the rematch's best |
+| Rewards | every win: an Oran (leader) / Sitrus (Elite 4) / Lum (champion) Berry; the **first** win adds 2 / 3 Ultra Balls or Leftovers from the champion. No badge changes. |
+
 ### LAN battles
 
 Pair two boards over ESP-NOW from the gym ladder's **LAN BATTLE** button — one

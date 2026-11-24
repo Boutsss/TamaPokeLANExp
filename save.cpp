@@ -54,6 +54,8 @@ const SaveField SAVE_FIELDS[] = {
   { "prsn", SK_U8 },
   // the shiny chain (chain.cpp)
   { "wchain", SK_BYTES },
+  // Battle Tower run and gym rematches won (tower.cpp)
+  { "twStrk", SK_U16 },  { "twBest", SK_U16 },  { "twSeed", SK_U32 },  { "rmWin", SK_BYTES },
 };
 const uint16_t SAVE_FIELD_COUNT = sizeof(SAVE_FIELDS) / sizeof(SAVE_FIELDS[0]);
 
