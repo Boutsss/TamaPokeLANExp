@@ -388,6 +388,17 @@ enum StrId : uint16_t {
   S_LAN_PRACTICE,  // the Rocket Game Corner / LAN practice
   S_LAN_PRACTICE_HINT, // the Rocket Game Corner / LAN practice
   S_LAN_NO_RIVALS, // the Rocket Game Corner / LAN practice
+  S_PC_CARDS,      // trainer cards
+  S_PC_COLLECTED_FMT, // trainer cards
+  S_PC_EXCHANGE,   // trainer cards
+  S_PC_BOOK,       // trainer cards
+  S_PC_HINT,       // trainer cards
+  S_PC_NONE,       // trainer cards
+  S_PC_BADGES_FMT, // trainer cards
+  S_PC_DEX_FMT,    // trainer cards
+  S_PC_MEDALS_FMT, // trainer cards
+  S_PC_STREAK_FMT, // trainer cards
+  S_PC_SWAPPED,    // trainer cards
   STR_COUNT
 };
 

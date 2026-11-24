@@ -39,10 +39,12 @@
 // whole handshake without a radio, and a deliberately lossy transport exercises
 // all of the above. Only the radio itself is unverifiable here.
 
-#define LINK_PROTO 5        // bump on ANY wire change; a mismatch is refused
-                            // (4: trading; 5: hello flags bit1 = friends mode, LM_FRIEND)
+#define LINK_PROTO 6        // bump on ANY wire change; a mismatch is refused
+                            // (4: trading; 5: hello flags bit1 = friends mode, LM_FRIEND;
+                            //  6: LM_CARD, the trainer-card exchange)
 #define LINK_SQUAD_OWE 8    // see Link::squadOwe
 #define LINK_FRIEND_MAX 32  // a friends-mode state frame (friends.cpp owns the layout)
+#define LINK_CARD_MAX 48    // a trainer card on the wire (card.h owns the layout)
 #define LINK_MAX_PAYLOAD 200
 #define LINK_NAME_LEN 12
 
@@ -111,6 +113,8 @@ enum LinkMsg : uint8_t {
   LM_TDONE,      // [your seq][my seq] ...and yours is now DURABLY stored here
   // ---- gifts and visits (ported from vunguyen2712/TamaPoke, feature 7) ----
   LM_FRIEND,     // friends mode: one side's whole state (friends.cpp), resent
+  LM_CARD,       // friends mode: my trainer card (card.h), sent unkept and
+                 // repeated -- it must never take LM_FRIEND's resend slot
 };
 
 // What a pairing is FOR. Carried in the hello and refused on a mismatch, so a
@@ -233,6 +237,11 @@ struct Link {
   uint8_t fx[LINK_FRIEND_MAX];
   uint8_t fxN = 0;
   bool fxNew = false;
+  // the peer's trainer card, parked like fx: untrusted bytes until card.cpp
+  // has checked them on the main loop.
+  uint8_t cx[LINK_CARD_MAX];
+  uint8_t cxN = 0;
+  bool cxNew = false;
   // READY, but the peer is still saying hello: it is missing our squad. Our
   // answer to its hello always sits at the same position after that hello, so
   // a loss pattern that hits that position would eat it every time. This many
@@ -243,6 +252,9 @@ struct Link {
   // friends mode: our whole state, KEPT and resent until the next one
   // supersedes it. Only once READY; ignored in a battle.
   void sendFriend(const uint8_t *frame, uint8_t len);
+  // Our trainer card, once. NOT kept for resend (that slot is LM_FRIEND's):
+  // the caller repeats it on its own timer.
+  void sendCard(const uint8_t *card, uint8_t len);
 
   // ---- trading, one creature for one, on a READY link ----
   //

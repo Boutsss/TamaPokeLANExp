@@ -152,6 +152,8 @@ void Link::begin(bool host, const char *name) {
   refusedWhy = LINK_WHY_NONE;
   fxN = 0;
   fxNew = false;
+  cxN = 0;
+  cxNew = false;
   squadOwe = 0;
   burst = 0;
   tMySeq = 0;
@@ -295,6 +297,12 @@ void Link::sendFriend(const uint8_t *frame, uint8_t len) {
   if (mode != LINK_MODE_FRIENDS || state != LINK_READY) return;
   if (len > LINK_FRIEND_MAX) return;
   put(*this, LM_FRIEND, frame, len, true);   // kept: resent until superseded
+}
+
+void Link::sendCard(const uint8_t *card, uint8_t len) {
+  if (mode != LINK_MODE_FRIENDS || state != LINK_READY) return;
+  if (len > LINK_CARD_MAX) return;
+  put(*this, LM_CARD, card, len, false);   // unkept: never displaces the friend frame
 }
 
 void Link::tradeStored() {
@@ -523,6 +531,14 @@ void Link::onPacket(const uint8_t *buf, uint8_t len) {
       memcpy(fx, body, n);
       fxN = n;
       fxNew = true;
+      return;
+    case LM_CARD:
+      if (mode != LINK_MODE_FRIENDS) return;
+      if (state != LINK_SQUADS && state != LINK_READY) return;
+      if (n > LINK_CARD_MAX) return;
+      memcpy(cx, body, n);
+      cxN = n;
+      cxNew = true;
       return;
     case LM_TOFFER: {
       if (n < 1 || tPhase) return;     // a deal already struck is not reopened

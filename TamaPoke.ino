@@ -51,6 +51,7 @@
 #include "casino.h"
 #include "casino_art.h"
 #include "ghost.h"
+#include "card.h"
 #include "noart.h"   // speciesHasArt(): the friends visit draws a number when no art
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
@@ -258,7 +259,7 @@ enum : uint8_t {
   SCR_STARTER = 0, SCR_REGION, SCR_GALLERY, SCR_DEXPICK, SCR_MOVEPICK, SCR_BOX,
   SCR_PARTY, SCR_KEYBOARD, SCR_CARD, SCR_PLAYER, SCR_CLOCK, SCR_GYM, SCR_GYMPICK,
   SCR_EXPLORE, SCR_MART, SCR_LAN, SCR_PICK, SCR_BATTLE, SCR_WIN, SCR_LEARN, SCR_TRAIN, SCR_MENU,
-  SCR_BAGSCR, SCR_GAME, SCR_MAIN, SCR_TASKS, SCR_DAYCARE, SCR_DCPICK, SCR_TOWER, SCR_CHAL, SCR_ARCADE, SCR_TRADE, SCR_TRADEPICK, SCR_FRIENDS, SCR_CASINO, SCR_CASSHOP, SCR_COUNT
+  SCR_BAGSCR, SCR_GAME, SCR_MAIN, SCR_TASKS, SCR_DAYCARE, SCR_DCPICK, SCR_TOWER, SCR_CHAL, SCR_ARCADE, SCR_TRADE, SCR_TRADEPICK, SCR_FRIENDS, SCR_CASINO, SCR_CASSHOP, SCR_CARDBOOK, SCR_COUNT
 };
 extern const char *const SCREEN_NAME[SCR_COUNT];   // const is internal linkage in C++
 
@@ -321,7 +322,7 @@ const char *const SCREEN_NAME[SCR_COUNT] = {
   "starter", "region", "gallery", "dexpick", "movepick", "box",
   "party", "keyboard", "card", "player", "clock", "gym", "gympick",
   "explore", "mart", "lan", "pick", "battle", "win", "learn", "train", "menu",
-  "bag", "minigame", "main", "tasks", "daycare", "dcpick", "tower", "challenge", "arcade", "trade", "tradepick", "friends", "casino", "casshop"
+  "bag", "minigame", "main", "tasks", "daycare", "dcpick", "tower", "challenge", "arcade", "trade", "tradepick", "friends", "casino", "casshop", "cardbook"
 };
 
 // Badge art for a region, or nullptr when that region has none yet.
@@ -578,8 +579,9 @@ bool playerOpen = false;
 // one page, and the page you are on IS the region -- no extra control needed,
 // and horizontal paging already works everywhere else.
 uint8_t playerPage = 0;
-#define PLAYER_PAGES (GYM_REGIONS + 2)   // a badge page per ladder, medals, then rank
+#define PLAYER_PAGES (GYM_REGIONS + 3)   // a badge page per ladder, medals, rank, then trainer cards
 #define PLAYER_RANK_PAGE (GYM_REGIONS + 1)
+#define PLAYER_CARDS_PAGE (GYM_REGIONS + 2)
 #define playerBadgeRegion (playerPage % GYM_REGIONS)
 uint8_t gymPage = 0;
 #define GYM_ROWS 5
@@ -692,6 +694,17 @@ void casinoOpenNow();
 void casinoClose();
 void casinoTouchPeek(bool pressed, int16_t x, int16_t y, bool onArcadeRow);
 void drawCardBackground(uint8_t bg, uint32_t t);
+// Trainer cards (ui_cards.ino, card.cpp): the player card's last page and the book.
+extern bool cardBookOpen;
+extern uint8_t cardBookPage;
+extern bool friendsGotCard;
+uint8_t cardBookPages();
+void renderCardBook();
+void cardBookBack();
+void renderPlayerCards();
+bool playerCardsTap(int16_t x, int16_t y);
+void friendsOpenFromPlayer();
+void cardsFriendsPoll(uint32_t now);
 void arcadeTap(int16_t x, int16_t y);
 void arcadeSwipe(int dir);
 bool arcadeSwipeV(int dir);
@@ -1127,6 +1140,7 @@ void setup() {
   friendsBegin();
   casinoBegin();
   ghostsBegin();
+  cardBookBegin();
   tasksRefresh();
 
   audioBegin();  // ES8311 + I2S + amplificador (suena un jingle de arranque)
@@ -1911,6 +1925,10 @@ void onSwipeV(int dir) {
     if (back) casinoSwipeDown();
     return;
   }
+  if (cardBookOpen) {
+    if (back) cardBookBack();
+    return;
+  }
   if (arcadeOpen) {
     if (!back) return;
     if (!arcadeSwipeV(dir)) { arcadeClose(); trainOpen = true; }
@@ -2428,6 +2446,7 @@ void onTap(int16_t x, int16_t y) {
     casinoTap(x, y);
     return;
   }
+  if (cardBookOpen) return;   // paged on the rim, left by swiping down
   if (bagOpen) {
     bagTap(x, y);
     return;
@@ -2446,6 +2465,7 @@ void onTap(int16_t x, int16_t y) {
       sfxPlay(SFX_TAP);
       return;
     }
+    if (playerPage == PLAYER_CARDS_PAGE && playerCardsTap(x, y)) return;
     playerOpen = false;
     return;
   }
@@ -2952,6 +2972,7 @@ uint8_t uiCurrentScreen() {
   if (tradeOpen) return tradeView ? SCR_TRADEPICK : SCR_TRADE;
   if (friendsOpen) return SCR_FRIENDS;
   if (casinoOpen) return casinoView() == 5 ? SCR_CASSHOP : SCR_CASINO;
+  if (cardBookOpen) return SCR_CARDBOOK;
   if (gymOpen) return gymPick ? SCR_GYMPICK : SCR_GYM;
   if (pet.hasLearnOffer()) return SCR_LEARN;
   if (gameOpen || sackOpen || spdOpen) return SCR_GAME;
@@ -3061,6 +3082,7 @@ static uint8_t *uiRimTarget(uint8_t *pages) {
     case SCR_TASKS:   p = &tasksPage;   n = 2; break;   // daily, weekly
     case SCR_TRADEPICK: p = &tradePage; n = tradePickPages(); break;
     case SCR_CASSHOP: p = &casShopPage; n = casShopPages(); break;
+    case SCR_CARDBOOK: p = &cardBookPage; n = cardBookPages(); break;
     case SCR_CARD:    p = &cardPage;    n = CARD_PAGES; break;
     case SCR_MOVEPICK: {
       uint8_t all[64];
@@ -3531,6 +3553,10 @@ void render() {
   }
   if (casinoOpen) {
     renderCasino();
+    return;
+  }
+  if (cardBookOpen) {
+    renderCardBook();
     return;
   }
   if (gymOpen) {
@@ -5774,6 +5800,7 @@ void renderPlayer() {
   drawCardBackground(casino.bg, millis());   // the bought trainer-card background, or plain cream
   if (playerPage < GYM_REGIONS) renderPlayerBadges();
   else if (playerPage == PLAYER_RANK_PAGE) renderPlayerRank();
+  else if (playerPage == PLAYER_CARDS_PAGE) renderPlayerCards();
   else renderPlayerMedals();
 
   gfx->setTextColor(UI_INK_SOFT);

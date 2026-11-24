@@ -50,20 +50,29 @@ void friendsLeave() {
   lan.state = LINK_OFF;
   friends.sessionEnd();
 }
-void friendsOpenScreen() { friendsOpen = true; frPicking = false; frPickIdx = 0; }
-// Back out to the LAN screen, ending the session.
-void friendsClose() { friendsLeave(); friendsOpen = false; lanOpen = true; }
+static bool frBackToPlayer = false;   // opened from the player card's EXCHANGE
+void friendsOpenScreen() { friendsOpen = true; frPicking = false; frPickIdx = 0; frBackToPlayer = false; }
+void friendsOpenFromPlayer() { friendsOpenScreen(); frBackToPlayer = true; }
+// Back out to wherever it was opened from, ending the session.
+void friendsClose() {
+  friendsLeave();
+  friendsOpen = false;
+  if (frBackToPlayer) { frBackToPlayer = false; playerOpen = true; playerPage = PLAYER_CARDS_PAGE; }
+  else lanOpen = true;
+}
 
 // Once a loop, from loop(): the link itself is pumped just above it.
 void friendsLoop(uint32_t now) {
   if (!friends.active) return;
   friends.poll(lan, pet, bag, frDay(), now);
+  cardsFriendsPoll(now);   // the trainer-card swap rides the same session (ui_cards.ino)
   // A peer that left, went quiet or was refused: the radio costs current, so
   // it goes off now. The session stays "active" so the screen can say why.
   if (!lan.live() && linkNowUp()) linkNowEnd();
 }
 
 static void friendsConnect(bool host) {
+  friendsGotCard = false;
   lan.begin(host, pet.trainerName);
   friends.sessionStart(lan, pet);     // mode + our one-creature card, before the radio
   if (!linkNowBegin(&lan)) {          // no radio: say so rather than hang
@@ -236,6 +245,7 @@ void renderFriends() {
              friends.peerMon.level, friends.peerMon.shiny ? " *" : "");
     featLine(96, b, UI_TRACK);
   }
+  if (friendsGotCard) featLine(112, T(S_PC_SWAPPED), UI_BAR_OK);
   bool giftDim = !(friends.gph == FG_IDLE && friends.giftBlock(frDay()) == FN_NONE &&
                    friends.havePeer);
   frRow(0, T(S_FR_GIFT), giftDim);
