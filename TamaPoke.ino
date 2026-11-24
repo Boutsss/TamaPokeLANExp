@@ -1654,7 +1654,7 @@ void onSwipeV(int dir) {
   if (partyOpen) {
     if (partyDetail) { if (back) partyDetail = 0; return; }
     if (back) {
-      if (partyPick) { partyPick = false; pet.clearEnded(); }
+      if (partyPick) { heldReturn(pet.endedMon.held); partyPick = false; pet.clearEnded(); }
       uiTileGo(TILE_PET);
     }
     return;
@@ -1955,6 +1955,7 @@ void partyTap(int16_t x, int16_t y) {
   if ((y >= PARTYCLOSE_Y && y <= PARTYCLOSE_Y + PARTYCLOSE_H &&
        x >= PARTYCLOSE_X && x <= PARTYCLOSE_X + PARTYCLOSE_W) || y < 34) {
     if (partyPick) {                 // declined the swap: the pet is let go
+      heldReturn(pet.endedMon.held);
       partyPick = false;
       pet.clearEnded();
     }
@@ -2021,7 +2022,7 @@ void onSwipe(int dir) {
     // A sheet drawn on top of a tile closes first; the axis is underneath it.
     if (galleryDetail) { galleryDetail = 0; galleryPmd.unload(); galleryDirty = true; return; }
     if (partyDetail) { partyDetail = 0; return; }
-    if (partyPick) { partyPick = false; pet.clearEnded(); }
+    if (partyPick) { heldReturn(pet.endedMon.held); partyPick = false; pet.clearEnded(); }
     if (pet.ceremony || confirmUntil || martConfirmItem) return;
     int n = t - dir;   // the content follows the finger
     // IT BUMPS. This is the whole point of the axis: a horizontal swipe can no
