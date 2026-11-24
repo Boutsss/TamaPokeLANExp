@@ -7,6 +7,7 @@
 #include "battle.h"
 #include "dex.h"
 #include "types.h"
+#include "items.h"
 #include <cstdio>
 
 uint32_t g_seed = 12345;
@@ -176,6 +177,45 @@ int main() {
       }
     printf("     %d fights at L50: average %.1f turns (shortest %d, longest %d)\n",
            fights, (double)total / fights, shortest, longest);
+  }
+
+
+  // --- held items: healing berries, status cure, passive recovery and sash
+  {
+    Combatant oran; mk(oran, 6, 50);
+    oran.held = IT_ORAN_BERRY; oran.hp = oran.maxHp / 2;
+    uint16_t hp0 = oran.hp;
+    battleEndTurn(oran, lg);
+    ck(oran.hp > hp0 && oran.itemUsed && lg.atkItem == IT_ORAN_BERRY,
+       "ORAN BERRY heals at half HP and is marked consumed");
+
+    Combatant lum; mk(lum, 6, 50);
+    lum.held = IT_LUM_BERRY; lum.ailment = AIL_POISON;
+    battleEndTurn(lum, lg);
+    ck(lum.ailment == AIL_NONE && lum.itemUsed && lg.atkItem == IT_LUM_BERRY,
+       "LUM BERRY cures a status condition");
+
+    Combatant left; mk(left, 6, 50);
+    left.held = IT_LEFTOVERS; left.hp = left.maxHp / 2;
+    hp0 = left.hp;
+    battleEndTurn(left, lg);
+    ck(left.hp > hp0 && !left.itemUsed && lg.atkItem == IT_LEFTOVERS,
+       "LEFTOVERS restores HP without being consumed");
+
+    Combatant attacker, sash; mk(attacker, 6, 100); mk(sash, 9, 50);
+    attacker.base[SI_ATK] = 1000;
+    sash.maxHp = sash.hp = 2; sash.held = IT_FOCUS_SASH;
+    uint8_t tackle = findMove("TACKLE");
+    for (int i = 0; i < 100 && !sash.itemUsed; i++) battleAct(attacker, sash, tackle, lg);
+    ck(sash.hp == 1 && sash.itemUsed && lg.defItem == IT_FOCUS_SASH,
+       "FOCUS SASH survives a lethal hit from full HP at 1 HP");
+
+    Combatant slowClaw, fastFoe; mk(slowClaw, 143, 50); mk(fastFoe, 65, 50);
+    slowClaw.held = IT_QUICK_CLAW;
+    bool clawWon = false; uint8_t clawSide = 0;
+    for (int i = 0; i < 500 && !clawWon; i++)
+      clawWon = battleMovesFirst(slowClaw, tackle, fastFoe, tackle, &clawSide) && clawSide == 1;
+    ck(clawWon, "QUICK CLAW can let a slower creature move first");
   }
 
   printf("%s\n", bad ? "FAILURES" : "all good");
