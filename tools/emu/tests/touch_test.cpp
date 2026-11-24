@@ -36,7 +36,9 @@ void setup();
 void loop();
 extern Pet pet;   // defined in the sketch
 extern bool trainOpen, sackOpen, gameOpen, menuOpen, cardOpen, movePickOpen, spdOpen;
-extern bool bagOpen, playerOpen;
+extern bool bagOpen, playerOpen, tasksOpen;
+uint8_t uiCurrentScreen();
+void onSwipe(int dir);
 int uiMenuRowCenterY(int i);
 int uiBagRowCenterY(int i);
 extern uint8_t movePickSlot, movePickPage;
@@ -218,6 +220,20 @@ int main(int argc, char **argv) {
   }
   printf("PASS: training gained from a field item persists immediately\n");
   bagOpen = false;
+
+  // The added TASKS menu row must open its own screen without stealing the
+  // adjacent RETIRE or CLOSE targets.
+  click(233, 60);
+  click(233, uiMenuRowCenterY(4));
+  if (!tasksOpen || uiCurrentScreen() != 27) {
+    printf("FAIL: TASKS menu row -> tasksOpen=%d screen=%u\\n",
+           (int)tasksOpen, uiCurrentScreen());
+    return 1;
+  }
+  printf("PASS: menu TASKS row opens the daily/weekly task screen\\n");
+  click(233, 423);  // task screen BACK pill
+  if (tasksOpen) { printf("FAIL: task screen BACK did not close\\n"); return 1; }
+  printf("PASS: task screen BACK returns to the pet\\n");
 
   uint8_t oldAvatar = pet.avatar;
   playerOpen = true;
