@@ -1592,7 +1592,12 @@ void openClock();  // prototipo
 void onSwipeV(int dir) {
   if (pet.awaitingStarter()) return;  // bloqueado durante la eleccion de inicial
   if (menuOpen) { menuOpen = false; return; }   // any swipe closes the menu
-  if (tasksOpen) { tasksOpen = false; return; }
+  if (tasksOpen) {
+    int page = (int)tasksPage + (dir > 0 ? -1 : 1);
+    if (page >= 0 && page < 2) { tasksPage = (uint8_t)page; sfxPlay(SFX_TAP); }
+    else sfxPlay(SFX_DENY);
+    return;
+  }
   if (battleOpen) return;   // no swiping out of a fight
   const bool back = dir > 0;
 
@@ -2916,6 +2921,125 @@ void bootReport() {
     Serial.println("CRASH: no breadcrumb (RTC memory was lost too)");
   }
   gCrumbMagic = 0;   // one report per crash, not on every later boot
+}
+
+// ---------- daily / weekly task screen ----------
+
+static const char *taskKindName(uint8_t kind) {
+  switch (kind) {
+    case TK_FEED: return "FEED";
+    case TK_FAV_BERRY: return "FAVOURITE BERRIES";
+    case TK_CLEAN: return "CLEAN";
+    case TK_PLAY: return "PLAY";
+    case TK_TRAIN: return "TRAIN";
+    case TK_CARE_DAY: return "CARE DAYS";
+    case TK_HATCH: return "HATCH";
+    case TK_EVOLVE: return "EVOLVE";
+    case TK_GYM_WIN: return "GYM WINS";
+    case TK_REMATCH_WIN: return "REMATCH WINS";
+    case TK_WILD_SEEN: return "SEE WILD POKEMON";
+    case TK_WILD_WIN: return "BEAT WILD POKEMON";
+    case TK_WILD_CATCH: return "CATCH POKEMON";
+    default: return "TASK";
+  }
+}
+
+void renderTasks() {
+  tasksRefresh();
+  gfx->fillScreen(RGB565_BLACK);
+  gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
+  const char *title = tasksPage == 0 ? "DAILY TASKS" : "WEEKLY TASKS";
+  gfx->setTextColor(UI_INK);
+  gfx->setTextSize(2);
+  gfx->setCursor(CX - (int)strlen(title) * 6, 42);
+  gfx->print(title);
+
+  uint8_t count = tasksPage == 0 ? TASK_DAILY : TASK_WEEKLY;
+  for (uint8_t r = 0; r < count; r++) {
+    uint8_t slot = tasksPage == 0 ? r : TASK_DAILY + r;
+    const TaskDef &d = tasksDef(slot);
+    int y = 94 + r * 64;
+    bool ready = tasksDone(slot) && !tasksClaimed(slot);
+    bool paid = tasksClaimed(slot);
+    uint16_t bg = ready ? UI_BAR_OK : UI_WHITE;
+    gfx->fillRoundRect(52, y, 362, 54, 10, bg);
+    gfx->drawRoundRect(52, y, 362, 54, 10, UI_INK);
+    gfx->setTextColor(ready ? UI_WHITE : UI_INK);
+    gfx->setTextSize(1);
+    gfx->setCursor(66, y + 8);
+    gfx->print(taskKindName(d.kind));
+    char progress[12];
+    snprintf(progress, sizeof(progress), "%u/%u", tasksProgress(slot), d.target);
+    gfx->setTextSize(2);
+    gfx->setCursor(350, y + 5);
+    gfx->print(progress);
+    char reward[40];
+    snprintf(reward, sizeof(reward), "+%u %s", d.qty, itemEntry(d.item).name);
+    gfx->setTextSize(1);
+    gfx->setCursor(66, y + 32);
+    gfx->print(reward);
+    if (paid || ready) {
+      const char *status = paid ? "CLAIMED" : "TAP TO CLAIM";
+      gfx->setCursor(310, y + 34);
+      gfx->print(status);
+    }
+  }
+
+  if (tasksPage == 0) {
+    uint8_t got = 0;
+    for (uint8_t i = 0; i < TASK_DAILY; i++) if (tasksClaimed(i)) got++;
+    int y = 286;
+    gfx->fillRoundRect(52, y, 362, 54, 10, tasksBonusReady() ? UI_BAR_OK : UI_TRACK);
+    gfx->drawRoundRect(52, y, 362, 54, 10, UI_INK);
+    gfx->setTextColor(tasksBonusReady() ? UI_WHITE : UI_INK);
+    gfx->setTextSize(1);
+    gfx->setCursor(66, y + 8);
+    gfx->print("DAILY BONUS");
+    char progress[12];
+    snprintf(progress, sizeof(progress), "%u/3", got);
+    gfx->setTextSize(2);
+    gfx->setCursor(350, y + 5);
+    gfx->print(progress);
+    char reward[40];
+    snprintf(reward, sizeof(reward), "+%u %s", tasksBonusQty(), itemEntry(tasksBonusItem()).name);
+    gfx->setTextSize(1);
+    gfx->setCursor(66, y + 32);
+    gfx->print(reward);
+    if (tasksBonusClaimed() || tasksBonusReady()) {
+      gfx->setCursor(310, y + 34);
+      gfx->print(tasksBonusClaimed() ? "CLAIMED" : "TAP TO CLAIM");
+    }
+  }
+
+  gfx->setTextColor(UI_INK);
+  gfx->setTextSize(1);
+  gfx->setCursor(176, 370);
+  gfx->print(tasksPage == 0 ? "< DAILY >" : "< WEEKLY >");
+  gfx->fillRoundRect(160, 402, 146, 42, 12, UI_TRACK);
+  gfx->drawRoundRect(160, 402, 146, 42, 12, UI_INK);
+  gfx->setTextSize(2);
+  gfx->setCursor(199, 414);
+  gfx->print("BACK");
+  gfx->flush();
+}
+
+void tasksTap(int16_t x, int16_t y) {
+  if (y >= 398 && x >= 150 && x <= 316) {
+    tasksOpen = false;
+    sfxPlay(SFX_TAP);
+    return;
+  }
+  if (x < 52 || x > 414) return;
+  int row = (y - 94) / 64;
+  if (y < 94 || row < 0) return;
+  bool paid = false;
+  if (tasksPage == 0 && row == TASK_DAILY && y >= 280 && y <= 344)
+    paid = tasksClaimBonus();
+  else if (tasksPage == 0 && row >= 0 && row < TASK_DAILY)
+    paid = tasksClaim((uint8_t)row);
+  else if (tasksPage == 1 && row >= 0 && row < TASK_WEEKLY)
+    paid = tasksClaim((uint8_t)(TASK_DAILY + row));
+  sfxPlay(paid ? SFX_MEDAL : SFX_DENY);
 }
 
 void render() {
