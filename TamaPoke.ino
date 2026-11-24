@@ -4341,6 +4341,7 @@ static void btlThrowBall(ItemKey k) {
     btlOver = true;
     btlWon = true;
     wildStoreCaught();
+    gameEvent(EV_WILD_CATCH, btlFoe.dex);
     // wildStoreCaught() saves the PARTY (or the pet checkpoint, via
     // setEnded(), only in the both-full fallback) -- but the common case
     // never re-saves the live pet's OWN checkpoint here. That left it
@@ -4519,7 +4520,10 @@ static void btlResolve(uint8_t yourMove) {
     if (btlLink) { btlSay("%s", btlWon ? T(S_BTL_WIN) : T(S_BTL_LOSE)); return; }
     // A wild win reports its drops as narration rather than on the win screen:
     // that screen is the badge ceremony, and it has no badge to show.
-    if (btlWon && btlWild) { btlSay("%s", T(S_BTL_WIN)); wildGrantDrops(); return; }
+    if (btlWon && btlWild) {
+      gameEvent(EV_WILD_WIN, btlFoe.dex);
+      btlSay("%s", T(S_BTL_WIN)); wildGrantDrops(); return;
+    }
     if (btlWon && btlTrainer >= 0) { btlWinUntil = millis() + 60000; return; }
     btlSay("%s", T(S_BTL_LOSE));
   }
@@ -6634,6 +6638,7 @@ bool startWildBattle(uint8_t region, bool hard) {
   btlFoe.shiny = wildShiny;
 
   btlWild = true;
+  gameEvent(EV_WILD_SEEN, dex);
   btlLink = false;
   btlTrainer = -1;
   btlHard = hard;
