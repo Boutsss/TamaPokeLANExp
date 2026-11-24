@@ -61,10 +61,21 @@ selection, progress, reload persistence, failed claim-marker writes, duplicate
 claims, and save-backup inclusion. This is a ported slice, not the full
 feature-fork task system.
 
+## Held items and Pokedex rewards
+
+Held items (ORAN/SITRUS/LUM BERRY, LEFTOVERS, FOCUS SASH, QUICK CLAW) work in
+gym and wild battles and are carried on `Pet::held` / `PartyMon::held`. They
+enter the game ONLY through Pokedex rewards (`dex_rewards.cpp`, ported from the
+feature fork's `items.cpp`): an item every 25 registrations, and the SHINY CHARM
+for completing a region's obtainable dex. The OVAL CHARM is in the catalogue but
+is not granted until a daycare exists. LAN battles carry no held items on
+either side (`LinkMon` has no field for one), which keeps the two boards fair.
+
 ## Persistent state additions to the base save manifest
 
-At this point, the only feature-specific key added to the BASE `SAVE_FIELDS`
-table is `tasks` (`SK_BYTES`). Its fixed compact payload is versioned
+Feature-specific keys added to the BASE `SAVE_FIELDS` table so far: `tasks`
+(`SK_BYTES`), and `dxgf` / `dxrw` (`SK_U8`, Pokedex rewards). `SAVE_TRANSFER_MAX`
+was raised 4096 -> 6144 when `PartyMon` grew a held-item byte. Its fixed compact payload is versioned
 independently and bounded by the existing backup maximum. The base checkpoint
 keys `petA`, `petB`, `plyA`, and `plyB` remain present.
 

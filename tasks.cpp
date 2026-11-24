@@ -94,6 +94,8 @@ static void pick(uint32_t seed,bool weekly,uint8_t *out){
 static void rollTo(uint32_t day){
   uint32_t week=tasksWeekOf(day);bool newDay=!have||day!=curDay,newWeek=!have||week!=curWeek;
   if(!newDay&&!newWeek)return;
+  // Only ever roll FORWARD: a clock set back a day must not re-issue rewards.
+  if(have&&day<curDay)return;
   if(pending)return;
   if(newDay){pick(day,false,rowIdx);for(uint8_t i=0;i<TASK_DAILY;i++){prog[i]=0;claimed&=~(1u<<i);}claimed&=~BONUS_BIT;curDay=day;}
   if(newWeek){pick(week,true,rowIdx+TASK_DAILY);for(uint8_t i=TASK_DAILY;i<TASK_SLOTS;i++){prog[i]=0;claimed&=~(1u<<i);}curWeek=week;}

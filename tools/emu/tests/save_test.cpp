@@ -11,6 +11,7 @@
 #include "pet.h"
 #include "party.h"
 #include "save.h"
+#include "items.h"
 #include <cstdio>
 #include <set>
 #include <string>
@@ -159,17 +160,6 @@ int main(){
      "held items survive box record backup/restore");
 
   // --- a restore must not leave anything of whatever was there before
-  {
-    Pet p3; p3.begin();
-    p3.badges = 0xFFFF;
-    p3.renameTrainer("GHOST");
-    ck(saveImport(buf, n), "a second restore over a different save");
-    Pet p4; p4.begin();
-    ck(!strcmp(p4.trainerName,"DYLAN") && p4.badges==0x00BF,
-       "overwrites it rather than merging with it");
-  }
-
-  // --- a second restore must replace, not merge with, an unrelated save
   {
     Pet p3; p3.begin();
     p3.badges = 0xFFFF;

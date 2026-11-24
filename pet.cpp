@@ -1138,7 +1138,12 @@ void Pet::recordRivalResult(const uint8_t mac[6], const char *name, bool won) {
 
 void Pet::registerSpecies(int16_t dex) {
   if (dex < 1 || dex > DEX_COUNT) return;
-  dexReg[(dex - 1) >> 3] |= (1 << ((dex - 1) & 7));
+  const uint8_t bit = (uint8_t)(1 << ((dex - 1) & 7));
+  const bool fresh = !(dexReg[(dex - 1) >> 3] & bit);
+  dexReg[(dex - 1) >> 3] |= bit;
+  // Only a NEW registration is an event: begin() re-registers the live species
+  // on every load, and that must not look like progress to a listener.
+  if (fresh) gameEvent(EV_DEX_REGISTER, dex);
   if (shiny) dexShinyReg[(dex - 1) >> 3] |= (1 << ((dex - 1) & 7));
 }
 

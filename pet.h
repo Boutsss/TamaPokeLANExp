@@ -380,6 +380,7 @@ public:
   void setScreenOff(bool off);  // the sketch reports the PWR button
   bool screenIsOff = false;
   void dbgTick() { tick(); }   // tests drive minutes directly; tick() is private
+  void dbgRegister(int16_t dex) { registerSpecies(dex); }  // tests: the real path, event included
   // Keep the legacy key in step too, so tests also cover migration saves.
   void dbgSetSeen(uint32_t e) { lastSeenEpoch = e; prefs.putUInt("seen", e); }
   uint8_t sleepAuto = SLEEP_NONE;   // who decided the current sleep state  // dormir / despertar

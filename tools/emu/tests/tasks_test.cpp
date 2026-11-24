@@ -57,7 +57,7 @@ int main(){
 
   // A reset after the bag write but before the final claimed marker must not pay twice.
   uint32_t recoveryDay=day+1; int recoverySlot=-1;
-  for(uint32_t d=recoveryDay;d<recoveryDay+500&&!recoverySlot;d++){
+  for(uint32_t d=recoveryDay;d<recoveryDay+500&&recoverySlot<0;d++){
     p.lastSeenEpoch=d*86400UL+3600; tasksRefresh();
     for(uint8_t s=0;s<TASK_DAILY;s++) if(tasksDef(s).kind==TK_FEED) { recoverySlot=s; recoveryDay=d; }
   }
@@ -76,10 +76,20 @@ int main(){
     ck(tasksClaimed(recoverySlot)&&bag.count(item)==paid,
        "startup finalizes an already-paid reward without duplicating it");
   }
-  // Move to a day whose task is one action from completion, then claim once.
-  uint32_t claimDay=day;
+  // Winding the clock BACK must not re-roll the day: that would hand out a
+  // fresh set of claimable rewards to anyone who sets the RTC to yesterday.
+  {
+    uint32_t now=tasksDay(); bool wasClaimed=recoverySlot>=0&&tasksClaimed(recoverySlot);
+    p.lastSeenEpoch=day*86400UL+3600; tasksRefresh();
+    ck(tasksDay()==now&&(recoverySlot<0||tasksClaimed(recoverySlot)==wasClaimed),
+       "moving the clock backwards keeps today's tasks and claims");
+  }
+  // Move to a fresh later day, complete its first unclaimed task, then claim once.
+  uint32_t claimDay=tasksDay()+1;
   p.lastSeenEpoch=claimDay*86400UL+3600; tasksRefresh();
+  ck(tasksDay()==claimDay,"a later day rolls a new set");
   for(uint8_t s=0;s<TASK_DAILY;s++){
+    if(tasksClaimed(s)) continue;
     const TaskDef &d=tasksDef(s);
     for(uint8_t n=tasksProgress(s);n<d.target;n++) gameEvent(d.kind==TK_FEED?EV_FEED:d.kind==TK_CLEAN?EV_CLEAN:d.kind==TK_PLAY?EV_PLAY:d.kind==TK_TRAIN?EV_TRAIN:d.kind==TK_CARE_DAY?EV_CARE_DAY:d.kind==TK_HATCH?EV_HATCH:d.kind==TK_EVOLVE?EV_EVOLVE:d.kind==TK_GYM_WIN?EV_GYM_WIN:d.kind==TK_REMATCH_WIN?EV_REMATCH_WIN:d.kind==TK_WILD_SEEN?EV_WILD_SEEN:d.kind==TK_WILD_WIN?EV_WILD_WIN:d.kind==TK_WILD_CATCH?EV_WILD_CATCH:EV_FEED,1);
     if(tasksDone(s)){

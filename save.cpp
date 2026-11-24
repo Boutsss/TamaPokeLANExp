@@ -46,7 +46,8 @@ const SaveField SAVE_FIELDS[] = {
   // settings, so a restored device plays the way it did
   { "lang", SK_U8 },    { "snd", SK_BOOL },   { "vol", SK_U8 },
   { "tasks", SK_BYTES },
-
+  // Pokedex rewards paid so far (dex_rewards.cpp)
+  { "dxgf", SK_U8 },    { "dxrw", SK_U8 },
 };
 const uint16_t SAVE_FIELD_COUNT = sizeof(SAVE_FIELDS) / sizeof(SAVE_FIELDS[0]);
 

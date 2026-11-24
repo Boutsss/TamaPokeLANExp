@@ -41,6 +41,7 @@
 #include "audio.h"
 #include "game_events.h"
 #include "tasks.h"
+#include "dex_rewards.h"
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
@@ -963,6 +964,7 @@ void setup() {
   pet.syncClock(e);
 
   tasksBegin(pet);
+  dexRewardsBegin(&pet);
   tasksRefresh();
 
   audioBegin();  // ES8311 + I2S + amplificador (suena un jingle de arranque)
