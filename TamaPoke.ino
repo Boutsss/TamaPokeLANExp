@@ -39,6 +39,7 @@
 #include "i18n.h"
 #include "audio.h"
 #include "game_events.h"
+#include "tasks.h"
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
@@ -954,6 +955,9 @@ void setup() {
   }
   pet.syncClock(e);
 
+  tasksBegin(pet);
+  tasksRefresh();
+
   audioBegin();  // ES8311 + I2S + amplificador (suena un jingle de arranque)
 
   // After everything has loaded, so the figure reflects a real save rather than
@@ -990,6 +994,7 @@ void ensureMon() {
 void loop() {
   uint32_t now = millis();
   pet.update(now);
+  tasksTick();
 
   // The link is pumped here rather than from the LAN screen, because it has to
   // keep running through the battle too: linkNowPoll() drains what the radio
