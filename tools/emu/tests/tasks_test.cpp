@@ -59,7 +59,7 @@ int main(){
   uint32_t recoveryDay=day+1; int recoverySlot=-1;
   for(uint32_t d=recoveryDay;d<recoveryDay+500&&!recoverySlot;d++){
     p.lastSeenEpoch=d*86400UL+3600; tasksRefresh();
-    for(uint8_t s=0;s<TASK_DAILY;s++) if(tasksDef(s).kind==TK_FEED) recoverySlot=s;
+    for(uint8_t s=0;s<TASK_DAILY;s++) if(tasksDef(s).kind==TK_FEED) { recoverySlot=s; recoveryDay=d; }
   }
   ck(recoverySlot>=0,"find another daily feed task for post-write recovery");
   if(recoverySlot>=0){
