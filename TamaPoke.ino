@@ -562,6 +562,8 @@ uint8_t exploreRegion = 0xFF;
 #define EXPLORE_BTN_PAD 11
 bool bagOpen = false;
 uint8_t bagPage = 0;
+ItemKey bagHeldPick = ITEM_NONE;
+uint8_t bagHeldPage = 0;
 #define BAG_PER_PAGE 5
 #define BAG_ROW_Y(i) (112 + (i) * 58)
 
@@ -2036,7 +2038,15 @@ void onSwipe(int dir) {
   // any more, so here horizontal simply backs out.
   if (pickOpen) { pickOpen = false; return; }
   if (trainOpen) { trainOpen = false; return; }
-  if (bagOpen) { bagOpen = false; return; }
+  if (bagOpen) {
+    if (bagHeldPick) {
+      uint8_t n = bagHeldWhoCount(), pages = n ? (n + BAG_PER_PAGE - 1) / BAG_PER_PAGE : 1;
+      int next = (int)bagHeldPage + (dir > 0 ? -1 : 1);
+      if (next < 0 || next >= pages) { bagHeldPick = ITEM_NONE; bagHeldPage = 0; }
+      else bagHeldPage = (uint8_t)next;
+    } else bagOpen = false;
+    return;
+  }
   if (movePickOpen) { movePickOpen = false; return; }
   if (boxOpen) { boxOpen = false; boxSel = 0; return; }
   if (gameOpen) { leaveGame(); return; }   // swipe out, keeping what you earned
@@ -2228,7 +2238,7 @@ void onTap(int16_t x, int16_t y) {
       sfxPlay(SFX_TAP);
       menuOpen = false;
       if (i == 0) { cardOpen = true; cardPage = 1; }   // straight to the stats page
-      else if (i == 1) { bagOpen = true; bagPage = 0; }
+      else if (i == 1) { bagOpen = true; bagPage = 0; bagHeldPick = ITEM_NONE; bagHeldPage = 0; }
       else if (i == 2) { galleryOpen = true; galleryPick = true; galleryPage = 0; rpickPage = 0; galleryDetail = 0; galleryDirty = true; }
       else if (i == 3) { openClock(); }
       else if (i == 4) { menuOpen = false; tasksOpen = true; tasksPage = 0; tasksRefresh(); }
@@ -6497,6 +6507,30 @@ uint8_t bagPages() {
   uint8_t n = bag.distinctCount();
   return n ? (uint8_t)((n + BAG_PER_PAGE - 1) / BAG_PER_PAGE) : 1;
 }
+static uint8_t bagHeldWhoAt(uint8_t wanted) {
+  uint8_t seen = 0;
+  if (holderExists(pet, party, HOLDER_PET) && seen++ == wanted) return HOLDER_PET;
+  for (uint8_t i = 0; i < PARTY_SLOTS; i++) {
+    uint8_t who = HOLDER_PARTY(i);
+    if (holderExists(pet, party, who) && seen++ == wanted) return who;
+  }
+  for (uint8_t i = 0; i < BOX_SLOTS; i++) {
+    uint8_t who = HOLDER_BOX(i);
+    if (holderExists(pet, party, who) && seen++ == wanted) return who;
+  }
+  return HOLDER_COUNT;
+}
+static uint8_t bagHeldWhoCount() {
+  uint8_t n = holderExists(pet, party, HOLDER_PET) ? 1 : 0;
+  for (uint8_t i = 0; i < PARTY_SLOTS; i++) if (holderExists(pet, party, HOLDER_PARTY(i))) n++;
+  for (uint8_t i = 0; i < BOX_SLOTS; i++) if (holderExists(pet, party, HOLDER_BOX(i))) n++;
+  return n;
+}
+static const char *bagHeldWhoName(uint8_t who) {
+  if (who == HOLDER_PET) return pet.nick[0] ? pet.nick : DEX_TBL[pet.speciesId].name;
+  const PartyMon &m = who < HOLDER_BOX(0) ? party.slots[who - HOLDER_PARTY(0)] : party.box[who - HOLDER_BOX(0)];
+  return m.nick[0] ? m.nick : DEX_TBL[m.dex].name;
+}
 
 int uiBagRowCenterY(int i) { return BAG_ROW_Y(i) + 25; }
 
@@ -6539,6 +6573,35 @@ void renderBag() {
   gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
   gfx->setTextColor(UI_INK);
   gfx->setTextSize(2);
+  if (bagHeldPick) {
+    char title[32]; snprintf(title, sizeof(title), "GIVE %s", itemEntry(bagHeldPick).name);
+    gfx->setCursor(CX - (int)strlen(title) * 6, 40); gfx->print(title);
+    uint8_t n = bagHeldWhoCount();
+    uint8_t pages = n ? (n + BAG_PER_PAGE - 1) / BAG_PER_PAGE : 1;
+    if (bagHeldPage >= pages) bagHeldPage = pages - 1;
+    for (uint8_t i = 0; i < BAG_PER_PAGE; i++) {
+      uint8_t idx = bagHeldPage * BAG_PER_PAGE + i;
+      if (idx >= n) break;
+      uint8_t who = bagHeldWhoAt(idx);
+      ItemKey current = heldBy(pet, party, who);
+      char line[40];
+      if (current) snprintf(line, sizeof(line), "%s: %s", bagHeldWhoName(who), itemEntry(current).name);
+      else snprintf(line, sizeof(line), "%s: EMPTY", bagHeldWhoName(who));
+      int y = BAG_ROW_Y(i);
+      gfx->fillRoundRect(76, y, 314, 50, 10, UI_WHITE);
+      gfx->drawRoundRect(76, y, 314, 50, 10, UI_INK);
+      gfx->setTextColor(UI_INK); gfx->setTextSize(1);
+      gfx->setCursor(88, y + 20); gfx->print(line);
+    }
+    if (pages > 1) {
+      char pg[12]; snprintf(pg, sizeof(pg), "%u/%u", bagHeldPage + 1, pages);
+      gfx->setTextColor(UI_INK); gfx->setTextSize(2);
+      gfx->setCursor(CX - (int)strlen(pg) * 6, 386); gfx->print(pg);
+    }
+    gfx->setTextColor(UI_INK_SOFT); gfx->setTextSize(2);
+    gfx->setCursor(CX - (int)strlen(T(S_BACK)) * 6, 414); gfx->print(T(S_BACK));
+    uiChrome(); gfx->flush(); return;
+  }
   gfx->setCursor(CX - (int)strlen(T(S_BAG)) * 6, 40);
   gfx->print(T(S_BAG));
 
@@ -6594,6 +6657,24 @@ void renderBag() {
 }
 
 void bagTap(int16_t x, int16_t y) {
+  if (bagHeldPick) {
+    uint8_t n = bagHeldWhoCount();
+    for (uint8_t i = 0; i < BAG_PER_PAGE; i++) {
+      uint8_t idx = bagHeldPage * BAG_PER_PAGE + i;
+      if (idx >= n) break;
+      int ry = BAG_ROW_Y(i);
+      if (x < 76 || x > 390 || y < ry || y > ry + 50) continue;
+      uint8_t who = bagHeldWhoAt(idx);
+      ItemKey current = heldBy(pet, party, who);
+      bool ok = current == bagHeldPick ? heldTake(pet, party, who) : heldGive(pet, party, who, bagHeldPick);
+      sfxPlay(ok ? SFX_MEDAL : SFX_DENY);
+      if (ok) bagHeldPick = ITEM_NONE;
+      else bagSay("%s", "CANNOT EQUIP");
+      return;
+    }
+    bagHeldPick = ITEM_NONE; bagHeldPage = 0;
+    return;
+  }
   uint8_t n = bag.distinctCount();
   for (uint8_t i = 0; i < BAG_PER_PAGE; i++) {
     uint8_t idx = (uint8_t)(bagPage * BAG_PER_PAGE + i);
@@ -6601,6 +6682,7 @@ void bagTap(int16_t x, int16_t y) {
     int ry = BAG_ROW_Y(i);
     if (x < 76 || x > 390 || y < ry || y > ry + 50) continue;
     ItemKey k = bag.keyAt(idx);
+    if (itemIsHeld(k)) { bagHeldPick = k; bagHeldPage = 0; sfxPlay(SFX_TAP); return; }
     if (!itemUsableInField(k) || pet.isEgg()) { sfxPlay(SFX_DENY); return; }
     if (!bagUseOnPet(k)) { sfxPlay(SFX_DENY); bagSay("%s", T(S_ITEM_NOUSE)); return; }
     bag.consume(k);
