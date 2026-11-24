@@ -292,6 +292,25 @@ enum StrId : uint16_t {
   S_ARC_HMEMORY,   // ported (vunguyen2712)
   S_ARC_HECHO,     // ported (vunguyen2712)
   S_ARC_HPOP,      // ported (vunguyen2712)
+  S_TK_FEED,       // task
+  S_TK_FAV,        // task
+  S_TK_CLEAN,      // task
+  S_TK_PLAY,       // task
+  S_TK_TRAIN,      // task
+  S_TK_CAREDAY,    // task
+  S_TK_HATCH,      // task
+  S_TK_EVOLVE,     // task
+  S_TK_GYM,        // task
+  S_TK_REMATCH,    // task
+  S_TK_SEEN,       // task
+  S_TK_WILDWIN,    // task
+  S_TK_CATCH,      // task (keep the 13 in TK_ order)
+  S_TK_DAILY_T,    // tasks page title
+  S_TK_WEEKLY_T,   // tasks page title
+  S_TK_BONUS,      // tasks: daily bonus row
+  S_TK_CLAIM,      // tasks: claimable
+  S_TK_CLAIMED,    // tasks: paid
+  S_TK_MENU,       // menu row
   STR_COUNT
 };
 

@@ -30,6 +30,7 @@ extern bool trainOpen, movePickOpen, battleOpen, gymOpen, playerOpen, boxOpen, p
 extern bool exploreOpen;
 extern bool martOpen;
 extern bool daycareOpen; extern uint8_t dcView, dcPage;
+extern bool tasksOpen; extern uint8_t tasksPage;
 extern bool btlWild;
 extern uint8_t cardPage, gymPage, playerPage, movePickPage, boxPage, pickPage, partyDetail;
 extern uint8_t martPage;
@@ -62,6 +63,7 @@ static void clearAll(){
   exploreOpen=false;
   martOpen=false;
   daycareOpen=false; dcView=0;
+  tasksOpen=false;
   bagOpen=false;
   partyDetail=0; boxSel=boxSwapFrom=0;
 }
@@ -116,6 +118,17 @@ int main(){
   // so several pages -- and pages on the rim like everything else.
   clearAll(); daycareOpen=true; dcView=1;         check("dcpick",   &daycareOpen,  &dcPage);
   if (dcView != 1) { printf("FAIL  dcpick     paging left the picker for the daycare's home\n"); bad++; }
+  // Daily / weekly tasks: paged on the rim, and a horizontal swipe must neither
+  // page nor close it (it used to page on the swipe -- the trap this test exists for).
+  clearAll(); tasksOpen=true;                     check("tasks",    &tasksOpen,    &tasksPage);
+  // Checked after EACH swipe: swiping one way and back would land on page 0
+  // even with the old swipe-pages behaviour, and pass for the wrong reason
+  // (CLAUDE.md: the 12 % REGION_COUNT trap).
+  { bool moved = false;
+    tasksPage = 0; onSwipe(-1); if (!tasksOpen || tasksPage != 0) moved = true;
+    tasksPage = 1; onSwipe(1);  if (!tasksOpen || tasksPage != 1) moved = true;
+    if (moved) { printf("FAIL  tasks      a horizontal swipe paged or closed it\n"); bad++; }
+    else printf("PASS  %-10s a horizontal swipe neither pages nor closes it\n", "tasks"); }
   // The Pokedex pages within ONE region and changes region on a vertical swipe.
   // Every species must be reachable: it was capped at 10 flat pages when the dex
   // was 151 long, which silently hid everything past 160 once it grew to 386.

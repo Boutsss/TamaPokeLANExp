@@ -2233,12 +2233,7 @@ void onSwipe(int dir) {
   // The arcade: BERRY CATCH is played by dragging sideways; in the other games
   // a horizontal swipe leaves, banking what was earned (ui_arcade.ino).
   if (arcadeOpen) { arcadeSwipe(dir); return; }
-  if (tasksOpen) {
-    int page = (int)tasksPage + (dir > 0 ? -1 : 1);
-    if (page >= 0 && page < 2) { tasksPage = (uint8_t)page; sfxPlay(SFX_TAP); }
-    else sfxPlay(SFX_DENY);
-    return;
-  }
+  if (tasksOpen) return;   // pages on the rim (uiRimTarget); horizontal does nothing here
   if (battleOpen) return;   // no swiping out of a fight
 
   int t = uiTileIndex();
@@ -2969,6 +2964,7 @@ static uint8_t *uiRimTarget(uint8_t *pages) {
     case SCR_BAGSCR:  p = &bagPage;     n = bagPages(); break;
     case SCR_MART:    p = &martPage;    n = martPages(); break;
     case SCR_DCPICK:  p = &dcPage;      n = dcPickPages(); break;
+    case SCR_TASKS:   p = &tasksPage;   n = 2; break;   // daily, weekly
     case SCR_CARD:    p = &cardPage;    n = CARD_PAGES; break;
     case SCR_MOVEPICK: {
       uint8_t all[64];
@@ -3227,30 +3223,18 @@ void bootReport() {
 
 // ---------- daily / weekly task screen ----------
 
+// The task kinds in the positional string table, in TK_ order (TK_FEED first).
 static const char *taskKindName(uint8_t kind) {
-  switch (kind) {
-    case TK_FEED: return "FEED";
-    case TK_FAV_BERRY: return "FAVOURITE BERRIES";
-    case TK_CLEAN: return "CLEAN";
-    case TK_PLAY: return "PLAY";
-    case TK_TRAIN: return "TRAIN";
-    case TK_CARE_DAY: return "CARE DAYS";
-    case TK_HATCH: return "HATCH";
-    case TK_EVOLVE: return "EVOLVE";
-    case TK_GYM_WIN: return "GYM WINS";
-    case TK_REMATCH_WIN: return "REMATCH WINS";
-    case TK_WILD_SEEN: return "SEE WILD POKEMON";
-    case TK_WILD_WIN: return "BEAT WILD POKEMON";
-    case TK_WILD_CATCH: return "CATCH POKEMON";
-    default: return "TASK";
-  }
+  if (kind < TK_FEED || kind > TK_WILD_CATCH) return "";
+  return T((StrId)(S_TK_FEED + (kind - TK_FEED)));
 }
+static_assert(S_TK_CATCH - S_TK_FEED == TK_WILD_CATCH - TK_FEED, "task labels out of step with TaskKind");
 
 void renderTasks() {
   tasksRefresh();
   gfx->fillScreen(RGB565_BLACK);
   gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
-  const char *title = tasksPage == 0 ? "DAILY TASKS" : "WEEKLY TASKS";
+  const char *title = T(tasksPage == 0 ? S_TK_DAILY_T : S_TK_WEEKLY_T);
   gfx->setTextColor(UI_INK);
   gfx->setTextSize(2);
   gfx->setCursor(CX - (int)strlen(title) * 6, 42);
@@ -3281,8 +3265,8 @@ void renderTasks() {
     gfx->setCursor(66, y + 32);
     gfx->print(reward);
     if (paid || ready) {
-      const char *status = paid ? "CLAIMED" : "TAP TO CLAIM";
-      gfx->setCursor(310, y + 34);
+      const char *status = T(paid ? S_TK_CLAIMED : S_TK_CLAIM);
+      gfx->setCursor(400 - (int)strlen(status) * 6, y + 34);   // right-aligned: fits any language
       gfx->print(status);
     }
   }
@@ -3296,7 +3280,7 @@ void renderTasks() {
     gfx->setTextColor(tasksBonusReady() ? UI_WHITE : UI_INK);
     gfx->setTextSize(1);
     gfx->setCursor(66, y + 8);
-    gfx->print("DAILY BONUS");
+    gfx->print(T(S_TK_BONUS));
     char progress[12];
     snprintf(progress, sizeof(progress), "%u/3", got);
     gfx->setTextSize(2);
@@ -3308,20 +3292,22 @@ void renderTasks() {
     gfx->setCursor(66, y + 32);
     gfx->print(reward);
     if (tasksBonusClaimed() || tasksBonusReady()) {
-      gfx->setCursor(310, y + 34);
-      gfx->print(tasksBonusClaimed() ? "CLAIMED" : "TAP TO CLAIM");
+      const char *st = T(tasksBonusClaimed() ? S_TK_CLAIMED : S_TK_CLAIM);
+      gfx->setCursor(400 - (int)strlen(st) * 6, y + 34);
+      gfx->print(st);
     }
   }
 
-  gfx->setTextColor(UI_INK);
-  gfx->setTextSize(1);
-  gfx->setCursor(176, 370);
-  gfx->print(tasksPage == 0 ? "< DAILY >" : "< WEEKLY >");
+  // Daily and weekly are two pages, paged on the RIM like every other paged
+  // screen (uiRimTarget); the arc scrollbar says which. It used to page on a
+  // horizontal swipe, which is CLAUDE.md's most-repeated trap.
   gfx->fillRoundRect(160, 402, 146, 42, 12, UI_TRACK);
   gfx->drawRoundRect(160, 402, 146, 42, 12, UI_INK);
+  gfx->setTextColor(UI_INK);
   gfx->setTextSize(2);
-  gfx->setCursor(199, 414);
-  gfx->print("BACK");
+  gfx->setCursor(CX - (int)strlen(T(S_BACK)) * 6, 414);
+  gfx->print(T(S_BACK));
+  uiChrome();
   gfx->flush();
 }
 
@@ -6520,7 +6506,7 @@ static void menuRowLabel(int i, char *out, size_t n) {
     case 1: snprintf(out, n, "%s", T(S_BAG)); break;
     case 2: snprintf(out, n, T(S_POKEDEX_FMT), pet.registeredCount(), DEX_COUNT); break;
     case 3: snprintf(out, n, "%s", T(S_SETTINGS)); break;
-    case 4: snprintf(out, n, "TASKS"); break;
+    case 4: snprintf(out, n, "%s", T(S_TK_MENU)); break;
     case 5: snprintf(out, n, "%s", T(S_RETIRE)); break;
     default: snprintf(out, n, "%s", T(S_CLOSE)); break;
   }
