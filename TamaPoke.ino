@@ -1592,12 +1592,7 @@ void openClock();  // prototipo
 void onSwipeV(int dir) {
   if (pet.awaitingStarter()) return;  // bloqueado durante la eleccion de inicial
   if (menuOpen) { menuOpen = false; return; }   // any swipe closes the menu
-  if (tasksOpen) {
-    int page = (int)tasksPage + (dir > 0 ? -1 : 1);
-    if (page >= 0 && page < 2) { tasksPage = (uint8_t)page; sfxPlay(SFX_TAP); }
-    else sfxPlay(SFX_DENY);
-    return;
-  }
+  if (tasksOpen) { tasksOpen = false; return; }
   if (battleOpen) return;   // no swiping out of a fight
   const bool back = dir > 0;
 
@@ -2012,7 +2007,12 @@ void onSwipe(int dir) {
   // taught on the first screen they ever see.
   if (pet.awaitingStarter()) { rpickSwipe(dir); return; }
   if (menuOpen) { menuOpen = false; return; }   // any swipe closes the menu
-  if (tasksOpen) { tasksOpen = false; return; }
+  if (tasksOpen) {
+    int page = (int)tasksPage + (dir > 0 ? -1 : 1);
+    if (page >= 0 && page < 2) { tasksPage = (uint8_t)page; sfxPlay(SFX_TAP); }
+    else sfxPlay(SFX_DENY);
+    return;
+  }
   if (battleOpen) return;   // no swiping out of a fight
 
   int t = uiTileIndex();
