@@ -70,7 +70,7 @@ void casBtn(uint8_t i, uint8_t n, int *x, int *y, int *w, int *h) {
   *x = CX - total / 2 + i * (*w + gap);
 }
 // The BET chip, top of every game screen.
-void casBetBtn(int *x, int *y, int *w, int *h) { *w = 150; *h = 40; *x = CX - 75; *y = 264; }
+void casBetBtn(int *x, int *y, int *w, int *h) { *w = 150; *h = 38; *x = CX - 75; *y = 272; }
 // The shop: tabs and a 2x3 grid.
 #define CAS_SHOP_PER 6
 void casTab(uint8_t i, int *x, int *y, int *w, int *h) { *w = 118; *h = 40; *y = 64; *x = CX - 180 + i * 122; }
@@ -590,22 +590,22 @@ static void casHlTap(int16_t px, int16_t py) {
 // ---------------------------------------------------------------- blackjack
 static void renderCasBj() {
   casTable(T(S_CAS_BJ));
-  casDrawDealer(CX - 150, 64, 3);
+  casDrawDealer(CX - 158, 76, 3);
   char b[32];
   bool live = casBj.state == BJ_PLAYER;
   if (casBj.state != BJ_IDLE) {
     // the dealer's hand: the hole card stays down until the hand is over
     for (uint8_t i = 0; i < casBj.dealerN && i < 6; i++)
-      casDealCard(CX - 80 + i * 30, 72, casBj.dealer[i], !(live && i == 1), casDealtAt + i * 90);
+      casDealCard(CX - 80 + i * 30, 62, casBj.dealer[i], !(live && i == 1), casDealtAt + i * 90);
     for (uint8_t i = 0; i < casBj.youN && i < 7; i++)
-      casDealCard(CX - 100 + i * 30, 176, casBj.you[i], true, casDealtAt + i * 90);
+      casDealCard(CX - 100 + i * 30, 150, casBj.you[i], true, casDealtAt + i * 90);
     snprintf(b, sizeof(b), "%u", (unsigned)bjTotal(casBj.you, casBj.youN));
-    gfx->fillCircle(CX + 150, 214, 18, UI_INK);
-    casText(CX + 150, 207, b, UI_WHITE, 2);
+    gfx->fillCircle(CX + 150, 192, 18, UI_INK);
+    casText(CX + 150, 185, b, UI_WHITE, 2);
     if (!live) {
       snprintf(b, sizeof(b), "%u", (unsigned)bjTotal(casBj.dealer, casBj.dealerN));
-      gfx->fillCircle(CX + 150, 112, 18, UI_INK);
-      casText(CX + 150, 105, b, UI_WHITE, 2);
+      gfx->fillCircle(CX + 150, 104, 18, UI_INK);
+      casText(CX + 150, 97, b, UI_WHITE, 2);
     }
   }
   if (live) {
@@ -623,8 +623,8 @@ static void renderCasBj() {
     else if (casBj.result == BJR_WIN) { snprintf(b, sizeof(b), T(S_CAS_WIN_FMT), (unsigned)casBj.payout()); r = b; col = CAS_GOLD; }
     else if (casBj.result == BJR_PUSH) { r = T(S_CAS_PUSH); col = UI_WHITE; }
     else if (casBj.result == BJR_BUST) r = T(S_CAS_BUST);
-    gfx->fillRoundRect(CX - 130, 264 - 36, 260, 30, 12, UI_INK);
-    casText(CX, 264 - 28, r, col, 2);
+    gfx->fillRoundRect(CX - 130, 238, 260, 30, 12, UI_INK);   // under your hand, above the chip
+    casText(CX, 246, r, col, 2);
   }
   casBetChip(false);
   int x, y, w, h; casBtn(0, 1, &x, &y, &w, &h);
