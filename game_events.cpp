@@ -20,6 +20,18 @@ bool gameEventSubscribe(GameEvSink sink) {
   return false;
 }
 
+bool gameEventUnsubscribe(GameEvSink sink) {
+  if (!sink) return false;
+  bool removed = false;
+  for (uint8_t i = 0; i < GAME_EV_SINKS; i++) {
+    if (gSinks[i] == sink) {
+      gSinks[i] = nullptr;
+      removed = true;
+    }
+  }
+  return removed;
+}
+
 void gameEventClearSinks() {
   for (uint8_t i = 0; i < GAME_EV_SINKS; i++) gSinks[i] = nullptr;
 }
