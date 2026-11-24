@@ -45,6 +45,23 @@ const SaveField SAVE_FIELDS[] = {
   { "rivals", SK_BYTES },
   // settings, so a restored device plays the way it did
   { "lang", SK_U8 },    { "snd", SK_BOOL },   { "vol", SK_U8 },
+
+  // Reserved for the staged gameplay-feature port. These are the exact key
+  // names and kinds used by the feature modules; keeping them in this BASE
+  // manifest ensures backups can carry their state once those modules land.
+  // Do not remove the alternating base checkpoints above.
+  { "tasks", SK_BYTES },
+  { "twStrk", SK_U16 }, { "twBest", SK_U16 }, { "twSeed", SK_U32 },
+  { "rmWin", SK_BYTES },
+  { "dcare", SK_BYTES },
+  { "hitm", SK_U8 }, { "dxrw", SK_U8 }, { "dxgf", SK_U8 },
+  { "wchain", SK_BYTES },
+  { "rkTop", SK_U8 }, { "rkCat", SK_U16 }, { "rkChW", SK_U16 },
+  { "rkChL", SK_U16 }, { "rkThm", SK_U8 }, { "rkAvG", SK_U8 },
+  { "chal", SK_BYTES }, { "prsn", SK_U8 },
+  { "frId", SK_U32 }, { "frGday", SK_U32 }, { "frVday", SK_U32 },
+  { "frJrn", SK_BYTES },
+  { "arcHi", SK_BYTES }, { "arcDay", SK_U32 }, { "arcRw", SK_BYTES },
 };
 const uint16_t SAVE_FIELD_COUNT = sizeof(SAVE_FIELDS) / sizeof(SAVE_FIELDS[0]);
 
