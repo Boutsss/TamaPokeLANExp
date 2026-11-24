@@ -564,7 +564,8 @@ bool bagOpen = false;
 uint8_t bagPage = 0;
 ItemKey bagHeldPick = ITEM_NONE;
 uint8_t bagHeldPage = 0;
-#define BAG_PER_PAGE 5
+bool bagTakeMode = false;
+#define BAG_PER_PAGE 4
 #define BAG_ROW_Y(i) (112 + (i) * 58)
 
 // ---------------------------------------------------------------------------
@@ -6575,6 +6576,35 @@ void renderBag() {
   gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
   gfx->setTextColor(UI_INK);
   gfx->setTextSize(2);
+  if (bagTakeMode) {
+    const char *title = "TAKE HELD ITEM";
+    gfx->setCursor(CX - (int)strlen(title) * 6, 40); gfx->print(title);
+    uint8_t n = bagHeldWhoCount();
+    uint8_t pages = n ? (n + BAG_PER_PAGE - 1) / BAG_PER_PAGE : 1;
+    if (bagHeldPage >= pages) bagHeldPage = pages - 1;
+    for (uint8_t i = 0; i < BAG_PER_PAGE; i++) {
+      uint8_t idx = bagHeldPage * BAG_PER_PAGE + i;
+      if (idx >= n) break;
+      uint8_t who = bagHeldWhoAt(idx);
+      ItemKey current = heldBy(pet, party, who);
+      char line[40];
+      if (current) snprintf(line, sizeof(line), "%s: %s", bagHeldWhoName(who), itemEntry(current).name);
+      else snprintf(line, sizeof(line), "%s: EMPTY", bagHeldWhoName(who));
+      int y = BAG_ROW_Y(i);
+      gfx->fillRoundRect(76, y, 314, 50, 10, UI_WHITE);
+      gfx->drawRoundRect(76, y, 314, 50, 10, UI_INK);
+      gfx->setTextColor(UI_INK); gfx->setTextSize(1);
+      gfx->setCursor(88, y + 20); gfx->print(line);
+    }
+    if (pages > 1) {
+      char pg[12]; snprintf(pg, sizeof(pg), "%u/%u", bagHeldPage + 1, pages);
+      gfx->setTextColor(UI_INK); gfx->setTextSize(2);
+      gfx->setCursor(CX - (int)strlen(pg) * 6, 386); gfx->print(pg);
+    }
+    gfx->setTextColor(UI_INK_SOFT); gfx->setTextSize(2);
+    gfx->setCursor(CX - (int)strlen(T(S_BACK)) * 6, 414); gfx->print(T(S_BACK));
+    uiChrome(); gfx->flush(); return;
+  }
   if (bagHeldPick) {
     char title[32]; snprintf(title, sizeof(title), "GIVE %s", itemEntry(bagHeldPick).name);
     gfx->setCursor(CX - (int)strlen(title) * 6, 40); gfx->print(title);
