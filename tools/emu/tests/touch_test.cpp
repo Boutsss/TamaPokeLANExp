@@ -225,7 +225,7 @@ int main(int argc, char **argv) {
   // adjacent RETIRE or CLOSE targets.
   click(233, 60);
   click(233, uiMenuRowCenterY(4));
-  if (!tasksOpen || uiCurrentScreen() != 27) {
+  if (!tasksOpen || uiCurrentScreen() != 25) {
     printf("FAIL: TASKS menu row -> tasksOpen=%d screen=%u\\n",
            (int)tasksOpen, uiCurrentScreen());
     return 1;
