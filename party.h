@@ -54,6 +54,8 @@ struct PartyMon {
   // The real age. `level` stays as its cached mirror so every list, the battle
   // squad builder and the box screen keep reading one byte instead of dividing.
   uint32_t ageMinutes = 0;
+  // Held item appended after every older field; zero means no item.
+  uint8_t held = 0;
 
   bool empty() const { return dex < 1; }
   bool hasCareState() const { return stateVersion >= 1; }
