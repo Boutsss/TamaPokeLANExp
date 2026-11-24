@@ -25,6 +25,16 @@ enum : uint8_t {
   IT_PROTEIN,
   IT_IRON,
   IT_CARBOS,
+  // Held items and key items are appended so every existing saved ItemKey
+  // keeps its meaning on devices already in use.
+  IT_ORAN_BERRY,
+  IT_SITRUS_BERRY,
+  IT_LUM_BERRY,
+  IT_LEFTOVERS,
+  IT_FOCUS_SASH,
+  IT_QUICK_CLAW,
+  IT_SHINY_CHARM,
+  IT_OVAL_CHARM,
   // APPEND-ONLY BELOW HERE
   ITEM_COUNT,
 };
@@ -34,6 +44,8 @@ enum ItemCategory : uint8_t {
   IC_HEAL,       // restores HP, in battle or out
   IC_CURE,       // clears an ailment
   IC_TRAIN,      // permanently raises one training stat, out of battle
+  IC_HELD,       // equipped by an individual creature; not used from the bag
+  IC_KEY,        // permanent key item; not held or consumed
 };
 
 // A ball whose param is this catches without rolling. It is a sentinel rather
@@ -81,6 +93,12 @@ inline const ItemEntry &itemEntry(ItemKey k) {
 inline bool itemIsBall(ItemKey k) {
   return itemValid(k) && itemEntry(k).category == IC_BALL;
 }
+inline bool itemIsHeld(ItemKey k) {
+  return itemValid(k) && itemEntry(k).category == IC_HELD;
+}
+inline bool itemIsKey(ItemKey k) {
+  return itemValid(k) && itemEntry(k).category == IC_KEY;
+}
 // Usable from the bag on the main screen. Only training items: the pet has no
 // persistent HP or ailment outside a fight -- those live on the Combatant and
 // are discarded when it ends -- so a potion in the field would have nothing to
@@ -91,7 +109,9 @@ inline bool itemUsableInField(ItemKey k) {
 // Usable from inside a fight. Training is permanent and belongs to the care
 // sim, so it stays out of the battle bag.
 inline bool itemUsableInBattle(ItemKey k) {
-  return itemValid(k) && itemEntry(k).category != IC_TRAIN;
+  return itemValid(k) && (itemEntry(k).category == IC_BALL ||
+                          itemEntry(k).category == IC_HEAL ||
+                          itemEntry(k).category == IC_CURE);
 }
 
 // The Poke Mart's catalogue, derived from `price` rather than restated as its
