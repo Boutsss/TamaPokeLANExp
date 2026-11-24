@@ -38,6 +38,7 @@
 #include "nvsinfo.h"
 #include "i18n.h"
 #include "audio.h"
+#include "game_events.h"
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
@@ -4476,9 +4477,14 @@ static void btlResolve(uint8_t yourMove) {
     btlWon = btlFoe.fainted();
     btlNewBadge = false;
     btlTrainGain = 0;
-    if (btlWon && btlTrainer >= 0 && !pet.hasBadge(btlRegion, btlTrainer, btlHard)) {
-      pet.winBadge(btlRegion, btlTrainer, btlHard);
-      btlNewBadge = true;
+    if (btlWon && btlTrainer >= 0) {
+      if (!pet.hasBadge(btlRegion, btlTrainer, btlHard)) {
+        pet.winBadge(btlRegion, btlTrainer, btlHard);
+        btlNewBadge = true;
+        gameEvent(EV_GYM_WIN, btlTrainer);
+      } else {
+        gameEvent(EV_REMATCH_WIN, btlTrainer);
+      }
     }
     // A badge and nothing else made the ladder a one-way checklist. A win now
     // trains the creature that fought for it -- so a leader you can already
