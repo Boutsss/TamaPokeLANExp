@@ -125,6 +125,7 @@ public:
   uint8_t trAtk = 0, trDef = 0, trSpe = 0;
   bool berryKnown = false;  // ya descubrio su baya favorita
   bool shiny = false;       // variante de color rara (se sortea en el huevo)
+  uint8_t held = 0;         // held item; persisted in the checkpoint's reserved byte
   uint32_t ageMinutes = 0;
   int16_t speciesId = -1;      // numero de Pokedex (1..DEX_COUNT), -1 = huevo
   int16_t prevSpeciesId = -1;  // para la animacion de evolucion
