@@ -113,6 +113,8 @@ uint8_t cardPage = 0;         // 0 perfil, 1 stats+medallas
 // internally), so a hub on that axis would be ambiguous; the header was inert
 // and is the only free surface left.
 bool menuOpen = false;
+bool tasksOpen = false;
+uint8_t tasksPage = 0;
 #define MENU_X 73
 // Four rows: PARTY and GYMS came out, since a swipe right and a swipe left now
 // reach them directly. Sized to the bezel -- the panel is 320 wide, so 160 from
@@ -120,14 +122,14 @@ bool menuOpen = false;
 #define MENU_Y 70
 #define MENU_W 320
 #define MENU_H 326
-#define MENU_ROW_H 44
-#define MENU_ROW_GAP 6
+#define MENU_ROW_H 36
+#define MENU_ROW_GAP 4
 // 6 rows: STATS / BAG / POKEDEX / SETTINGS / RETIRE / CLOSE. The row height came
 // down from 52 to fit the sixth: the panel spans 70..396, and the round display
 // gives a half-width of 166 there against the 160 a row needs, so the corners
 // stay on glass. Anything taller does not -- at 6 rows of 52 it would reach 413
 // and the bottom corners would fall off the bezel.
-#define MENU_ROWS 6
+#define MENU_ROWS 7
 #define MENU_ROW_Y(i) (MENU_Y + 16 + (i) * (MENU_ROW_H + MENU_ROW_GAP))
 
 // Party screen. partyPick != 0 means the newcomer needs a slot: the player
@@ -231,7 +233,7 @@ enum : uint8_t {
   SCR_STARTER = 0, SCR_REGION, SCR_GALLERY, SCR_DEXPICK, SCR_MOVEPICK, SCR_BOX,
   SCR_PARTY, SCR_KEYBOARD, SCR_CARD, SCR_PLAYER, SCR_CLOCK, SCR_GYM, SCR_GYMPICK,
   SCR_EXPLORE, SCR_MART, SCR_LAN, SCR_PICK, SCR_BATTLE, SCR_WIN, SCR_LEARN, SCR_TRAIN, SCR_MENU,
-  SCR_BAGSCR, SCR_GAME, SCR_MAIN, SCR_COUNT
+  SCR_BAGSCR, SCR_GAME, SCR_MAIN, SCR_TASKS, SCR_COUNT
 };
 extern const char *const SCREEN_NAME[SCR_COUNT];   // const is internal linkage in C++
 
@@ -280,7 +282,7 @@ const char *const SCREEN_NAME[SCR_COUNT] = {
   "starter", "region", "gallery", "dexpick", "movepick", "box",
   "party", "keyboard", "card", "player", "clock", "gym", "gympick",
   "explore", "mart", "lan", "pick", "battle", "win", "learn", "train", "menu",
-  "bag", "minigame", "main"
+  "bag", "minigame", "main", "tasks"
 };
 
 // Badge art for a region, or nullptr when that region has none yet.
@@ -1590,6 +1592,7 @@ void openClock();  // prototipo
 void onSwipeV(int dir) {
   if (pet.awaitingStarter()) return;  // bloqueado durante la eleccion de inicial
   if (menuOpen) { menuOpen = false; return; }   // any swipe closes the menu
+  if (tasksOpen) { tasksOpen = false; return; }
   if (battleOpen) return;   // no swiping out of a fight
   const bool back = dir > 0;
 
@@ -2004,6 +2007,7 @@ void onSwipe(int dir) {
   // taught on the first screen they ever see.
   if (pet.awaitingStarter()) { rpickSwipe(dir); return; }
   if (menuOpen) { menuOpen = false; return; }   // any swipe closes the menu
+  if (tasksOpen) { tasksOpen = false; return; }
   if (battleOpen) return;   // no swiping out of a fight
 
   int t = uiTileIndex();
@@ -2202,6 +2206,10 @@ void onTap(int16_t x, int16_t y) {
   // anywhere on the dimmed area outside the panel, and any swipe (see onSwipe).
   // Deliberately no timeout: a menu that vanishes while you read it is worse
   // than one that lingers.
+  if (tasksOpen) {
+    tasksTap(x, y);
+    return;
+  }
   if (menuOpen) {
     bool inPanel = (x >= MENU_X && x <= MENU_X + MENU_W &&
                     y >= MENU_Y && y <= MENU_Y + MENU_H);
@@ -2216,11 +2224,12 @@ void onTap(int16_t x, int16_t y) {
       else if (i == 1) { bagOpen = true; bagPage = 0; }
       else if (i == 2) { galleryOpen = true; galleryPick = true; galleryPage = 0; rpickPage = 0; galleryDetail = 0; galleryDirty = true; }
       else if (i == 3) { openClock(); }
-      else if (i == 4) {
+      else if (i == 4) { tasksOpen = true; tasksPage = 0; tasksRefresh(); }
+      else if (i == 5) {
         if (!pet.canRetireNow()) { sfxPlay(SFX_DENY); return; }
         choiceKind = 3; choiceUntil = millis() + 12000;
       }
-      return;                                     // i == 5 is CLOSE: just shut
+      return;                                     // i == 6 is CLOSE: just shut
     }
     return;
   }
@@ -2572,6 +2581,7 @@ uint8_t uiCurrentScreen() {
   if (pet.hasLearnOffer()) return SCR_LEARN;
   if (gameOpen || sackOpen || spdOpen) return SCR_GAME;
   if (trainOpen) return SCR_TRAIN;
+  if (tasksOpen) return SCR_TASKS;
   if (menuOpen) return SCR_MENU;
   return SCR_MAIN;
 }
@@ -2934,6 +2944,10 @@ void render() {
   }
   if (gameOpen) {
     renderGame();
+    return;
+  }
+  if (tasksOpen) {
+    renderTasks();
     return;
   }
   if (bagOpen) {
@@ -6238,7 +6252,8 @@ static void menuRowLabel(int i, char *out, size_t n) {
     case 1: snprintf(out, n, "%s", T(S_BAG)); break;
     case 2: snprintf(out, n, T(S_POKEDEX_FMT), pet.registeredCount(), DEX_COUNT); break;
     case 3: snprintf(out, n, "%s", T(S_SETTINGS)); break;
-    case 4: snprintf(out, n, "%s", T(S_RETIRE)); break;
+    case 4: snprintf(out, n, "TASKS"); break;
+    case 5: snprintf(out, n, "%s", T(S_RETIRE)); break;
     default: snprintf(out, n, "%s", T(S_CLOSE)); break;
   }
 }
@@ -6265,7 +6280,7 @@ void drawMenu() {
   for (int i = 0; i < MENU_ROWS; i++) {
     int y = MENU_ROW_Y(i);
     bool close = (i == MENU_ROWS - 1);
-    bool dead = (i == 4 && !pet.canRetireNow());   // an egg or a companion
+    bool dead = (i == 5 && !pet.canRetireNow());   // an egg or a companion
     gfx->fillRoundRect(MENU_X + 18, y, MENU_W - 36, MENU_ROW_H, 12,
                        close || dead ? UI_TRACK : UI_BG_DAY);
     gfx->drawRoundRect(MENU_X + 18, y, MENU_W - 36, MENU_ROW_H, 12, UI_INK);
