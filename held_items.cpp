@@ -42,7 +42,7 @@ static ItemKey *slot(Pet &p, Party &pt, uint8_t who) {
   return m ? &m->held : nullptr;
 }
 static bool saveHolder(Pet &p, Party &pt, uint8_t who) {
-  if (who == HOLDER_PET) return p.save();
+  if (who == HOLDER_PET) return p.saveNow();
   if (who < HOLDER_BOX(0)) return pt.save();
   return pt.boxSave();
 }
