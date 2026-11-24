@@ -133,7 +133,7 @@ void tasksRefresh() { if(opened&&gPet) rollTo(gPet->lastSeenEpoch / 86400UL); }
 void tasksForget() {
   have=false; opened=false; claimed=0; noticeSet=false;
   memset(prog,0,sizeof(prog)); memset(rowIdx,0,sizeof(rowIdx));
-  gameEventClearSinks();
+  gameEventUnsubscribe(tasksOnEvent);
 }
 static bool matches(uint8_t kind,GameEv ev,int16_t arg) {
   switch(kind) {
