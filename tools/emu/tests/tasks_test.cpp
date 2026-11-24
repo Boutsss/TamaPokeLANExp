@@ -51,6 +51,10 @@ int main(){
     for(uint8_t n=tasksProgress(s);n<d.target;n++) gameEvent(d.kind==TK_FEED?EV_FEED:d.kind==TK_CLEAN?EV_CLEAN:d.kind==TK_PLAY?EV_PLAY:d.kind==TK_TRAIN?EV_TRAIN:d.kind==TK_CARE_DAY?EV_CARE_DAY:d.kind==TK_HATCH?EV_HATCH:d.kind==TK_EVOLVE?EV_EVOLVE:d.kind==TK_GYM_WIN?EV_GYM_WIN:d.kind==TK_REMATCH_WIN?EV_REMATCH_WIN:d.kind==TK_WILD_SEEN?EV_WILD_SEEN:d.kind==TK_WILD_WIN?EV_WILD_WIN:d.kind==TK_WILD_CATCH?EV_WILD_CATCH:EV_FEED,1);
     if(tasksDone(s)){
       uint8_t old=bag.count(d.item);
+      nvsFailWritesAfter(0);
+      ck(!tasksClaim(s),"claim is refused if its claimed marker cannot be saved");
+      nvsResumeWrites();
+      ck(!tasksClaimed(s) && bag.count(d.item)==old,"failed claim neither marks paid nor grants reward");
       ck(tasksClaim(s),"completed task reward can be claimed");
       ck(bag.count(d.item)>=old,"claim adds its reward");
       ck(!tasksClaim(s),"same task cannot be claimed twice");
