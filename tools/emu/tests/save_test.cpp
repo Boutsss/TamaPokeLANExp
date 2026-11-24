@@ -39,13 +39,18 @@ int main(){
   pet.streak = 12; pet.bestStreak = 19; pet.totalMedals = 41;
   pet.gameHi = 33; pet.strHi = 21; pet.spdHi = 9;
   pet.bond = 77; pet.careMistakes = 2; pet.weight = 55;
+  pet.held = IT_LEFTOVERS;
   pet.dexReg[0] = 0x5A; pet.dexReg[9] = 0xC3; pet.dexShinyReg[3] = 0x11;
   for (int i=0;i<PARTY_SLOTS;i++){ PartyMon m; m.dex=20+i*7; m.level=40+i;
     m.ivAtk=m.ivDef=m.ivSpe=m.ivHp=20+i; m.shiny=(i==2);
     snprintf(m.nick,sizeof(m.nick),"P%d",i);
-    m.moves[0]=1+i; m.moves[1]=9; party.replaceAt(i,m); }
+    m.moves[0]=1+i; m.moves[1]=9;
+    m.held = (i % 2) ? IT_ORAN_BERRY : IT_FOCUS_SASH;
+    party.replaceAt(i,m); }
   for (int i=0;i<BOX_SLOTS;i++){ PartyMon m; m.dex=1+i*3; m.level=10+i;
-    m.ivAtk=m.ivDef=m.ivSpe=m.ivHp=11; party.box[i]=m; }
+    m.ivAtk=m.ivDef=m.ivSpe=m.ivHp=11;
+    m.held = (i % 2) ? IT_QUICK_CLAW : IT_SITRUS_BERRY;
+    party.box[i]=m; }
   party.boxSave();
   // renameTrainer() persists, and save() writes every field -- so this is also
   // what commits everything set above. save() itself is private on purpose.
@@ -122,6 +127,7 @@ int main(){
   ck(p2.streak==12 && p2.bestStreak==19 && p2.totalMedals==41, "streak and medals");
   ck(p2.gameHi==33 && p2.strHi==21 && p2.spdHi==9, "every minigame record");
   ck(p2.bond==77 && p2.careMistakes==2 && p2.weight==55, "bond, mistakes, weight");
+  ck(p2.held==IT_LEFTOVERS, "the live creature's held item survives checkpoint backup/restore");
   // A superset, not an equality: begin() re-registers the LIVE species on every
   // load (pet.cpp:1011, seeding the dex for saves older than it existed), so
   // Charizard's bit is set on top of whatever was restored. What the backup
@@ -145,8 +151,12 @@ int main(){
   }
   ck(party_ok, "with every level, moveset and nickname");
   ck(q2.slots[2].shiny, "and a banked shiny is still shiny");
+  ck(q2.slots[0].held==IT_FOCUS_SASH && q2.slots[1].held==IT_ORAN_BERRY,
+     "held items survive party record backup/restore");
   ck(q2.boxCount()==BOX_SLOTS, "the box comes back full");
   ck(q2.box[7].dex==1+7*3 && q2.box[7].level==17, "with the right creatures in it");
+  ck(q2.box[7].held==IT_QUICK_CLAW && q2.box[6].held==IT_SITRUS_BERRY,
+     "held items survive box record backup/restore");
 
   // --- a restore must not leave anything of whatever was there before
   {
