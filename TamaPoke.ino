@@ -2229,7 +2229,7 @@ void onTap(int16_t x, int16_t y) {
       else if (i == 1) { bagOpen = true; bagPage = 0; }
       else if (i == 2) { galleryOpen = true; galleryPick = true; galleryPage = 0; rpickPage = 0; galleryDetail = 0; galleryDirty = true; }
       else if (i == 3) { openClock(); }
-      else if (i == 4) { tasksOpen = true; tasksPage = 0; tasksRefresh(); }
+      else if (i == 4) { menuOpen = false; tasksOpen = true; tasksPage = 0; tasksRefresh(); }
       else if (i == 5) {
         if (!pet.canRetireNow()) { sfxPlay(SFX_DENY); return; }
         choiceKind = 3; choiceUntil = millis() + 12000;
