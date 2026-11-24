@@ -1634,25 +1634,89 @@ void Pet::hatch() {
 // evolucion 1 nivel, y ademas tiene que estar bien cuidado en ese momento
 // (ninguna estadistica por debajo de 40). NO evoluciona sola: la dispara el
 // usuario tocando al bicho (evolve()), para que vea la transformacion.
-bool Pet::canEvolveNow() const {
-  if (frozen) return false;     // frozen at the form it was banked in
-  if (isEgg() || sleeping || ceremony != CER_NONE) return false;
+// The species that evolve by friendship in the real games. dex.h gives each a
+// LEVEL PROXY (evolveLevel) because DexEntry cannot say "friendship"; that
+// level still applies, and the bond is required on top of it.
+static const int16_t FRIEND_EVOS[] = {
+  42,    // GOLBAT    -> CROBAT
+  113,   // CHANSEY   -> BLISSEY
+  172,   // PICHU     -> PIKACHU
+  173,   // CLEFFA    -> CLEFAIRY
+  174,   // IGGLYBUFF -> JIGGLYPUFF
+  175,   // TOGEPI    -> TOGETIC
+  298,   // AZURILL   -> MARILL
+  406,   // BUDEW     -> ROSELIA
+  427,   // BUNEARY   -> LOPUNNY
+  433,   // CHINGLING -> CHIMECHO
+  440,   // HAPPINY   -> CHANSEY
+  446,   // MUNCHLAX  -> SNORLAX
+  447,   // RIOLU     -> LUCARIO
+  527,   // WOOBAT    -> SWOOBAT
+  541,   // SWADLOON  -> LEAVANNY
+  772,   // TYPE NULL -> SILVALLY
+};
+
+bool isFriendEvo(int16_t dex) {
+  for (size_t i = 0; i < sizeof(FRIEND_EVOS) / sizeof(FRIEND_EVOS[0]); i++)
+    if (FRIEND_EVOS[i] == dex) return true;
+  return false;
+}
+
+static bool friendIsNight(uint32_t epoch) {
+  if (!epoch) return false;                     // clock never set: it is day
+  int h = (int)((epoch / 3600) % 24);
+  if (FRIEND_NIGHT_START < FRIEND_NIGHT_END) return h >= FRIEND_NIGHT_START && h < FRIEND_NIGHT_END;
+  return h >= FRIEND_NIGHT_START || h < FRIEND_NIGHT_END;
+}
+
+// EEVEE's branches WITHOUT a bond: eeveeOptions() minus ESPEON/UMBREON, which
+// only friendship reaches -- unless that leaves nothing, then all of them.
+static uint8_t eeveeLevelOptions(const Pet &p, int16_t *out) {
+  int16_t all[EEVEE_EVO_COUNT];
+  uint8_t n = p.eeveeOptions(all), m = 0;
+  for (uint8_t i = 0; i < n; i++)
+    if (all[i] != DEX_ESPEON && all[i] != DEX_UMBREON) out[m++] = all[i];
+  if (m) return m;
+  for (uint8_t i = 0; i < n; i++) out[i] = all[i];
+  return n;
+}
+
+EvoCheck Pet::evoCheck() const {
+  EvoCheck e;
+  if (isEgg() || speciesId > DEX_COUNT) return e;          // EVO_FINAL
   const DexEntry &d = DEX_TBL[speciesId];
-  if (d.evolvesTo == 0) return false;
-  // The TARGET has to be drawable, not merely present in the table. Evolution
-  // is one-way, so evolving into a species with no art or no pack on the card
-  // hands the player a dex number forever -- exactly what eeveeOptions()
-  // already prevents for the branch. The linear path never had the same guard,
-  // and evolution targets routinely reach OUT of the installed region: STEELIX
-  // and BLISSEY always did, and Gen 8/9 added nine more (GIRAFARIG ->
-  // FARIGIRAF, LINOONE -> OBSTAGOON and the rest) that land in Galar and
-  // Paldea. One rule for both paths, stated as what is ALLOWED.
-  if (!evoTargetShowable()) return false;
+  if (d.evolvesTo == 0) return e;
+  const bool bonded = bond >= FRIEND_BOND;
+  if (speciesId == DEX_EEVEE) {
+    // A bonded Eevee takes the branch of the hour, if this card can draw it;
+    // otherwise (or unbonded) evolve() picks one of the level branches.
+    int16_t want = friendIsNight(lastSeenEpoch) ? DEX_UMBREON : DEX_ESPEON;
+    if (bonded && speciesShowable(want)) { e.target = want; e.friendship = true; }
+  } else {
+    e.friendship = isFriendEvo(speciesId);
+    e.target = (int16_t)d.evolvesTo;
+  }
   // evoPen is the day owed for retiring the PREVIOUS creature early. It rides
   // on the same threshold careMistakes already moves, so there is one rule for
   // "this creature evolves later" rather than two that can disagree.
-  return level() >= (uint16_t)(d.evolveLevel + careMistakes + evoPen) &&
-         lowestStat() >= 40;
+  e.needLevel = (uint16_t)(d.evolveLevel + careMistakes + evoPen);
+  if (level() < e.needLevel) { e.block = EVO_LEVEL; return e; }
+  if (e.friendship && !bonded) { e.block = EVO_BOND; return e; }
+  // The TARGET has to be drawable, not merely present in the table. Evolution
+  // is one-way, so evolving into a species with no art or no pack on the card
+  // hands the player a dex number forever. Evolution targets routinely reach
+  // OUT of the installed region (STEELIX, BLISSEY, and Gen 8/9's FARIGIRAF,
+  // OBSTAGOON and the rest), so this applies to every path, stated as what is
+  // ALLOWED.
+  if (e.target ? !speciesShowable(e.target) : !evoTargetShowable()) { e.block = EVO_NO_ART; return e; }
+  if (lowestStat() < 40) { e.block = EVO_CARE; return e; }
+  if (frozen || sleeping || ceremony != CER_NONE) { e.block = EVO_STATE; return e; }
+  e.block = EVO_OK;
+  return e;
+}
+
+bool Pet::canEvolveNow() const {
+  return evoCheck().block == EVO_OK;
 }
 
 // Is there any form this creature could evolve INTO that this player could
@@ -1667,18 +1731,21 @@ bool Pet::evoTargetShowable() const {
 }
 
 void Pet::evolve() {
-  if (!canEvolveNow()) return;
+  const EvoCheck ec = evoCheck();
+  if (ec.block != EVO_OK) return;
   const DexEntry &d = DEX_TBL[speciesId];
   prevSpeciesId = speciesId;
-  int16_t next = d.evolvesTo;
-  if (speciesId == DEX_EEVEE) {
+  int16_t next = ec.target ? ec.target : (int16_t)d.evolvesTo;
+  if (speciesId == DEX_EEVEE && !ec.friendship) {
+    // A BONDED Eevee was settled by evoCheck() (ESPEON by day, UMBREON at
+    // night); this is the level branch, which leaves those two to friendship.
     // Eevee's branch: all eight, preferring one still missing from the Pokedex,
     // which is what makes raising Eevees a collection goal rather than a
     // coin flip. Only ones this player can actually be shown -- see
     // eeveeOptions(). If none qualify the table's own 134 stands, so a card with
     // no packs at all still evolves rather than freezing.
     int16_t opts[EEVEE_EVO_COUNT];
-    uint8_t n = eeveeOptions(opts);
+    uint8_t n = eeveeLevelOptions(*this, opts);
     if (n) {
       int16_t fresh[EEVEE_EVO_COUNT];
       uint8_t m = 0;

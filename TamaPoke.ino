@@ -6372,20 +6372,24 @@ void renderCardProgress() {
   char evoBuf[28];
   const char *evo;
   uint16_t evoCol = UI_INK;
-  if (d.evolvesTo == 0) {
-    evo = T(S_FINAL_FORM);
-  } else {
-    // The SAME sum canEvolveNow() uses -- including the day owed for retiring
-    // the previous creature early. A card that left evoPenalty() out would
-    // promise an evolution that then does not happen.
-    int needed = d.evolveLevel + pet.careMistakes + pet.evoPenalty();
-    if (pet.level() >= needed) {
-      if (pet.lowestStat() >= 40) { evo = T(S_EVO_READY); evoCol = UI_BAR_OK; }
-      else { evo = T(S_EVO_BLOCKED); evoCol = UI_BAR_BAD; }
-    } else {
-      snprintf(evoBuf, sizeof(evoBuf), T(S_EVO_IN_FMT), needed - pet.level());
+  // Asks pet.evoCheck() -- THE rule canEvolveNow() and evolve() use -- rather
+  // than re-adding the level sum here. The card used to keep its own copy, and
+  // that copy never knew about the art check (or, now, the bond).
+  (void)d;
+  const EvoCheck ec = pet.evoCheck();
+  switch (ec.block) {
+    case EVO_FINAL: evo = T(S_FINAL_FORM); break;
+    case EVO_LEVEL:
+      snprintf(evoBuf, sizeof(evoBuf), T(S_EVO_IN_FMT), (int)ec.needLevel - pet.level());
       evo = evoBuf;
-    }
+      break;
+    case EVO_BOND:
+      snprintf(evoBuf, sizeof(evoBuf), T(S_EVO_BOND_FMT), (unsigned)pet.bond, (unsigned)FRIEND_BOND);
+      evo = evoBuf; evoCol = UI_BAR_WARN;
+      break;
+    case EVO_NO_ART: evo = T(S_NEED_PACK); evoCol = UI_BAR_WARN; break;
+    case EVO_CARE: evo = T(S_EVO_BLOCKED); evoCol = UI_BAR_BAD; break;
+    default: evo = T(S_EVO_READY); evoCol = UI_BAR_OK; break;   // OK, or merely asleep
   }
   gfx->setTextColor(evoCol);
   gfx->setCursor(CX - strlen(evo) * 6, 256);

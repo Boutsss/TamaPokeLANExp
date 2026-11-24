@@ -257,6 +257,14 @@ While **awake**, per minute:
 - **Never automatic** — a button appears and **you tap to witness it** (with a
   flicker between the old and new form). Each **slip-up delays it by 1 level**.
 - You can **decline** ("keep form"); it re-offers at the next level.
+- **Friendship evolutions** need the **bond** too. Golbat, Chansey, Pichu,
+  Cleffa, Igglybuff, Togepi, Azurill, Budew, Buneary, Chingling, Happiny,
+  Munchlax, Riolu, Woobat, Swadloon and Type: Null keep their level **and**
+  need **bond ≥ 50**; the stat card shows `BOND n/50` while it is the bond
+  holding them back. A card without the target's sprite pack says `NEEDS PACK`
+  instead of `READY`.
+- A **bonded Eevee** (bond ≥ 50) becomes **Espeon** by day and **Umbreon** at
+  night (18:00–06:00). Unbonded, it never takes either of those two.
 - *Eevee* branches toward whichever of its **eight** evolutions you're still
   missing — Vaporeon, Jolteon, Flareon, Espeon, Umbreon, Leafeon, Glaceon and
   Sylveon. None of the eight hatches from an egg any more: the only way to a

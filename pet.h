@@ -108,6 +108,37 @@ struct RivalRecord {
   uint16_t losses = 0;
 };
 
+// ---- Friendship evolution (ported from vunguyen2712/TamaPoke, v3.13).
+// The species that evolve by friendship in the real games keep their level
+// proxy from dex.h AND need the bond on top. A bonded EEVEE becomes ESPEON by
+// day and UMBREON at night; unbonded, those two are left out of its branch.
+#define FRIEND_BOND 50          // Pet::bond (0..100) a friendship evolution needs
+#define DEX_ESPEON 196
+#define DEX_UMBREON 197
+// Umbreon's night, by the RTC hour. Wider than the auto-sleep night: a sleeping
+// creature cannot evolve, so the sleep window alone would be unreachable.
+#define FRIEND_NIGHT_START 18
+#define FRIEND_NIGHT_END 6
+
+enum : uint8_t {
+  EVO_OK = 0,      // evolve() will do it now
+  EVO_FINAL,       // final form (or an egg): nothing to evolve into
+  EVO_LEVEL,       // not at the level yet (careMistakes and evoPen included)
+  EVO_BOND,        // a friendship evolution, bond below FRIEND_BOND
+  EVO_NO_ART,      // the target cannot be drawn on this card
+  EVO_CARE,        // a stat is below 40 right now
+  EVO_STATE,       // asleep, frozen or mid-ceremony; otherwise ready
+};
+
+struct EvoCheck {
+  uint8_t block = EVO_FINAL;
+  int16_t target = 0;       // what it becomes; 0 = EEVEE's level branch, picked in evolve()
+  uint16_t needLevel = 0;
+  bool friendship = false;  // this evolution is gated on the bond
+};
+
+bool isFriendEvo(int16_t dex);
+
 class Pet {
 public:
   // Estadisticas 0..100
@@ -418,6 +449,11 @@ public:
     return 1.0f - (float)left / (float)EVOLVE_ANIM_MS;
   }
   bool canEvolveNow() const;  // condiciones de evolucion cumplidas (lista)
+  // THE single answer to "can this creature evolve, into what, and if not why".
+  // canEvolveNow(), evolve() and the card's progress page all ask it, so none
+  // can promise what another refuses (CLAUDE.md, trap 1 -- the card used to
+  // keep its own copy of the level sum and skipped the art check).
+  EvoCheck evoCheck() const;
   void evolve();              // dispara la transformacion (la llama un toque del usuario)
   bool canFarewellNow() const;  // forma final + 7 dias: lista para despedirse (boton)
   // Total neglect RIGHT NOW. THE single answer: tick() counts against it and

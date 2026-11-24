@@ -186,6 +186,7 @@ enum StrId : uint8_t {
   S_DC_NEXT_FMT,    // daycare: the queued egg: "NEXT EGG: %s"
   S_DC_NONE,        // daycare: the picker has nobody to show
   S_DC_SAVEFAIL,    // daycare: the breed did not save
+  S_EVO_BOND_FMT,  // card: a friendship evolution waiting on the bond, "BOND 32/50"
   STR_COUNT
 };
 

@@ -247,6 +247,9 @@ int main(){
     p.dbgHatchAs(crossDex, false);
     p.ageMinutes = 99UL * 60;            // far past any evolution level
     p.fullness = p.joy = p.energy = p.hygiene = 100;
+    // The first cross-region line is GOLBAT -> CROBAT, a FRIENDSHIP evolution
+    // since v3.29: max the bond so the pack is the only thing that can stop it.
+    p.bond = 100;
 
     gRegionArt = 0xFFFF;                 // every pack installed
     ck(p.evoTargetShowable(), "with every pack installed the target is showable");
