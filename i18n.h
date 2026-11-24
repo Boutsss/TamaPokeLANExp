@@ -253,6 +253,20 @@ enum StrId : uint16_t {
   S_RK_RANK_FMT,   // player card: "RANK 3 / 10"
   S_RK_PTS_FMT,    // player card: points and the next rank
   S_RK_UP,         // main screen: rank-up banner
+  S_TRN_MISS,      // ported (vunguyen2712)
+  S_TRN_COMBO,     // ported (vunguyen2712)
+  S_TRN_GO,        // ported (vunguyen2712)
+  S_TRN_PTS,       // ported (vunguyen2712)
+  S_TRN_CRIT,      // ported (vunguyen2712)
+  S_TRN_WEAK,      // ported (vunguyen2712)
+  S_TRN_MAXED,     // ported (vunguyen2712)
+  S_TRN_FEVER,     // ported (vunguyen2712)
+  S_TRN_HBAG,      // ported (vunguyen2712)
+  S_TRN_HSPD,      // ported (vunguyen2712)
+  S_TRN_2BALL,     // ported (vunguyen2712)
+  S_TRN_DEF,       // ported (vunguyen2712)
+  S_TRN_WIND,      // ported (vunguyen2712)
+  S_TRN_HBALL,     // ported (vunguyen2712)
   STR_COUNT
 };
 

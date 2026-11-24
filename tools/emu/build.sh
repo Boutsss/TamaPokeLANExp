@@ -18,10 +18,9 @@ fi
 # The Arduino build generates function prototypes for the .ino automatically;
 # a plain g++ build does not, and the sketch calls plenty of functions before
 # defining them. Regenerated every build so it can never go stale.
-python3 genproto.py "$ROOT/TamaPoke.ino"
-
-# .ino is C++ but g++ will not compile that extension
-{ echo '#include "proto.h"'; cat "$ROOT/TamaPoke.ino"; } > sketch.cpp
+# Every .ino tab, the main sketch first and the rest alphabetically -- what the
+# Arduino build concatenates (ported from vunguyen2712/TamaPoke).
+bash "$HERE/gensketch.sh" "$HERE"
 
 g++ -std=c++17 -O1 -w \
   -I. -I"$ROOT" \

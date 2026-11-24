@@ -3,7 +3,8 @@
 declarations automatically; a plain g++ build does not, and the sketch calls
 plenty of functions before defining them."""
 import re, sys
-src = open(sys.argv[1]).read()
+# every .ino tab given, in order: Arduino concatenates them into one unit
+src = '\n'.join(open(f).read() for f in sys.argv[1:])
 # top-level "type name(args) {" at column 0. 'static' functions are skipped:
 # they are file-local and in this sketch always defined before first use.
 pat = re.compile(r'^((?:const\s+)?[A-Za-z_][A-Za-z0-9_]*(?:\s*\*+)?)\s+'
