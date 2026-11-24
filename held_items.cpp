@@ -92,3 +92,11 @@ void heldBattleSync(Pet &p, Party &pt, const Combatant &c) {
   *h = ITEM_NONE;
   saveHolder(p, pt, (uint8_t)c.holder);
 }
+
+int shinyCharmOdds(int base) {
+  if (bag.has(IT_SHINY_CHARM)) {
+    base /= 2;
+    if (base < 4) base = 4;
+  }
+  return base < 1 ? 1 : base;
+}
