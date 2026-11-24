@@ -2040,10 +2040,10 @@ void onSwipe(int dir) {
   if (pickOpen) { pickOpen = false; return; }
   if (trainOpen) { trainOpen = false; return; }
   if (bagOpen) {
-    if (bagHeldPick) {
+    if (bagHeldPick || bagTakeMode) {
       uint8_t n = bagHeldWhoCount(), pages = n ? (n + BAG_PER_PAGE - 1) / BAG_PER_PAGE : 1;
       int next = (int)bagHeldPage + (dir > 0 ? -1 : 1);
-      if (next < 0 || next >= pages) { bagHeldPick = ITEM_NONE; bagHeldPage = 0; }
+      if (next < 0 || next >= pages) { bagHeldPick = ITEM_NONE; bagTakeMode = false; bagHeldPage = 0; }
       else bagHeldPage = (uint8_t)next;
     } else bagOpen = false;
     return;
@@ -2239,7 +2239,7 @@ void onTap(int16_t x, int16_t y) {
       sfxPlay(SFX_TAP);
       menuOpen = false;
       if (i == 0) { cardOpen = true; cardPage = 1; }   // straight to the stats page
-      else if (i == 1) { bagOpen = true; bagPage = 0; bagHeldPick = ITEM_NONE; bagHeldPage = 0; }
+      else if (i == 1) { bagOpen = true; bagPage = 0; bagHeldPick = ITEM_NONE; bagHeldPage = 0; bagTakeMode = false; }
       else if (i == 2) { galleryOpen = true; galleryPick = true; galleryPage = 0; rpickPage = 0; galleryDetail = 0; galleryDirty = true; }
       else if (i == 3) { openClock(); }
       else if (i == 4) { menuOpen = false; tasksOpen = true; tasksPage = 0; tasksRefresh(); }
@@ -6669,9 +6669,13 @@ void renderBag() {
     snprintf(pg, sizeof(pg), "%u/%u", bagPage + 1, pages);
     gfx->setTextColor(UI_INK);
     gfx->setTextSize(2);
-    gfx->setCursor(CX - (int)strlen(pg) * 6, 386);
+    gfx->setCursor(CX - (int)strlen(pg) * 6, 344);
     gfx->print(pg);
   }
+  gfx->fillRoundRect(76, 360, 314, 42, 10, UI_WHITE);
+  gfx->drawRoundRect(76, 360, 314, 42, 10, UI_INK);
+  gfx->setTextColor(UI_INK); gfx->setTextSize(2);
+  gfx->setCursor(CX - 7 * 6, 373); gfx->print("TAKE HELD");
   if (bagMsgUntil && millis() < bagMsgUntil) {
     gfx->fillRoundRect(66, CY - 26, 334, 52, 12, UI_WHITE);
     gfx->drawRoundRect(66, CY - 26, 334, 52, 12, UI_INK);
@@ -6689,6 +6693,22 @@ void renderBag() {
 }
 
 void bagTap(int16_t x, int16_t y) {
+  if (bagTakeMode) {
+    uint8_t n = bagHeldWhoCount();
+    for (uint8_t i = 0; i < BAG_PER_PAGE; i++) {
+      uint8_t idx = bagHeldPage * BAG_PER_PAGE + i;
+      if (idx >= n) break;
+      int ry = BAG_ROW_Y(i);
+      if (x < 76 || x > 390 || y < ry || y > ry + 50) continue;
+      uint8_t who = bagHeldWhoAt(idx);
+      bool ok = heldTake(pet, party, who);
+      sfxPlay(ok ? SFX_TAP : SFX_DENY);
+      if (ok) bagTakeMode = false;
+      return;
+    }
+    bagTakeMode = false; bagHeldPage = 0;
+    return;
+  }
   if (bagHeldPick) {
     uint8_t n = bagHeldWhoCount();
     for (uint8_t i = 0; i < BAG_PER_PAGE; i++) {
@@ -6721,6 +6741,9 @@ void bagTap(int16_t x, int16_t y) {
     sfxPlay(SFX_TAP);
     bagSay(T(S_ITEM_USED), itemEntry(k).name);
     return;
+  }
+  if (x >= 76 && x <= 390 && y >= 360 && y <= 402) {
+    bagTakeMode = true; bagHeldPage = 0; sfxPlay(SFX_TAP); return;
   }
   bagOpen = false;   // anywhere else closes, like every other list screen
 }
