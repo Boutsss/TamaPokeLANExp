@@ -1,4 +1,5 @@
 #include "pet.h"
+#include "game_events.h"
 #include "avatars.h"
 #include "dex.h"
 #include "moves.h"
@@ -1150,6 +1151,7 @@ void Pet::registerCare() {
     lastMilestone = 0;
   }
   lastCareDay = d;
+  gameEvent(EV_CARE_DAY, streak > 32767 ? 32767 : (int16_t)streak);
   bondToday = 0;
   if (streak > bestStreak) bestStreak = streak;
   bond = clamp100(bond + 4);
@@ -1577,6 +1579,7 @@ void Pet::hatch() {
   checkLearnGates();
   checkMedals();     // por si nace ya en forma final (legendario)
   sfxPlay(SFX_HATCH);
+  gameEvent(EV_HATCH, speciesId);
   save();
 }
 
@@ -1638,6 +1641,7 @@ void Pet::evolve() {
     }
   }
   speciesId = next;
+  gameEvent(EV_EVOLVE, speciesId);
   registerSpecies(speciesId);
   checkLearnGates();   // the new form may gate a move at this very level
   sfxPlay(SFX_EVOLVE);
@@ -1663,6 +1667,7 @@ void Pet::feedBerry(uint8_t color) {
   }
   eatUntil = millis() + EAT_ANIM_MS;
   registerCare();
+  gameEvent(EV_FEED, lovesBerry(color) ? 1 : 0);
   save();
 }
 
@@ -1703,6 +1708,7 @@ uint8_t Pet::playResult(uint8_t score) {
   // ceiling.
   addBond((uint8_t)(2 + gain / 6));
   registerCare();
+  gameEvent(EV_PLAY, score);
   save();
   return gain;
 }
@@ -1750,6 +1756,7 @@ uint8_t Pet::trainSpeed(uint16_t hits) {
   // ceiling.
   addBond((uint8_t)(2 + gain / 6));
   registerCare();
+  gameEvent(EV_TRAIN, gain);
   save();
   return gain;
 }
@@ -1775,6 +1782,7 @@ uint8_t Pet::trainStrength(uint16_t hits) {
   // ceiling.
   addBond((uint8_t)(2 + gain / 6));
   registerCare();
+  gameEvent(EV_TRAIN, gain);
   save();
   return gain;
 }
@@ -1859,6 +1867,7 @@ void Pet::clean() {
   hygiene = 100;
   addBond(1);
   registerCare();
+  gameEvent(EV_CLEAN, 1);
   save();
 }
 
