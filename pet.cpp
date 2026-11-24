@@ -1,5 +1,6 @@
 #include "pet.h"
 #include "game_events.h"
+#include "held_items.h"
 #include "avatars.h"
 #include "dex.h"
 #include "moves.h"
@@ -574,6 +575,7 @@ void Pet::newEgg() {
   mistakeCooldown = 0;
   sleeping = false;
   frozen = false;
+  held = 0;
   save();
 }
 
@@ -742,6 +744,7 @@ void Pet::reviveFrom(const PartyMon &m) {
   eggTaps = 0;
   starterPick = false;
   shiny = m.shiny != 0;
+  held = itemIsHeld(m.held) ? m.held : ITEM_NONE;
   ivAtk = m.ivAtk; ivDef = m.ivDef; ivSpe = m.ivSpe; ivHp = m.ivHp;
   trAtk = m.trAtk; trDef = m.trDef; trSpe = m.trSpe;
   for (int i = 0; i < MOVE_SLOTS; i++) moves[i] = m.moves[i];
@@ -801,6 +804,7 @@ PartyMon Pet::toPartyMon() const {
   m.evoDeclinedLv = evoDeclinedLv;
   m.lastLearnLevel = lastLearnLevel;
   m.ageMinutes = ageMinutes;
+  m.held = held;
   return m;
 }
 
@@ -816,6 +820,7 @@ bool Pet::switchTo(const PartyMon &m) {
   eggTaps = 0;
   starterPick = false;
   shiny = m.shiny != 0;
+  held = itemIsHeld(m.held) ? m.held : ITEM_NONE;
   ivAtk = m.ivAtk; ivDef = m.ivDef; ivSpe = m.ivSpe; ivHp = m.ivHp;
   trAtk = m.trAtk; trDef = m.trDef; trSpe = m.trSpe;
   for (int i = 0; i < MOVE_SLOTS; i++) moves[i] = m.moves[i];
@@ -870,7 +875,7 @@ void Pet::snapshotForParty() {
   // here: update() snapshots before newEgg() spends it, and that ordering is
   // what this depends on, so retire_test drives the real update() rather than
   // calling the two halves by hand.
-  if (retireIsEarly()) return;
+  if (retireIsEarly()) { heldReturn(held); return; }
   endedMon = toPartyMon();
   endedKind = ceremony;
   // Deliberately NOT saved here. update() calls this and then newEgg(), whose
@@ -1915,6 +1920,7 @@ bool Pet::saveCoreSnapshot() {
   snapshot.retirePending = retirePending; snapshot.eggTaps = eggTaps;
   snapshot.careMistakes = careMistakes; snapshot.sleeping = sleeping;
   snapshot.lastEnd = lastEnd; snapshot.frozen = frozen; snapshot.bond = bond;
+  snapshot.pad0 = held;
   strncpy(snapshot.nick, nick, sizeof(snapshot.nick) - 1);
 
   uint8_t buf[PET_CORE_CAP] = {};
