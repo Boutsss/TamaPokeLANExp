@@ -868,7 +868,10 @@ bool Pet::switchTo(const PartyMon &m) {
 void Pet::snapshotForParty() {
   endedKind = CER_NONE;
   if (isEgg()) return;
-  if (ceremony != CER_FAREWELL && ceremony != CER_RELEASE) return;
+  if (ceremony != CER_FAREWELL && ceremony != CER_RELEASE) {
+    if (ceremony == CER_RUNAWAY) heldReturn(held);
+    return;
+  }
   // An EARLY retire gives the creature up for good -- it is not banked at all.
   // Retiring one that has EARNED its farewell still banks it, because that is
   // simply the farewell reached by another button. retirePending is still set
@@ -2018,6 +2021,7 @@ bool Pet::loadCoreSnapshot() {
   retirePending = snapshot.retirePending != 0; eggTaps = snapshot.eggTaps;
   careMistakes = snapshot.careMistakes; sleeping = snapshot.sleeping != 0;
   lastEnd = snapshot.lastEnd; frozen = snapshot.frozen != 0; bond = snapshot.bond;
+  held = itemIsHeld(snapshot.pad0) ? snapshot.pad0 : ITEM_NONE;
   memcpy(nick, snapshot.nick, sizeof(nick));
   nick[sizeof(nick) - 1] = 0;
   return true;
