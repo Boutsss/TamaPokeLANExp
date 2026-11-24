@@ -77,6 +77,12 @@ int main(){
      "and the bonus is clamped");
   ck(wildShinyForRoll(99,0) && !wildShinyForRoll(100,0),
      "the shiny roll flips at its threshold, not near it");
+  ck(wildShinyForRollWithCharm(199,0,true) &&
+     !wildShinyForRollWithCharm(200,0,true),
+     "Shiny Charm doubles the wild shiny threshold");
+  ck(wildShinyForRollWithCharm(99,0,false) &&
+     !wildShinyForRollWithCharm(100,0,false),
+     "without the charm, the original wild shiny rate is unchanged");
   { uint8_t a=31,d=5,s=0,h=25;
     wildApplyShiny(true,a,d,s,h);
     ck(a==31 && d==20 && s==20 && h==25,
