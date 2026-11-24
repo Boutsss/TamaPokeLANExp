@@ -38,7 +38,15 @@ bash "$EMU/build.sh" >/dev/null
 # build is the one that decides.
 if command -v arduino-cli >/dev/null; then
   FQBN="esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB"
-  if ! arduino-cli compile --fqbn "$FQBN" "$ROOT" >/dev/null 2>"$OUT_FW"; then
+  # arduino-cli insists the folder is named after the main .ino, and a fork's
+  # checkout usually is not (this one is TamaPokeLANExp). Symlinks are resolved
+  # back to the real name, so copy the top-level sources -- all a sketch builds.
+  SKETCH="$ROOT"
+  if [ "$(basename "$ROOT")" != "TamaPoke" ]; then
+    SKETCH="$OUT/TamaPoke"; mkdir -p "$SKETCH"
+    cp "$ROOT"/*.ino "$ROOT"/*.cpp "$ROOT"/*.h "$SKETCH"/
+  fi
+  if ! arduino-cli compile --fqbn "$FQBN" "$SKETCH" >/dev/null 2>"$OUT_FW"; then
     echo "=== THE FIRMWARE DOES NOT COMPILE (the emulator does; that is not the same thing)"
     grep -i error "$OUT_FW" | head -5
     exit 1
