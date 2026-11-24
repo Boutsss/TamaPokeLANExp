@@ -42,30 +42,40 @@ argument), first gym badge win, gym rematch win, wild encounter, wild battle
 win, and successful capture. Event publication is deliberately additive and
 does not itself change existing game behavior or require new NVS keys.
 
-The daily/weekly task engine is not yet ported. Its original implementation
-also depends on feature-fork-only Pet fields, breeding/tower APIs, and an item
-catalogue that is not compatible with the base `ItemKey` system. Port it with
-a base-compatible subset and explicit reward mapping rather than copying
-`tasks.cpp` unchanged.
+## Daily and weekly tasks: first gameplay slice ported
+
+The adapted task engine now uses the base game's event bus, Pet clock,
+`ItemKey` inventory, and NVS namespace. It intentionally offers only task
+types that already have real base-game events: feeding, favourite berries,
+cleaning, play, training, care days, hatching, evolution, gym wins, rematches,
+wild encounters, wild wins, and catches. Breeding and tower tasks are not
+offered until those systems exist in the base branch.
+
+Daily and weekly task rows are selected deterministically from the supported
+pool, with progress, claimed flags, and rotation dates persisted in a compact
+versioned `tasks` blob. The task UI is connected to the existing menu and
+includes daily/weekly pages, progress, reward claims, and a daily bonus.
+Rewards are explicitly mapped to existing base inventory items; this does
+not import the feature fork's item IDs. Emulator coverage exercises task
+selection, progress, reload persistence, failed claim-marker writes, duplicate
+claims, and save-backup inclusion. This is a ported slice, not the full
+feature-fork task system.
 
 ## Persistent state additions to the base save manifest
 
-The feature save table adds these keys that are not in the base table:
+At this point, the only feature-specific key added to the BASE `SAVE_FIELDS`
+table is `tasks` (`SK_BYTES`). Its fixed compact payload is versioned
+independently and bounded by the existing backup maximum. The base checkpoint
+keys `petA`, `petB`, `plyA`, and `plyB` remain present.
 
-- `tasks`, `twStrk`, `twBest`, `twSeed`, `rmWin`
-- `dcare`
-- `hitm`, `dxrw`, `dxgf`
-- `wchain`
-- `rkTop`, `rkCat`, `rkChW`, `rkChL`, `rkThm`, `rkAvG`
-- `chal`, `prsn`
-- `frId`, `frGday`, `frVday`, `frJrn`
-- `arcHi`, `arcDay`, `arcRw`
-
-Before enabling any module, add its keys to the BASE `SAVE_FIELDS` table and
-verify every key's exact type, length, maximum size, and migration behavior.
-Preserve the base checkpoint keys `petA`, `petB`, `plyA`, and `plyB`.
-Do not copy the feature fork's `save.cpp`: its restore path clears the
-namespace and its field table does not include those base checkpoint keys.
+The feature fork also has keys not yet ported, including tower/rematch,
+daycare, held-item/dex rewards, rank, challenge, persona, friends, and arcade
+state. Add each only alongside its actual module, after verifying exact type,
+length, maximum size, and migration behavior. Do not bulk-reserve future keys:
+oversized backup manifests can exhaust the export buffer and break existing
+save backups. Do not copy the feature fork's `save.cpp`: its restore path
+clears the namespace and its field table does not include the base checkpoint
+keys.
 
 The feature source has no save fields for weather/habitat in this table; inspect
 their actual runtime state before deciding whether they need persistent keys.
