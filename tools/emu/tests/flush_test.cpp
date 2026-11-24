@@ -29,6 +29,7 @@ extern bool boxOpen, releaseConfirm;
 extern bool bagOpen;
 extern bool daycareOpen; extern uint8_t dcView;
 extern bool towerOpen, chalOpen;
+void arcadeOpenFromTrain(); void arcadeClose();
 extern Party party;
 void startBattle(int16_t dex, uint8_t lvl);
 
@@ -83,6 +84,7 @@ int main(){
   clearAll(); daycareOpen=true; dcView=1; check("dcpick"); crumbIs("dcpick");
   clearAll(); towerOpen=true;    check("tower");    crumbIs("tower");
   clearAll(); chalOpen=true;     check("challenge"); crumbIs("challenge");
+  clearAll(); arcadeOpenFromTrain(); check("arcade"); crumbIs("arcade"); arcadeClose();
   for (uint8_t p=0;p<4;p++){ clearAll(); cardOpen=true; cardPage=p;
     char n[16]; snprintf(n,sizeof(n),"card%u",p); check(n); }
   clearAll(); startBattle(9,50); check("battle");

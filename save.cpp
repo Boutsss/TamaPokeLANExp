@@ -58,6 +58,8 @@ const SaveField SAVE_FIELDS[] = {
   // the weekly gym challenge (challenge.cpp)
   { "chal", SK_BYTES },
   // trainer rank (rank.cpp)
+  // the arcade (ui_arcade.ino): bests, the prize day, grades paid today + first-S bits
+  { "arcHi", SK_BYTES },  { "arcDay", SK_U32 },  { "arcRw", SK_BYTES },
   { "rkTop", SK_U8 },  { "rkCat", SK_U16 },  { "rkChW", SK_U16 },  { "rkChL", SK_U16 },  { "rkAvG", SK_U8 },
   { "twStrk", SK_U16 },  { "twBest", SK_U16 },  { "twSeed", SK_U32 },  { "rmWin", SK_BYTES },
 };

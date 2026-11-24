@@ -374,6 +374,108 @@ gets exactly the old hits/4; ~22 targets with short chains and a few golds is
 ~+12 SPEED (it was +11); ~15 rallies is ~+7 DEFENSE (it was +7). Skill is what
 reaches the 18 ceiling sooner.
 
+<!-- ported from vunguyen2712/TamaPoke's README with the arcade (v3.18-v3.21) -->
+### Arcade
+
+**Dumbbell > ARCADE** (the training menu's fourth row; it was ADVENTURE page 2
+until v3.20). Four short games played for fun,
+joy and the bond -- they train **no stat** (that is what the
+[Training games](#training-games) are for). The list shows each game with your
+best score; a star marks a game you have S-ranked. The row is greyed, and no
+game starts, while the pet is an **egg, asleep or in a ceremony**; if it falls
+asleep mid-game the session is banked and the list comes back.
+
+Shared with the training games: the **3-2-1 countdown** (1.8 s, nothing scores
+during it), the **COMBO** and its multiplier (**x1 below 5, x2 from 5, x3 from
+10** in a row), pop-ups, particles, the jolt and the rising blip. Every session
+ends on a **results card** (grade, stars, points, best, best combo, what the
+pet got); it goes back to the list by itself after 7 s, or on a tap after 0.7 s.
+
+**Leaving.** A tap on the top strip (y < 60) or a vertical swipe leaves a game
+and **banks it exactly as finishing would**; a horizontal swipe does too, except
+in BERRY CATCH, where dragging sideways is the control. Leaving the arcade from
+anywhere mid-game banks it as well. A session is paid once, however it ends.
+
+| game | length | rules |
+|---|---|---|
+| **BERRY CATCH** | 45 s, or 3 lives | Drag (or tap) to move the basket along the ground (0.9 px/ms; catches within 46 px). A berry is **1 + mult - 1**, a golden berry (8 %) **5 + mult - 1**. A berry that lands breaks the combo. From **6 s** rocks fall too (25 % of drops, 15 % faster): one in the basket costs a **life**, the combo and stuns the basket for 0.7 s; a rock that misses is harmless. A drop every 950 ms falling 0.16 px/ms at the start, every 420 ms at 0.34 px/ms by 45 s. |
+| **MEMORY** | 60 s | 4x4 cards, 8 pairs of type symbols (drawn with the move-effect sprites; 8 of 12 types with distinct shapes). Flip two: a pair stays up and is worth **10 x mult** (combo = pairs in a row). A mismatch shows for 0.7 s -- or until your next tap -- and turns back: no points lost, combo broken. Clearing the board is **+20** and deals a fresh one. |
+| **ECHO** | until the last life, at most 60 s | Four type pads -- FIRE top, WATER right, GRASS bottom, ELECTRIC left, each its own note (C E G C) -- play a sequence; repeat it. Each right pad **+1**, a cleared round **+its length**, and the next round adds one pad: clearing *n* rounds is **n x (n + 1)** points. A wrong pad, or **5 s** without a tap on your turn, costs one of **2 lives** and replays the same sequence. Playback: each pad lit 460 - 18 x length ms (at least 240), 140 ms apart. |
+| **POP-UP** | 45 s | Seven holes. Bop a critter for **1 + mult - 1**, a golden one (10 %, stays 3/4 as long) for **3 + mult - 1**. From **5 s** a BOMB can pop up (18 %): bopping it is **-5** points (never below 0) and the combo; left alone it fizzles. A critter that ducks back untapped, or a tap on an empty hole, breaks the combo. One critter at a time, **two from 8 s, three from 25 s**; each stays 1150 ms - 14 ms per hit (at least 550), a bomb 1300 ms. |
+
+**Grades** (points): 
+
+| game | B | A | S |
+|---|---|---|---|
+| BERRY CATCH | 25 | 50 | 80 |
+| MEMORY | 40 | 90 | 150 |
+| ECHO | 12 (3 rounds) | 30 (5) | 56 (7) |
+| POP-UP | 20 | 40 | 65 |
+
+**Rewards**, for a session that scored at least 1 point (a 0-point session pays
+and records nothing):
+
+- **Joy +4 / +8 / +12 / +16** for C / B / A / S, and **bond +1** (C, B) or
+  **+2** (A, S) -- the bond through the same daily cap of **20** as playing and
+  visits, so the card shows what the pet actually gained (0 once capped).
+- **-3 energy**.
+- A **PLAY** event, so the "play a minigame" tasks count arcade sessions.
+- **Rank prizes, every day, per game** (the care-streak day). Each game pays
+  once for an **A** and once for an **S**; an S first pays the S prize, and an A
+  after it pays nothing more that day. The list shows TODAY: A / TODAY: S on a
+  game that has paid.
+
+  | game | A | S | first S ever (once) |
+  |---|---|---|---|
+  | BERRY CATCH | ORAN BERRY | SITRUS BERRY | LEFTOVERS |
+  | MEMORY | POKE BALL | GREAT BALL | QUICK CLAW |
+  | ECHO | POKE BALL | GREAT BALL | FOCUS SASH |
+  | POP-UP | ORAN BERRY | SITRUS BERRY | LUM BERRY |
+
+- **All four S-ranked** (each game's first S paid): **3 ULTRA BALLs**, once.
+
+Bests, today's prizes and the one-time bonuses are saved (`arcHi`, 4 x 16-bit;
+`arcDay`; `arcRw`, 5 B) and are in the EXPORT backup.
+
+&nbsp;
+
+## Hardware
+
+- Board: [ESP32-S3-Touch-AMOLED-1.75](https://www.waveshare.com/wiki/ESP32-S3-Touch-AMOLED-1.75)
+  — get the **Standard** (no case) or **-G** (GPS, also fits) version; **not the "-B"**
+  (ships with a protective case that won't fit). The separate "1.75**C**" is a different board.
+- Round 466×466 AMOLED, **CO5300** driver (QSPI, 80 MHz)
+- Capacitive touch **CST9217** (I2C, address 0x5A)
+- **AXP2101** (power management + battery + PWR button), **PCF85063** (RTC),
+  microSD slot, **ES8311** audio codec (→ amplifier → external speaker on the
+  MX1.25 connector)
+- Pins taken from the [official Waveshare repo](https://github.com/waveshareteam/ESP32-S3-Touch-AMOLED-1.75) (see `pin_config.h`)
+
+## Libraries (Arduino IDE / arduino-cli)
+
+| Library | Author | Use |
+|---|---|---|
+| GFX Library for Arduino (`Arduino_GFX`) | moononournation | CO5300 over QSPI + framebuffer in PSRAM |
+| SensorLib | Lewis He | CST9217 touch + PCF85063 RTC |
+| XPowersLib | Lewis He | AXP2101 PMU (battery, brightness, PWR button) |
+| ESP_I2S (bundled in the ESP32 core) | Espressif | I2S to the ES8311 codec |
+
+## IDE setup / build
+
+- Board: **ESP32S3 Dev Module** · Flash **16MB** · PSRAM **OPI PSRAM**
+  (required: the 466×466×16-bit framebuffer ≈ 434 KB lives in PSRAM) ·
+  Partition Scheme with FAT (e.g. `16M Flash (3MB APP/9MB FATFS)`) ·
+  USB CDC On Boot **Enabled**
+
+```bash
+FQBN="esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB"
+arduino-cli compile --fqbn "$FQBN" .
+arduino-cli upload -p /dev/cu.usbmodemXXXX --fqbn "$FQBN" .
+
+# or just, which finds the port itself and can open the console:
+bash tools/flash.sh --monitor
+```
+
 ### Wild encounters, catching and the bag
 
 **EXPLORE** is its own stop immediately beside the pet on the horizontal axis.

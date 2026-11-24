@@ -1941,6 +1941,16 @@ uint8_t Pet::trainStrength(uint16_t hits, uint16_t eff) {
   return gain;
 }
 
+uint8_t Pet::friendVisit(uint8_t joyGain, uint8_t bondGain) {
+  if (isEgg()) return 0;
+  joy = clamp100(joy + joyGain);
+  uint8_t before = bond;
+  addBond(bondGain);
+  heartUntil = millis() + HEART_MS;
+  save();
+  return (uint8_t)(bond - before);
+}
+
 void Pet::play() {
   if (ceremony != CER_NONE) return;
   if (isEgg() || sleeping) return;

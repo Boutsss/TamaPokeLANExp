@@ -63,7 +63,10 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "RETO SEMANAL", "gana una medalla de gimnasio", "HECHO", "SOLO TIPO %s", "NIVEL MAX %u", "SOLO: 1 CONTRA 1", "SIN OBJETOS", "TRIO: 3 EXACTOS", "todos los tuyos deben ser de ese tipo", "los tuyos a Nv.%u como maximo, el lider a Nv.%u", "uno de los tuyos contra su as", "los objetos equipados no hacen nada", "tres de los tuyos contra sus tres ultimos", "premio: %u ULTRA BALL + %s", "nuevo reto el lunes", "RETO SUPERADO!", "ninguno de los tuyos cumple", "ese equipo rompe la regla", "no hay lider disponible", "SEMANAL", "LAN",
      "EMPEZAR",
      "NOVATO", "ENTRENADOR", "ENTRENADOR AS", "RETADOR", "LIDER", "VETERANO", "ELITE", "CAMPEON", "MAESTRO", "LEYENDA", "RANGO %u / %u", "%lu pts - siguiente %lu", "NUEVO RANGO!",
-     "FALLO", "COMBO %u", "YA!", "%u PTS", "CRITICO!", "PUNTO DEBIL!", "AL MAXIMO", "FIEBRE!", "GOLPEA EN LA ZONA", "EVITA LAS BOMBAS", "2 BOLAS!", "DEF +%u", "VIENTO", "QUE NO CAIGA", },
+     "FALLO", "COMBO %u", "YA!", "%u PTS", "CRITICO!", "PUNTO DEBIL!", "AL MAXIMO", "FIEBRE!", "GOLPEA EN LA ZONA", "EVITA LAS BOMBAS", "2 BOLAS!", "DEF +%u", "VIENTO", "QUE NO CAIGA",
+     "AY!", "TABLERO!", "RONDA %u", "TU TURNO", "MIRA", "RECREATIVOS", "RECORD %u", "NUEVO RECORD!", "1ER S: %s!", "4 S: %s x%u!", "ALEGRIA +%u VINC +%u", "PREMIO: %s!", "TOCA PARA SEGUIR",
+     "HOY: S", "HOY: A", "PREMIOS DE HOY: YA", "RANGO A/S: PREMIOS",
+     "ATRAPA BAYAS", "PAREJAS", "ECO", "TOPOS", "ATRAPA, EVITA ROCAS", "BUSCA PAREJAS", "MIRA Y REPITE", "GOLPEA, NO LA BOMBA", },
   // ---------------- EN ----------------
   {
     "Evolving!", "Yum yum!", "It likes it!", "It's hungry!", "Needs a bath!",
@@ -118,7 +121,10 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "WEEKLY CHALLENGE", "win any gym badge first", "DONE", "TYPE ONLY: %s", "LEVEL CAP %u", "SOLO: 1 VS 1", "NO HELD ITEMS", "TRIO: EXACTLY 3", "every creature you bring must be that type", "yours at most Lv.%u, the leader's all at Lv.%u", "one of yours against the leader's ace", "held items do nothing this fight", "three of yours against the leader's last three", "reward: %u ULTRA BALL + %s", "a new challenge on Monday", "CHALLENGE CLEARED!", "none of yours fit the rule", "that squad breaks the rule", "no leader available", "WEEKLY", "LAN",
      "START",
      "ROOKIE", "TRAINER", "ACE TRAINER", "GYM CHALLENGER", "GYM LEADER", "VETERAN", "ELITE", "CHAMPION", "MASTER", "LEGEND", "RANK %u / %u", "%lu pts - next at %lu", "RANK UP!",
-     "MISS", "COMBO %u", "GO!", "%u PTS", "CRITICAL!", "WEAK SPOT!", "MAXED OUT", "FEVER!", "HIT IN THE ZONE", "AVOID THE BOMBS", "2 BALLS!", "DEF +%u", "WIND", "KEEP IT UP", },
+     "MISS", "COMBO %u", "GO!", "%u PTS", "CRITICAL!", "WEAK SPOT!", "MAXED OUT", "FEVER!", "HIT IN THE ZONE", "AVOID THE BOMBS", "2 BALLS!", "DEF +%u", "WIND", "KEEP IT UP",
+     "OUCH!", "BOARD CLEAR!", "ROUND %u", "YOUR TURN", "WATCH", "ARCADE", "BEST %u", "NEW BEST!", "FIRST S: %s!", "ALL 4 S: %s x%u!", "JOY +%u BOND +%u", "PRIZE: %s!", "TAP TO GO ON",
+     "TODAY: S", "TODAY: A", "ALL PRIZES TODAY: WON", "RANK A OR S: PRIZES",
+     "BERRY CATCH", "MEMORY", "ECHO", "POP-UP", "CATCH, DODGE ROCKS", "FIND THE PAIRS", "WATCH AND REPEAT", "BOP THEM, NOT BOMBS", },
   // ---------------- FR ----------------
   {
     "Il evolue!", "Miam miam!", "Il aime ca!", "Il a faim!", "Besoin d'un bain!",
@@ -172,7 +178,10 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "DEFI DE LA SEMAINE", "gagne d'abord un badge", "FAIT", "TYPE UNIQUE: %s", "NIVEAU MAX %u", "SOLO: 1 CONTRE 1", "SANS OBJETS", "TRIO: 3 PILE", "tous les tiens doivent etre de ce type", "les tiens au N.%u max, le champion au N.%u", "un des tiens contre son meilleur", "les objets tenus ne font rien", "trois des tiens contre ses trois derniers", "prix: %u ULTRA BALL + %s", "nouveau defi lundi", "DEFI REUSSI!", "aucun des tiens ne convient", "cette equipe enfreint la regle", "aucun champion disponible", "SEMAINE", "LAN",
      "COMMENCER",
      "DEBUTANT", "DRESSEUR", "DRESSEUR AS", "CHALLENGER", "CHAMPION ARENE", "VETERAN", "ELITE", "CHAMPION", "MAITRE", "LEGENDE", "RANG %u / %u", "%lu pts - suivant %lu", "NOUVEAU RANG!",
-     "RATE", "COMBO %u", "GO!", "%u PTS", "CRITIQUE!", "POINT FAIBLE!", "AU MAXIMUM", "FIEVRE!", "FRAPPE DANS LA ZONE", "EVITE LES BOMBES", "2 BALLES!", "DEF +%u", "VENT", "GARDE-LA EN L'AIR", },
+     "RATE", "COMBO %u", "GO!", "%u PTS", "CRITIQUE!", "POINT FAIBLE!", "AU MAXIMUM", "FIEVRE!", "FRAPPE DANS LA ZONE", "EVITE LES BOMBES", "2 BALLES!", "DEF +%u", "VENT", "GARDE-LA EN L'AIR",
+     "AIE!", "GRILLE OK!", "MANCHE %u", "A TOI", "REGARDE", "ARCADE", "RECORD %u", "RECORD!", "1ER S: %s!", "4 S: %s x%u!", "JOIE +%u LIEN +%u", "PRIX: %s!", "TOUCHE POUR SUIVRE",
+     "AUJ.: S", "AUJ.: A", "PRIX DU JOUR: GAGNES", "RANG A/S: DES PRIX",
+     "CUEILLETTE", "MEMORY", "ECHO", "TAUPES", "ATTRAPE, EVITE", "TROUVE LES PAIRES", "REGARDE, REPETE", "TAPE, PAS LA BOMBE", },
   // ---------------- DE ----------------
   {
     "Entwickelt sich!", "Mampf mampf!", "Gefaellt ihm!", "Hat Hunger!", "Braucht ein Bad!",
@@ -226,7 +235,10 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "WOCHEN-DUELL", "hol zuerst einen Orden", "ERLEDIGT", "NUR TYP %s", "LEVEL MAX %u", "SOLO: 1 GEGEN 1", "KEINE ITEMS", "TRIO: GENAU 3", "alle deine muessen diesen Typ haben", "deine hoechstens Lv.%u, der Leiter auf Lv.%u", "einer von dir gegen sein Ass", "getragene Items wirken nicht", "drei von dir gegen seine letzten drei", "Preis: %u ULTRA BALL + %s", "neues Duell am Montag", "DUELL GEWONNEN!", "keiner von dir passt", "dieses Team bricht die Regel", "kein Leiter verfuegbar", "WOCHE", "LAN",
      "STARTEN",
      "NEULING", "TRAINER", "ASS-TRAINER", "HERAUSFORDERER", "ARENALEITER", "VETERAN", "ELITE", "CHAMPION", "MEISTER", "LEGENDE", "RANG %u / %u", "%lu Pkt - naechster %lu", "RANG AUFGESTIEGEN!",
-     "DANEBEN", "COMBO %u", "LOS!", "%u PKT", "KRITISCH!", "SCHWACHSTELLE!", "AM LIMIT", "FIEBER!", "TRIFF DIE ZONE", "KEINE BOMBEN", "2 BAELLE!", "VERT +%u", "WIND", "NICHT FALLEN LASSEN", },
+     "DANEBEN", "COMBO %u", "LOS!", "%u PKT", "KRITISCH!", "SCHWACHSTELLE!", "AM LIMIT", "FIEBER!", "TRIFF DIE ZONE", "KEINE BOMBEN", "2 BAELLE!", "VERT +%u", "WIND", "NICHT FALLEN LASSEN",
+     "AUA!", "GESCHAFFT!", "RUNDE %u", "DEIN ZUG", "SCHAU", "SPIELHALLE", "BESTE %u", "REKORD!", "ERSTES S: %s!", "4 S: %s x%u!", "FREUDE +%u BAND +%u", "PREIS: %s!", "TIPPEN: WEITER",
+     "HEUTE: S", "HEUTE: A", "ALLE PREISE ERHALTEN", "RANG A/S: PREISE",
+     "BEERENFANG", "MEMORY", "ECHO", "MAULWURF", "FANGEN, AUSWEICHEN", "FINDE PAARE", "SCHAU, WIEDERHOLE", "HAUEN, KEINE BOMBE", },
   // ---------------- IT ----------------
   {
     "Si evolve!", "Gnam gnam!", "Gli piace!", "Ha fame!", "Vuole un bagno!",
@@ -280,7 +292,10 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "SFIDA SETTIMANALE", "vinci prima una medaglia", "FATTO", "SOLO TIPO %s", "LIVELLO MAX %u", "SOLO: 1 CONTRO 1", "NIENTE OGGETTI", "TRIO: ESATTAMENTE 3", "tutti i tuoi devono essere di quel tipo", "i tuoi al massimo Lv.%u, il capo al Lv.%u", "uno dei tuoi contro il suo asso", "gli strumenti tenuti non hanno effetto", "tre dei tuoi contro i suoi ultimi tre", "premio: %u ULTRA BALL + %s", "nuova sfida lunedi", "SFIDA SUPERATA!", "nessuno dei tuoi va bene", "quella squadra viola la regola", "nessun capo disponibile", "SETTIMANA", "LAN",
      "INIZIA",
      "NOVELLINO", "ALLENATORE", "ASSO", "SFIDANTE", "CAPOPALESTRA", "VETERANO", "ELITE", "CAMPIONE", "MAESTRO", "LEGGENDA", "GRADO %u / %u", "%lu pt - prossimo %lu", "NUOVO GRADO!",
-     "MANCATO", "COMBO %u", "VIA!", "%u PTI", "CRITICO!", "PUNTO DEBOLE!", "AL MASSIMO", "FEBBRE!", "COLPISCI LA ZONA", "EVITA LE BOMBE", "2 PALLE!", "DIF +%u", "VENTO", "NON FARLA CADERE", },
+     "MANCATO", "COMBO %u", "VIA!", "%u PTI", "CRITICO!", "PUNTO DEBOLE!", "AL MASSIMO", "FEBBRE!", "COLPISCI LA ZONA", "EVITA LE BOMBE", "2 PALLE!", "DIF +%u", "VENTO", "NON FARLA CADERE",
+     "AHI!", "FATTO!", "TURNO %u", "TOCCA A TE", "GUARDA", "SALA GIOCHI", "RECORD %u", "RECORD!", "PRIMA S: %s!", "4 S: %s x%u!", "GIOIA +%u LEGAME +%u", "PREMIO: %s!", "TOCCA: AVANTI",
+     "OGGI: S", "OGGI: A", "PREMI DI OGGI: PRESI", "GRADO A/S: PREMI",
+     "PRENDI BACCHE", "MEMORY", "ECO", "TALPE", "PRENDI, SCHIVA", "TROVA LE COPPIE", "GUARDA E RIPETI", "COLPISCI, NO BOMBE", },
   // ---------------- PT ----------------
   {
     "Evoluindo!", "Nham nham!", "Ele gosta!", "Esta com fome!", "Precisa de banho!",
@@ -334,7 +349,10 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "DESAFIO SEMANAL", "ganhe uma insignia antes", "FEITO", "SO TIPO %s", "NIVEL MAX %u", "SOLO: 1 CONTRA 1", "SEM ITENS", "TRIO: EXATAMENTE 3", "todos os seus devem ser desse tipo", "os seus no maximo Nv.%u, o lider no Nv.%u", "um dos seus contra o as do lider", "itens equipados nao fazem nada", "tres dos seus contra os tres ultimos dele", "premio: %u ULTRA BALL + %s", "novo desafio na segunda", "DESAFIO VENCIDO!", "nenhum dos seus serve", "essa equipe quebra a regra", "nenhum lider disponivel", "SEMANAL", "LAN",
      "COMECAR",
      "NOVATO", "TREINADOR", "TREINADOR AS", "DESAFIANTE", "LIDER", "VETERANO", "ELITE", "CAMPEAO", "MESTRE", "LENDA", "PATENTE %u / %u", "%lu pts - proximo %lu", "NOVA PATENTE!",
-     "ERROU", "COMBO %u", "JA!", "%u PTS", "CRITICO!", "PONTO FRACO!", "NO MAXIMO", "FEBRE!", "BATA NA ZONA", "EVITE AS BOMBAS", "2 BOLAS!", "DEF +%u", "VENTO", "NAO DEIXE CAIR", },
+     "ERROU", "COMBO %u", "JA!", "%u PTS", "CRITICO!", "PONTO FRACO!", "NO MAXIMO", "FEBRE!", "BATA NA ZONA", "EVITE AS BOMBAS", "2 BOLAS!", "DEF +%u", "VENTO", "NAO DEIXE CAIR",
+     "AI!", "LIMPO!", "RODADA %u", "SUA VEZ", "OLHE", "FLIPERAMA", "RECORDE %u", "RECORDE!", "1O S: %s!", "4 S: %s x%u!", "ALEGRIA +%u LACO +%u", "PREMIO: %s!", "TOQUE P/ SEGUIR",
+     "HOJE: S", "HOJE: A", "PREMIOS DE HOJE: JA", "NOTA A/S: PREMIOS",
+     "PEGA BAGAS", "MEMORIA", "ECO", "TOUPEIRAS", "PEGUE, DESVIE", "ACHE OS PARES", "OLHE E REPITA", "BATA, SEM BOMBAS", },
 };
 
 // Nombres de medalla en sus tres longitudes [idioma][medalla].

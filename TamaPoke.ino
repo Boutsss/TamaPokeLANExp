@@ -253,7 +253,7 @@ enum : uint8_t {
   SCR_STARTER = 0, SCR_REGION, SCR_GALLERY, SCR_DEXPICK, SCR_MOVEPICK, SCR_BOX,
   SCR_PARTY, SCR_KEYBOARD, SCR_CARD, SCR_PLAYER, SCR_CLOCK, SCR_GYM, SCR_GYMPICK,
   SCR_EXPLORE, SCR_MART, SCR_LAN, SCR_PICK, SCR_BATTLE, SCR_WIN, SCR_LEARN, SCR_TRAIN, SCR_MENU,
-  SCR_BAGSCR, SCR_GAME, SCR_MAIN, SCR_TASKS, SCR_DAYCARE, SCR_DCPICK, SCR_TOWER, SCR_CHAL, SCR_COUNT
+  SCR_BAGSCR, SCR_GAME, SCR_MAIN, SCR_TASKS, SCR_DAYCARE, SCR_DCPICK, SCR_TOWER, SCR_CHAL, SCR_ARCADE, SCR_COUNT
 };
 extern const char *const SCREEN_NAME[SCR_COUNT];   // const is internal linkage in C++
 
@@ -316,7 +316,7 @@ const char *const SCREEN_NAME[SCR_COUNT] = {
   "starter", "region", "gallery", "dexpick", "movepick", "box",
   "party", "keyboard", "card", "player", "clock", "gym", "gympick",
   "explore", "mart", "lan", "pick", "battle", "win", "learn", "train", "menu",
-  "bag", "minigame", "main", "tasks", "daycare", "dcpick", "tower", "challenge"
+  "bag", "minigame", "main", "tasks", "daycare", "dcpick", "tower", "challenge", "arcade"
 };
 
 // Badge art for a region, or nullptr when that region has none yet.
@@ -640,6 +640,19 @@ bool towerOpen = false;
 bool gymRematch = false;
 // The weekly gym challenge screen (challenge.cpp), from the chooser's WEEKLY.
 bool chalOpen = false;
+// The ARCADE (ui_arcade.ino), the TRAIN panel's 4th row: four games for joy and
+// the bond that train no stat. Ported from vunguyen2712/TamaPoke (v3.18-v3.21).
+bool arcadeOpen = false;
+const char *arcadeTitle();
+bool arcadeEnabled();
+void arcadeOpenFromTrain();
+void arcadeGamesLine(char *out, size_t n);
+void arcadeTouchPeek(bool pressed, int16_t x, int16_t y);
+void renderArcade();
+void arcadeTap(int16_t x, int16_t y);
+void arcadeSwipe(int dir);
+bool arcadeSwipeV(int dir);
+void arcadeClose();
 uint8_t dcView = 0;               // 0 home, 1 picker
 uint8_t dcPage = 0;               // the picker's page (uiRimTarget)
 uint8_t martPage = 0;
@@ -755,9 +768,10 @@ static inline bool btlCellHit(int i, int16_t x, int16_t y) {
          y >= BTL_HIT_Y0(i) && y <= BTL_HIT_Y1(i);
 }
 #define TRAIN_X 73
-#define TRAIN_Y 96
+#define TRAIN_Y 72     // up from 96 when the ARCADE row joined: four rows still clear the bezel
+#define TRAIN_ROWS 4   // STRENGTH, SPEED, DEFENCE, ARCADE
 #define TRAIN_W 320
-#define TRAIN_H 274
+#define TRAIN_H 338
 #define TRAIN_ROW_H 56
 #define TRAIN_ROW_GAP 8
 #define TRAIN_ROW_Y(i) (TRAIN_Y + 54 + (i) * (TRAIN_ROW_H + TRAIN_ROW_GAP))
@@ -828,6 +842,7 @@ void uiArc(int cx, int cy, int r, int a0, int a1, int w, uint16_t col) {
 // Where things are, asked of the firmware so a test never restates a layout
 // (CLAUDE.md: a test that keeps its own copy of a layout proves the transcription).
 int uiGymPillY() { return GYMDIF_Y + GYMDIF_H / 2; }
+int uiTrainRowCenterY(int i) { return TRAIN_ROW_Y(i) + TRAIN_ROW_H / 2; }
 // The chooser's three buttons: 0 LAN, 1 TOWER, 2 WEEKLY.
 int uiChooserBtnX(int i) {
   return (i == 0 ? LANBTN_X : i == 1 ? TWBTN_X : CHBTN_X) + LANBTN_W / 2;
@@ -1235,7 +1250,7 @@ void loop() {
   // 85 ms en juego/saco: margen seguro para que el redibujado no pise el envio
   // DMA del frame anterior (a 40-65 ms solapaba y causaba flashes negros; con
   // sprites grandes el dibujo tarda mas, asi que se deja colchon)
-  if (now - lastRender >= (uint32_t)((gameOpen || sackOpen || spdOpen) ? 85 : 100)) {
+  if (now - lastRender >= (uint32_t)((gameOpen || sackOpen || spdOpen || arcadeOpen) ? 85 : 100)) {
     lastRender = now;
     render();
   }
@@ -1689,6 +1704,7 @@ void handleTouch() {
 }
 
 static void touchStep(bool pressed, int16_t x, int16_t y) {
+  arcadeTouchPeek(pressed, x, y);   // only reads: steers BERRY CATCH while a finger is down
 
   // saco de entrenamiento: cada toque cuenta al instante (aporrear rapido)
   if (sackOpen) {
@@ -1814,6 +1830,13 @@ void onSwipeV(int dir) {
   }
   if (chalOpen) {
     if (back) { chalOpen = false; gymOpen = true; gymPick = true; }
+    return;
+  }
+  // The arcade: down leaves a game (banking it) for the list, the list for the
+  // training menu -- one level at a time.
+  if (arcadeOpen) {
+    if (!back) return;
+    if (!arcadeSwipeV(dir)) { arcadeClose(); trainOpen = true; }
     return;
   }
 
@@ -2207,6 +2230,9 @@ void onSwipe(int dir) {
   // taught on the first screen they ever see.
   if (pet.awaitingStarter()) { rpickSwipe(dir); return; }
   if (menuOpen) { menuOpen = false; return; }   // any swipe closes the menu
+  // The arcade: BERRY CATCH is played by dragging sideways; in the other games
+  // a horizontal swipe leaves, banking what was earned (ui_arcade.ino).
+  if (arcadeOpen) { arcadeSwipe(dir); return; }
   if (tasksOpen) {
     int page = (int)tasksPage + (dir > 0 ? -1 : 1);
     if (page >= 0 && page < 2) { tasksPage = (uint8_t)page; sfxPlay(SFX_TAP); }
@@ -2312,6 +2338,10 @@ void onTap(int16_t x, int16_t y) {
   }
   if (chalOpen) {
     challengeTap(x, y);
+    return;
+  }
+  if (arcadeOpen) {
+    arcadeTap(x, y);
     return;
   }
   if (bagOpen) {
@@ -2435,10 +2465,16 @@ void onTap(int16_t x, int16_t y) {
     bool inPanel = (x >= TRAIN_X && x <= TRAIN_X + TRAIN_W &&
                     y >= TRAIN_Y && y <= TRAIN_Y + TRAIN_H);
     if (!inPanel) { trainOpen = false; return; }   // tap outside = back to the pet
-    for (int i = 0; i < 3; i++) {   // all three train something now
+    for (int i = 0; i < TRAIN_ROWS; i++) {   // three train a stat; the 4th is the arcade
       int ry = TRAIN_ROW_Y(i);
       if (x < TRAIN_X + 18 || x > TRAIN_X + TRAIN_W - 18) continue;
       if (y < ry || y > ry + TRAIN_ROW_H) continue;
+      if (i == 3) {              // the ARCADE: four games played for fun, no stat
+        if (!arcadeEnabled()) { sfxPlay(SFX_DENY); return; }
+        sfxPlay(SFX_TAP);
+        arcadeOpenFromTrain();
+        return;
+      }
       sfxPlay(SFX_TAP);
       trainOpen = false;
       if (i == 0) startSack();
@@ -2826,6 +2862,7 @@ uint8_t uiCurrentScreen() {
   if (daycareOpen) return dcView ? SCR_DCPICK : SCR_DAYCARE;
   if (towerOpen) return SCR_TOWER;
   if (chalOpen) return SCR_CHAL;
+  if (arcadeOpen) return SCR_ARCADE;
   if (gymOpen) return gymPick ? SCR_GYMPICK : SCR_GYM;
   if (pet.hasLearnOffer()) return SCR_LEARN;
   if (gameOpen || sackOpen || spdOpen) return SCR_GAME;
@@ -2893,6 +2930,7 @@ void uiTileGo(int i) {
   daycareOpen = false;
   towerOpen = false;
   chalOpen = false;
+  if (arcadeOpen) arcadeClose();   // banks a game in progress
   switch (TILE[i].scr) {
     // The two multi-region screens land on their CHOOSER, never on whichever
     // region was last set. Opening straight into it is how Johto and Hoenn came
@@ -3395,6 +3433,10 @@ void render() {
   }
   if (chalOpen) {
     renderChallenge();
+    return;
+  }
+  if (arcadeOpen) {
+    renderArcade();
     return;
   }
   if (gymOpen) {
@@ -7559,6 +7601,23 @@ void renderTrain() {
     int fw = (bw - 4) * pct / 100;
     if (fw > 0)
       gfx->fillRoundRect(bx + 2, by + 2, fw, bh - 4, 3, pct >= 100 ? UI_BAR_OK : UI_BAR_WARN);
+  }
+
+  {   // the ARCADE row: no bar (it trains nothing), the four games named under it
+    int y = TRAIN_ROW_Y(3);
+    bool ok = arcadeEnabled();
+    gfx->fillRoundRect(TRAIN_X + 18, y, TRAIN_W - 36, TRAIN_ROW_H, 12, ok ? C565(0xff, 0xf1, 0xc4) : UI_TRACK);
+    gfx->drawRoundRect(TRAIN_X + 18, y, TRAIN_W - 36, TRAIN_ROW_H, 12, UI_INK);
+    gfx->setTextColor(ok ? UI_INK : 0x8410);
+    gfx->setTextSize(2);
+    gfx->setCursor(TRAIN_X + 32, y + 10);
+    gfx->print(arcadeTitle());
+    gfx->setTextColor(0x8410);
+    gfx->setTextSize(1);
+    gfx->setCursor(TRAIN_X + 32, y + 36);
+    char games[48];
+    arcadeGamesLine(games, sizeof(games));
+    gfx->print(games);
   }
 
   gfx->setTextColor(UI_INK);

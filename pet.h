@@ -218,6 +218,10 @@ public:
   uint8_t playResult(uint8_t score, uint16_t eff);
   uint8_t trainStrength(uint16_t hits, uint16_t eff);
   uint8_t trainSpeed(uint16_t hits, uint16_t eff);
+  // Joy, a capped bond (addBond()'s daily cap still applies), the heart, and a
+  // save -- what an arcade session (and, later, a friend's visit) is worth.
+  // Returns the bond actually gained. Ported from vunguyen2712/TamaPoke.
+  uint8_t friendVisit(uint8_t joyGain, uint8_t bondGain);
   // What beating a gym leader is worth. Random WHICH stat, but only among the
   // ones with room left -- a random grant that landed on an already-capped stat
   // would silently evaporate, which reads as a bug rather than as luck. Writes

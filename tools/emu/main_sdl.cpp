@@ -324,6 +324,7 @@ static int shotMode(const char *screen, const char *out, int lvl, int iv, int de
     if (!strcmp(screen, "dcpick")) { dcDebugPick(0, 0xFF); dcView = 1; }
   }
   else if (!strcmp(screen, "tower")) { pet.winBadge(0, 12, false); towerOpen = true; }
+  else if (!strcmp(screen, "arcade")) { void arcadeOpenFromTrain(); arcadeOpenFromTrain(); }
   else if (!strcmp(screen, "rank")) { for (int i = 0; i < 9; i++) pet.winBadge(0, i, false); playerOpen = true; playerPage = GYM_REGIONS + 1; rankUpdate(); }
   else if (!strcmp(screen, "challenge")) { pet.winBadge(0, 0, false); chalOpen = true; }
   else if (!strcmp(screen, "gymsrm")) { pet.winBadge(0, 12, false); gymOpen = true; gymRematch = true; }
