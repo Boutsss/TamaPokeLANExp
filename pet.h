@@ -273,6 +273,29 @@ public:
   bool frozen = false;
   void reviveFrom(const PartyMon &m);
 
+  // ONE EGG PER RAISED CREATURE. `eggPaid` is set on a creature whose ending
+  // already produced an egg, travels with it into the party (PartyMon::eggPaid)
+  // and back out again, and stops the farewell being offered a second time.
+  // Before this, "RAISE THIS ONE" on a creature that had said goodbye brought
+  // it back at its full age, the goodbye came up again, and every round trip
+  // was another egg -- the waiting egg was simply discarded by the swap.
+  //
+  // So the egg a swap pushes aside is now STASHED rather than destroyed, and
+  // the next ending (of whichever creature) hands that same egg back instead
+  // of rolling a new one. With no stash, a creature that already paid cannot
+  // be retired or released for a fresh egg (eggEndAllowed()).
+  bool eggPaid = false;
+  bool eggStashed = false;
+  int16_t stashTarget = 0;
+  bool stashShiny = false;
+  uint8_t stashEvoPen = 0;
+  // THE single answer to "may this creature end now and leave an egg?",
+  // asked by canRetireNow(), release() and the long-press confirm alike.
+  bool eggEndAllowed() const;
+  // focusSwap()'s rollback: the swap failed, so the stashed egg goes live again.
+  bool restoreStashedEgg();
+  void stashLiveEgg();
+
   // The live creature as a storable record. THE single place a pet becomes a
   // PartyMon: the farewell, a swap and a wild capture all go through it, and
   // CLAUDE.md § "A rule enforced in one path but not its twin" is a list of what
@@ -445,7 +468,7 @@ public:
   // has already earned its farewell costs nothing: it is then just the button.
   void startRetire();
   bool canRetireNow() const;
-  bool retireIsFree() const { return canFarewellNow(); }
+  bool retireIsFree() const { return canFarewellNow() || eggPaid; }
   // Was the retire NOW IN PROGRESS an early one? THE single answer, asked by
   // snapshotForParty() and by the tests. Distinct from retireIsFree(), which asks
   // whether a retire started right now WOULD be free: this one remembers what the

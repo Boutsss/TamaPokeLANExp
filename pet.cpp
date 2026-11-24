@@ -185,7 +185,8 @@ static constexpr uint32_t PET_CORE_MAGIC = 0x31504B54UL;  // "TKP1"
 // v2 appended the pending party handover; see PET_TAIL_* below. v1 records
 // still read -- they simply have no tail, which is exactly "nothing waiting for
 // a party slot", the right default.
-static constexpr uint16_t PET_CORE_VERSION = 2;
+// v3 appended the one-egg-per-creature state after the handover.
+static constexpr uint16_t PET_CORE_VERSION = 3;
 // Generous enough to read a record from a later build; see ckptRead().
 static constexpr size_t PET_CORE_CAP = 192;
 
@@ -259,7 +260,16 @@ static constexpr size_t PET_TAIL_KIND = PET_FIXED;          // u8  ceremony kind
 static constexpr size_t PET_TAIL_RSVD = PET_FIXED + 1;      // u8  reserved, 2-byte aligns the next
 static constexpr size_t PET_TAIL_MONLEN = PET_FIXED + 2;    // u16 stored sizeof(PartyMon)
 static constexpr size_t PET_TAIL_MON = PET_FIXED + 4;       // the record itself
-static constexpr size_t PET_BODY = PET_TAIL_MON + sizeof(PartyMon);
+// The v3 tail, after the handover record: one egg per raised creature (see
+// Pet::eggPaid). Located on read by the STORED monLen, so it stays findable
+// whatever PartyMon grows to. Older records stop before it: nothing paid,
+// nothing stashed, which is exactly how every creature behaved before.
+static constexpr size_t PET_V3_FLAGS = 0;       // bit0 eggPaid, bit1 eggStashed
+static constexpr size_t PET_V3_SSHINY = 1;      // u8  stashed egg is shiny
+static constexpr size_t PET_V3_STARGET = 2;     // i16 stashed egg's species
+static constexpr size_t PET_V3_SEVOPEN = 4;     // u8  stashed egg's evolution debt
+static constexpr size_t PET_V3_LEN = 6;         // [5] reserved
+static constexpr size_t PET_BODY = PET_TAIL_MON + sizeof(PartyMon) + PET_V3_LEN;
 static_assert(PET_BODY + CKPT_CRC <= PET_CORE_CAP, "raise PET_CORE_CAP");
 
 // Takes a validated blob and copies whatever body prefix the stored record and
@@ -565,8 +575,9 @@ void Pet::newEgg() {
   // it. Step 1 of breed.h's hand-over -- the queue is cleared after save().
   int16_t bredDex = 0;
   bool bredShiny = false;
-  const bool bred = opened && breedPeekQueued(bredDex, bredShiny);
-  eggTarget = bred ? bredDex : pickEggSpecies();  // especie oculta segun rareza y pokedex
+  const bool fromStash = eggStashed;
+  const bool bred = !fromStash && opened && breedPeekQueued(bredDex, bredShiny);
+  eggTarget = fromStash ? stashTarget : bred ? bredDex : pickEggSpecies();  // especie oculta segun rareza y pokedex
   eggByRegion[region % REGION_COUNT] = eggTarget;
   starterPick = (registeredCount() == 0);  // primera partida: el jugador elige inicial
   // sorteo shiny: 1/48 base, mejor con despedida y con racha/vinculo altos
@@ -578,6 +589,12 @@ void Pet::newEgg() {
   // it is a one-day penalty, not a running total that compounds each retire.
   evoPen = retirePending ? EVO_PENALTY_LEVELS : 0;
   retirePending = false;
+  if (fromStash) {   // the egg the last swap set aside, unchanged
+    eggShiny = stashShiny;
+    evoPen = stashEvoPen;
+    eggStashed = false;
+  }
+  eggPaid = false;   // a new creature has earned nothing yet
   eggTaps = 0;
   fullness = 80;
   joy = 80;
@@ -594,8 +611,26 @@ void Pet::newEgg() {
   const bool landed = save();
   if (opened) {
     if (bred && landed) breedCommitTaken();   // step 3: only once the egg is durable
-    else if (!bred) breedForgetLive();        // an ordinary egg: no IVs are waiting
+    else if (!bred && !fromStash) breedForgetLive();   // an ordinary egg: no IVs are waiting
   }
+}
+
+// A waiting egg is about to be replaced by a banked creature: keep it rather
+// than destroy it. Only a real egg (not the first-boot starter choice).
+void Pet::stashLiveEgg() {
+  if (!isEgg() || starterPick || eggStashed) return;
+  eggStashed = true;
+  stashTarget = eggTarget;
+  stashShiny = eggShiny;
+  stashEvoPen = evoPen;
+}
+
+// Undo a stash when the swap that made it failed (focusSwap's rollback): the
+// egg is live again, exactly as it was.
+bool Pet::restoreStashedEgg() {
+  if (!eggStashed) return false;
+  newEgg();          // newEgg() takes the stash back and saves
+  return true;
 }
 
 bool Pet::eggSwapTo(int16_t dex, bool bonusShiny) {
@@ -775,6 +810,8 @@ void Pet::tick() {
 // Brings a banked creature back as the live pet, frozen.
 void Pet::reviveFrom(const PartyMon &m) {
   if (m.empty()) return;
+  stashLiveEgg();
+  eggPaid = m.paidEgg();
   ceremony = CER_NONE;
   neglectTicks = 0;
   speciesId = m.dex;
@@ -845,6 +882,7 @@ PartyMon Pet::toPartyMon() const {
   m.ageMinutes = ageMinutes;
   m.held = held;
   m.persona = persona;
+  m.eggPaid = eggPaid ? PM_EGG_PAID : 0;
   return m;
 }
 
@@ -853,6 +891,8 @@ PartyMon Pet::toPartyMon() const {
 // hands back a creature that carries on living.
 bool Pet::switchTo(const PartyMon &m) {
   if (m.empty()) return false;
+  stashLiveEgg();
+  eggPaid = m.paidEgg();
   ceremony = CER_NONE;
   neglectTicks = 0;
   speciesId = m.dex;
@@ -921,6 +961,7 @@ void Pet::snapshotForParty() {
   // calling the two halves by hand.
   if (retireIsEarly()) { heldReturn(held); return; }
   endedMon = toPartyMon();
+  endedMon.eggPaid = PM_EGG_PAID;   // this ending is about to produce its egg
   endedKind = ceremony;
   // Deliberately NOT saved here. update() calls this and then newEgg(), whose
   // save() writes the handover into the same checkpoint blob as the new egg --
@@ -1541,8 +1582,19 @@ uint16_t Pet::registeredCount() const {
 // despedida la dispara el usuario con el boton (no salta sola, para que la vea)
 bool Pet::canFarewellNow() const {
   if (frozen) return false;     // a companion cannot be lost; that is the point
+  if (eggPaid) return false;    // it already said goodbye once: one egg per creature
   return !isEgg() && !sleeping && ceremony == CER_NONE &&
          DEX_TBL[speciesId].evolvesTo == 0 && ageMinutes >= FAREWELL_AGE_MIN;
+}
+
+bool Pet::eggEndAllowed() const {
+  if (!eggPaid || eggStashed) return true;   // a fresh creature, or its egg is waiting
+  // Paid, nothing stashed: ending it would mint a second egg. The one exception
+  // is a party AND box with nobody else in them -- the player released them all
+  // by hand -- where refusing would leave no way to ever get an egg again.
+  if (party.count() > 0) return false;
+  for (int i = 0; i < BOX_SLOTS; i++) if (!party.box[i].empty()) return false;
+  return true;
 }
 
 // abandono total durante 1h: lista para escaparse. La dispara el usuario con el
@@ -1562,7 +1614,7 @@ bool Pet::canRunawayNow() const {
 
 bool Pet::canRetireNow() const {
   if (frozen) return false;     // a companion is never given up
-  return !isEgg() && !sleeping && ceremony == CER_NONE && !starterPick;
+  return !isEgg() && !sleeping && ceremony == CER_NONE && !starterPick && eggEndAllowed();
 }
 
 // The ceremony is the same one; only the debt differs. Marked BEFORE the
@@ -1570,7 +1622,11 @@ bool Pet::canRetireNow() const {
 // penalty rather than applying it to a creature that never got retired.
 void Pet::startRetire() {
   if (!canRetireNow()) return;
-  retirePending = !canFarewellNow();
+  // A creature that already said goodbye is not retiring EARLY: it earned its
+  // farewell once, so it is banked and costs nothing -- it simply cannot be
+  // offered the farewell again (eggPaid). Without `!eggPaid` this read as an
+  // early retire and threw the creature away for good.
+  retirePending = !eggPaid && !canFarewellNow();
   save();
   startFarewell();
   // An early retire is NOT the good ending and must not pay like one.
@@ -1608,6 +1664,7 @@ void Pet::startRunaway() {
 
 void Pet::release() {
   if (isEgg() || ceremony != CER_NONE) return;
+  if (frozen || !eggEndAllowed()) return;   // the same gate as retire
   lastEnd = CER_RELEASE;
   ceremony = CER_RELEASE;
   ceremonyUntil = millis() + CEREMONY_MS;
@@ -2094,6 +2151,13 @@ bool Pet::saveCoreSnapshot() {
   buf[PET_TAIL_RSVD] = persona;   // was always 0 before personalities: reads as none
   ckptWr16(buf + PET_TAIL_MONLEN, (uint16_t)sizeof(PartyMon));
   memcpy(buf + PET_TAIL_MON, &endedMon, sizeof(PartyMon));
+  {
+    uint8_t *v3 = buf + PET_TAIL_MON + sizeof(PartyMon);
+    v3[PET_V3_FLAGS] = (uint8_t)((eggPaid ? 1 : 0) | (eggStashed ? 2 : 0));
+    v3[PET_V3_SSHINY] = stashShiny ? 1 : 0;
+    ckptWr16(v3 + PET_V3_STARGET, (uint16_t)stashTarget);
+    v3[PET_V3_SEVOPEN] = stashEvoPen;
+  }
 
   uint16_t total = ckptSeal(buf, PET_BODY, PET_CORE_MAGIC, PET_CORE_VERSION, nextGen);
   const char *key = ckptSlot(nextGen, "petA", "petB");
@@ -2144,8 +2208,21 @@ bool Pet::loadCoreSnapshot() {
   persona = (body > PET_TAIL_RSVD && personaValid(buf[PET_TAIL_RSVD])) ? buf[PET_TAIL_RSVD] : PT_NONE;
   endedKind = CER_NONE;
   endedMon = PartyMon();
+  eggPaid = eggStashed = stashShiny = false;
+  stashTarget = 0;
+  stashEvoPen = 0;
   if (body >= PET_TAIL_MON) {
     size_t monLen = ckptRd16(buf + PET_TAIL_MONLEN);
+    if (monLen && PET_TAIL_MON + monLen + PET_V3_LEN <= body) {
+      const uint8_t *v3 = buf + PET_TAIL_MON + monLen;
+      eggPaid = (v3[PET_V3_FLAGS] & 1) != 0;
+      int16_t t = (int16_t)ckptRd16(v3 + PET_V3_STARGET);
+      // A stash naming no real species is no stash: never hatch garbage.
+      eggStashed = (v3[PET_V3_FLAGS] & 2) && t >= 1 && t <= DEX_COUNT;
+      stashTarget = eggStashed ? t : 0;
+      stashShiny = eggStashed && v3[PET_V3_SSHINY];
+      stashEvoPen = eggStashed ? v3[PET_V3_SEVOPEN] : 0;
+    }
     if (monLen && PET_TAIL_MON + monLen <= body) {
       // Prefix rule again: a record from before PartyMon grew lands in the front
       // and the care block keeps its initialisers, which stateVersion 0 already

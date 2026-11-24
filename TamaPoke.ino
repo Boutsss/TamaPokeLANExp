@@ -1783,7 +1783,11 @@ static void touchStep(bool pressed, int16_t x, int16_t y) {
     if (!holdFired && !swallowGesture && uiCurrentScreen() == SCR_MAIN && millis() - tStart > 3000 &&
         abs(tXl - tX0) < 30 && abs(tYl - tY0) < 30 && inPetZone(tX0, tY0) &&
         !pet.isEgg() && !confirmUntil && !pet.ceremony) {
-      confirmUntil = millis() + 10000;
+      // A creature whose ending already produced its egg cannot be released
+      // for another (Pet::eggEndAllowed()): say no instead of opening a dialog
+      // whose YES would do nothing.
+      if (pet.eggEndAllowed()) confirmUntil = millis() + 10000;
+      else sfxPlay(SFX_DENY);
       holdFired = true;
     }
   } else if (wasPressed) {  // levanta el dedo: resolver gesto
@@ -6673,7 +6677,11 @@ void focusSwap(uint8_t slot) {
     // it was never touched -- so nothing is lost either way, only another
     // entry in the existing pendingSave/retryDue() retry queue.
     Serial.println("focus swap: pet checkpoint failed after retries, rolling back");
-    pet.switchTo(outgoing);
+    // An egg was live: switchTo() stashed it, and an empty `outgoing` cannot be
+    // switched back to -- this used to leave `incoming` live in RAM while it was
+    // still in its party slot. Put the egg back instead.
+    if (wasEgg) pet.restoreStashedEgg();
+    else pet.switchTo(outgoing);
     return;
   }
   if (wasEgg) party.releaseAt(slot);

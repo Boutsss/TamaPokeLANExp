@@ -24,6 +24,7 @@
 // well, so swapping it in as the focused creature resumes exactly where it left
 // off instead of handing back a blanked-out copy. Freezing is now a property of
 // where the record lives, not of the record itself.
+#define PM_EGG_PAID 0xE9
 struct PartyMon {
   int16_t dex = 0;      // Pokedex number, 0 = empty slot
   uint16_t level = 1;   // cached from ageMinutes so lists need not recompute it
@@ -59,8 +60,15 @@ struct PartyMon {
   // Personality (persona.h). Lives in what was padding after `held`, so the
   // record size did not change; 0 = none (banked before personalities).
   uint8_t persona = 0;
+  // PM_EGG_PAID once this creature's ending has already produced an egg
+  // (farewell, retire or release). Lives in what was padding after `persona`,
+  // so the record size did not change. A MAGIC value rather than a bool:
+  // padding in records banked before this field existed is not guaranteed to
+  // be zero, and a stray 1 must not read as "already paid".
+  uint8_t eggPaid = 0;
 
   bool empty() const { return dex < 1; }
+  bool paidEgg() const { return eggPaid == PM_EGG_PAID; }
   bool hasCareState() const { return stateVersion >= 1; }
 };
 
