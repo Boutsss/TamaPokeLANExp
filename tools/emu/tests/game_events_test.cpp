@@ -54,10 +54,12 @@ int main() {
     if (calls[i] == 0 || lastEv[i] != EV_TOWER_WIN || lastArg[i] != 7) all = false;
   ck(all, "all ten subscribers receive the same event");
 
+  int before[10];
+  for (int i = 0; i < 10; i++) before[i] = calls[i];
   gameEventClearSinks();
   gameEvent(EV_VISIT, 42);
   bool quiet = true;
-  for (int i = 0; i < 10; i++) if (calls[i] != 3) quiet = false;
+  for (int i = 0; i < 10; i++) if (calls[i] != before[i]) quiet = false;
   ck(quiet, "clearing subscribers prevents further delivery");
 
   std::printf("%s\n", bad ? "FAILURES" : "all good");
