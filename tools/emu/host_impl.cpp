@@ -178,7 +178,10 @@ void sfxRise(uint8_t step) { g_emuRiseLast = step; g_emuRiseCount++; }
 struct Link;
 // No radio here at all, which is why lossy_test drives Link directly instead
 // of going through this.
-bool linkNowBegin(Link *) { return false; }
+// No radio by default (the graceful path). A test that drives pairing through
+// the real screens sets this and wires lan.send itself.
+bool g_emuRadioUp = false;
+bool linkNowBegin(Link *) { return g_emuRadioUp; }
 void linkNowEnd() {}
 bool linkNowUp() { return false; }
 void linkNowPoll() {}

@@ -39,7 +39,10 @@
 // whole handshake without a radio, and a deliberately lossy transport exercises
 // all of the above. Only the radio itself is unverifiable here.
 
-#define LINK_PROTO 4        // bump on ANY wire change; a mismatch is refused (4: trading)
+#define LINK_PROTO 5        // bump on ANY wire change; a mismatch is refused
+                            // (4: trading; 5: hello flags bit1 = friends mode, LM_FRIEND)
+#define LINK_SQUAD_OWE 8    // see Link::squadOwe
+#define LINK_FRIEND_MAX 32  // a friends-mode state frame (friends.cpp owns the layout)
 #define LINK_MAX_PAYLOAD 200
 #define LINK_NAME_LEN 12
 
@@ -106,6 +109,23 @@ enum LinkMsg : uint8_t {
   LM_TOFFER,     // [seq][PartyMon] what I put on the table; seq 0 = nothing
   LM_TACCEPT,    // [your seq][my seq] I take yours for mine
   LM_TDONE,      // [your seq][my seq] ...and yours is now DURABLY stored here
+  // ---- gifts and visits (ported from vunguyen2712/TamaPoke, feature 7) ----
+  LM_FRIEND,     // friends mode: one side's whole state (friends.cpp), resent
+};
+
+// What a pairing is FOR. Carried in the hello and refused on a mismatch, so a
+// board on the FRIENDS screen can never pair into a battle (or the other way
+// round) and read the other's packets as its own.
+enum LinkMode : uint8_t { LINK_MODE_BATTLE = 0, LINK_MODE_FRIENDS = 1 };
+
+// Why a link was refused, so a screen can say which of the loud refusals it is.
+enum LinkWhy : uint8_t {
+  LINK_WHY_NONE = 0,
+  LINK_WHY_PROTO,     // a different protocol version
+  LINK_WHY_BUILD,     // same protocol, different tables (linkBuildTag)
+  LINK_WHY_SAMEID,    // two devices with the same id
+  LINK_WHY_MODE,      // one is on FRIENDS, the other on LAN BATTLE
+  LINK_WHY_RADIO,     // set by the UI: the radio did not come up
 };
 
 // A creature on the wire. Deliberately not `Combatant` itself: that carries
@@ -204,6 +224,25 @@ struct Link {
   // the host's own action is its own business; this is the guest's, and it
   // only counts once it has actually arrived
   bool hasPeerAct() const { return isHost && pendingAct != 0; }
+
+  // ---- friends mode (vunguyen2712's feature 7) ----
+  uint8_t mode = LINK_MODE_BATTLE;   // set after begin(), before start()
+  uint8_t refusedWhy = LINK_WHY_NONE;
+  // the peer's latest state frame. Only the newest matters, so a single slot
+  // is right -- a skipped frame is superseded by the one after it.
+  uint8_t fx[LINK_FRIEND_MAX];
+  uint8_t fxN = 0;
+  bool fxNew = false;
+  // READY, but the peer is still saying hello: it is missing our squad. Our
+  // answer to its hello always sits at the same position after that hello, so
+  // a loss pattern that hits that position would eat it every time. This many
+  // squad resends ride OUR timer instead; any non-hello traffic from the peer
+  // proves it is READY and stops them. (vunguyen2712's lossy test found it.)
+  uint8_t squadOwe = 0;
+  uint8_t burst = 0;           // friends mode: alternates the resend burst length
+  // friends mode: our whole state, KEPT and resent until the next one
+  // supersedes it. Only once READY; ignored in a battle.
+  void sendFriend(const uint8_t *frame, uint8_t len);
 
   // ---- trading, one creature for one, on a READY link ----
   //

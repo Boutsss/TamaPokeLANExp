@@ -95,7 +95,7 @@ static void sendHello(Link &l) {
   uint8_t b[HB_LEN];
   memset(b, 0, sizeof(b));
   b[HB_PROTO] = LINK_PROTO;
-  b[HB_FLAGS] = l.isHost ? 1 : 0;
+  b[HB_FLAGS] = (uint8_t)((l.isHost ? 1 : 0) | (l.mode == LINK_MODE_FRIENDS ? 2 : 0));
   b[HB_COUNT] = l.mineN;
   b[HB_ID] = (uint8_t)(l.id & 0xFF);
   b[HB_ID + 1] = (uint8_t)(l.id >> 8);
@@ -148,6 +148,12 @@ void Link::begin(bool host, const char *name) {
   lastActivity = 0;
   sawActivity = false;
   peerName[0] = 0;
+  mode = LINK_MODE_BATTLE;     // a friends session sets it again, every time
+  refusedWhy = LINK_WHY_NONE;
+  fxN = 0;
+  fxNew = false;
+  squadOwe = 0;
+  burst = 0;
   tMySeq = 0;
   tradeReset();
   tTheirDone = 0;
@@ -160,7 +166,11 @@ void Link::addMon(const LinkMon &m) {
 }
 
 void Link::start() {
-  if (state == LINK_OFF) return;
+  // Only from LISTENING: a link already refused stays refused, and one that
+  // already paired (the peer's hello arrived first) is not knocked back to a
+  // handshake it has finished. Found porting vunguyen2712's friends test: a
+  // late start() overwrote a mode refusal with HANDSHAKE.
+  if (state != LINK_LISTENING) return;
   // State FIRST, then send. put() may deliver synchronously -- it does in the
   // tests, and a fast radio can re-enter too -- so a reply can arrive before
   // this function returns. Sending first left us still LISTENING when the
@@ -281,6 +291,12 @@ void Link::tradeAccept() {
   tradeCommit(*this);
 }
 
+void Link::sendFriend(const uint8_t *frame, uint8_t len) {
+  if (mode != LINK_MODE_FRIENDS || state != LINK_READY) return;
+  if (len > LINK_FRIEND_MAX) return;
+  put(*this, LM_FRIEND, frame, len, true);   // kept: resent until superseded
+}
+
 void Link::tradeStored() {
   if (tPhase != 1 || tStored) return;
   tArrived = false;
@@ -340,6 +356,14 @@ void Link::tick(uint32_t now) {
     sendSquad(*this, resendSeq);
   } else if (txLive) {
     rawSend(*this, tx, txN);
+    // A friends frame is resent once or twice, alternately: both sides resend
+    // on similar timers, so a loss pattern with the same period could otherwise
+    // eat every frame from one side. A duplicate is dropped by sequence number.
+    if (mode == LINK_MODE_FRIENDS && (++burst & 1)) rawSend(*this, tx, txN);
+    if (squadOwe) { squadOwe--; sendSquad(*this, resendSeq); }
+  } else if (squadOwe) {
+    squadOwe--;
+    sendSquad(*this, resendSeq);
   } else if (state == LINK_READY && (tOffering || tTheirSeq || tPhase)) {
     // While trading, the deal is repeated as a SET -- an offer lost under an
     // accept would leave the accept naming an offer the peer never saw. The
@@ -366,17 +390,35 @@ void Link::onPacket(const uint8_t *buf, uint8_t len) {
   sawRx = true;    // proof of life. onPacket has no clock, so tick() stamps it
   sawActivity = true;   // proof something REAL happened; LM_PING retracts this
 
+  // A friends session has no fight or trade in it: that traffic is ignored
+  // outright, never half-applied (the mode check in the hello keeps it from
+  // pairing at all; this is the second lock on the same door).
+  if (mode == LINK_MODE_FRIENDS &&
+      (type == LM_ACT || type == LM_RESULT || type == LM_END || type == LM_REMATCH ||
+       type == LM_TOFFER || type == LM_TACCEPT || type == LM_TDONE))
+    return;
+  // Anything but pairing traffic means the peer is past pairing: it has our
+  // squad, so stop resending it.
+  if (type != LM_HELLO && type != LM_SQUAD) squadOwe = 0;
+
   switch (type) {
     case LM_HELLO: {
       if (n < HB_LEN) return;
       protoTheirs = body[HB_PROTO];
       // A version mismatch is REFUSED, loudly. A silent desync mid-battle is
       // far worse than not connecting: both sides would render different fights.
-      if (protoTheirs != LINK_PROTO) { state = LINK_REFUSED; return; }
+      // Each refusal answers with OUR hello, once, so the peer refuses for the
+      // same reason instead of resending into silence until its deadline.
+      if (protoTheirs != LINK_PROTO) { state = LINK_REFUSED; refusedWhy = LINK_WHY_PROTO; sendHello(*this); return; }
       buildTheirs = (uint16_t)body[HB_BUILD] | ((uint16_t)body[HB_BUILD + 1] << 8);
       // Same proto, different tables: the move index in a result would name a
       // different move on each screen. Also refused.
-      if (buildTheirs != linkBuildTag()) { state = LINK_REFUSED; return; }
+      if (buildTheirs != linkBuildTag()) { state = LINK_REFUSED; refusedWhy = LINK_WHY_BUILD; sendHello(*this); return; }
+      // One board on FRIENDS, the other on LAN BATTLE: refused too, or a gift
+      // frame would land in a fight (and a squad on a visit).
+      if (((body[HB_FLAGS] >> 1) & 1) != (mode == LINK_MODE_FRIENDS ? 1 : 0)) {
+        state = LINK_REFUSED; refusedWhy = LINK_WHY_MODE; sendHello(*this); return;
+      }
       peerId = (uint16_t)body[HB_ID] | ((uint16_t)body[HB_ID + 1] << 8);
       bool theyHost = (body[HB_FLAGS] & 1) != 0;
       theirsExpected = body[HB_COUNT] > TRAINER_TEAM_MAX ? TRAINER_TEAM_MAX
@@ -389,7 +431,7 @@ void Link::onPacket(const uint8_t *buf, uint8_t len) {
       // by asking the players again -- the higher one hosts. Identical ids
       // cannot be told apart, so that is refused rather than guessed.
       if (isHost == theyHost) {
-        if (peerId == id) { state = LINK_REFUSED; return; }
+        if (peerId == id) { state = LINK_REFUSED; refusedWhy = LINK_WHY_SAMEID; return; }
         isHost = (id > peerId);
       }
 
@@ -400,6 +442,7 @@ void Link::onPacket(const uint8_t *buf, uint8_t len) {
       // squad and NOT another hello, or the two would volley forever.
       if (state == LINK_READY || state == LINK_WAITING || state == LINK_DONE) {
         sendSquad(*this, resendSeq++);
+        squadOwe = LINK_SQUAD_OWE;
         return;
       }
       bool answer = (state == LINK_LISTENING);   // they spoke first
@@ -417,7 +460,10 @@ void Link::onPacket(const uint8_t *buf, uint8_t len) {
       if (idx + 1 > theirsN) theirsN = idx + 1;
       // Only ready once the WHOLE squad is here. A lost SQUAD packet used to
       // leave a gap that read back as a real creature with dex 0.
-      if (mineN && theirsExpected) {
+      // Only a side still ASSEMBLING moves on. A late or resent squad landing
+      // on a side already READY (or mid-turn) must not reset it to READY and
+      // cancel the action it is resending. (Found by vunguyen2712's lossy test.)
+      if (mineN && theirsExpected && state < LINK_READY) {
         uint16_t want = (uint16_t)((1u << theirsExpected) - 1);
         if ((theirsGot & want) == want) {
           theirsN = theirsExpected;
@@ -467,6 +513,16 @@ void Link::onPacket(const uint8_t *buf, uint8_t len) {
       return;
     case LM_PING:
       sawActivity = false;   // liveness only -- sawRx above already did its job
+      return;
+    case LM_FRIEND:
+      // Parked for friends.cpp to read on the main loop. Nothing is decided
+      // here: the frame is untrusted bytes until friends.cpp has checked it.
+      if (mode != LINK_MODE_FRIENDS) return;
+      if (state != LINK_SQUADS && state != LINK_READY) return;
+      if (n > LINK_FRIEND_MAX) return;
+      memcpy(fx, body, n);
+      fxN = n;
+      fxNew = true;
       return;
     case LM_TOFFER: {
       if (n < 1 || tPhase) return;     // a deal already struck is not reopened

@@ -68,7 +68,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "HOY: S", "HOY: A", "PREMIOS DE HOY: YA", "RANGO A/S: PREMIOS",
      "ATRAPA BAYAS", "PAREJAS", "ECO", "TOPOS", "ATRAPA, EVITA ROCAS", "BUSCA PAREJAS", "MIRA Y REPITE", "GOLPEA, NO LA BOMBA",
      "DAR DE COMER", "BAYA FAVORITA", "LIMPIAR", "JUGAR", "ENTRENAR", "DIAS DE CUIDADO", "ECLOSIONAR", "EVOLUCIONAR", "VICTORIAS EN GIMNASIO", "REVANCHAS GANADAS", "VER SALVAJES", "VENCER SALVAJES", "CAPTURAR", "TAREAS DIARIAS", "TAREAS SEMANALES", "PREMIO DIARIO", "TOCA PARA COBRAR", "COBRADO", "TAREAS",
-     "CAMBIAR", "TU OFRECES", "OFRECE", "toca para elegir", "nada aun", "ACEPTAR", "esperando al otro", "CAMBIO HECHO!", "sin sitio libre", "no se guardo, nada perdido", "%s evoluciono!", },
+     "CAMBIAR", "TU OFRECES", "OFRECE", "toca para elegir", "nada aun", "ACEPTAR", "esperando al otro", "CAMBIO HECHO!", "sin sitio libre", "no se guardo, nada perdido", "%s evoluciono!",
+     "VISITA", "ALEGRIA +%u VINC +%u", "YA VISITO HOY", "ESPERANDO AL AMIGO", "LLEGO REGALO ANTERIOR", "REGALO DEVUELTO", "INTERCAMBIANDO...", "RECIBES %s", "REGALO NO VALIDO", "MOCHILA LLENA", "CANCELADO", "YA HUBO REGALO HOY", "REGALO EN CAMINO", "MISMO ID", "AMIGO: %s", "AMIGO YA TUVO REGALO", "REGALO", "REGALITO", "OFRECER", "AMIGOS", "ANFITRION O UNIRSE", "SIN RADIO", "AMIGO EN COMBATE LAN", "OTRA VERSION", "TU AMIGO SE FUE", "SE RESUELVE AL VOLVER", "BUSCANDO AMIGO...", "FALTAN 2 ECLOSIONADOS", },
   // ---------------- EN ----------------
   {
     "Evolving!", "Yum yum!", "It likes it!", "It's hungry!", "Needs a bath!",
@@ -128,7 +129,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "TODAY: S", "TODAY: A", "ALL PRIZES TODAY: WON", "RANK A OR S: PRIZES",
      "BERRY CATCH", "MEMORY", "ECHO", "POP-UP", "CATCH, DODGE ROCKS", "FIND THE PAIRS", "WATCH AND REPEAT", "BOP THEM, NOT BOMBS",
      "FEED", "FAVOURITE BERRIES", "CLEAN", "PLAY", "TRAIN", "CARE DAYS", "HATCH", "EVOLVE", "GYM WINS", "REMATCH WINS", "SEE WILD POKEMON", "BEAT WILD POKEMON", "CATCH POKEMON", "DAILY TASKS", "WEEKLY TASKS", "DAILY BONUS", "TAP TO CLAIM", "CLAIMED", "TASKS",
-     "TRADE", "YOU OFFER", "THEY OFFER", "tap to choose", "nothing yet", "ACCEPT", "waiting for them", "TRADE COMPLETE!", "no room in party or box", "save failed - nothing lost", "%s evolved!", },
+     "TRADE", "YOU OFFER", "THEY OFFER", "tap to choose", "nothing yet", "ACCEPT", "waiting for them", "TRADE COMPLETE!", "no room in party or box", "save failed - nothing lost", "%s evolved!",
+     "VISIT", "JOY +%u BOND +%u", "VISITED TODAY", "WAITING FOR FRIEND", "OLD GIFT ARRIVED", "OLD GIFT RETURNED", "SWAPPING...", "GOT %s!", "BAD GIFT REFUSED", "BAG FULL", "SWAP CALLED OFF", "SWAPPED TODAY", "GIFT IN TRANSIT", "SAME ID", "FRIEND: %s", "FRIEND SWAPPED TODAY", "GIFT SWAP", "SMALL GIFT", "OFFER", "FRIENDS", "HOST OR JOIN", "NO RADIO", "FRIEND IS ON LAN", "DIFFERENT VERSION", "YOUR FRIEND LEFT", "SETTLES NEXT MEETING", "LOOKING FOR A FRIEND", "NEEDS 2 HATCHED PETS", },
   // ---------------- FR ----------------
   {
     "Il evolue!", "Miam miam!", "Il aime ca!", "Il a faim!", "Besoin d'un bain!",
@@ -187,7 +189,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "AUJ.: S", "AUJ.: A", "PRIX DU JOUR: GAGNES", "RANG A/S: DES PRIX",
      "CUEILLETTE", "MEMORY", "ECHO", "TAUPES", "ATTRAPE, EVITE", "TROUVE LES PAIRES", "REGARDE, REPETE", "TAPE, PAS LA BOMBE",
      "NOURRIR", "BAIES PREFEREES", "NETTOYER", "JOUER", "ENTRAINER", "JOURS DE SOINS", "FAIRE ECLORE", "FAIRE EVOLUER", "VICTOIRES ARENE", "REVANCHES GAGNEES", "VOIR DES SAUVAGES", "BATTRE DES SAUVAGES", "CAPTURER", "TACHES DU JOUR", "TACHES DE LA SEMAINE", "BONUS DU JOUR", "TOUCHE: RECLAMER", "RECU", "TACHES",
-     "ECHANGER", "TU OFFRES", "IL OFFRE", "touche: choisir", "rien encore", "ACCEPTER", "en attente", "ECHANGE FAIT!", "plus de place", "echec - rien perdu", "%s a evolue!", },
+     "ECHANGER", "TU OFFRES", "IL OFFRE", "touche: choisir", "rien encore", "ACCEPTER", "en attente", "ECHANGE FAIT!", "plus de place", "echec - rien perdu", "%s a evolue!",
+     "VISITE", "JOIE +%u LIEN +%u", "DEJA VISITE", "ATTENTE DE L'AMI", "ANCIEN CADEAU ARRIVE", "CADEAU RENDU", "ECHANGE...", "RECU %s", "CADEAU REFUSE", "SAC PLEIN", "ECHANGE ANNULE", "DEJA FAIT AUJOURD'HUI", "CADEAU EN ROUTE", "MEME ID", "AMI: %s", "AMI DEJA ECHANGE", "CADEAU", "PETIT CADEAU", "OFFRIR", "AMIS", "HEBERGER OU REJOINDRE", "PAS DE RADIO", "AMI SUR COMBAT LAN", "AUTRE VERSION", "TON AMI EST PARTI", "REGLE A LA PROCHAINE", "CHERCHE UN AMI...", "IL FAUT 2 ECLOS", },
   // ---------------- DE ----------------
   {
     "Entwickelt sich!", "Mampf mampf!", "Gefaellt ihm!", "Hat Hunger!", "Braucht ein Bad!",
@@ -246,7 +249,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "HEUTE: S", "HEUTE: A", "ALLE PREISE ERHALTEN", "RANG A/S: PREISE",
      "BEERENFANG", "MEMORY", "ECHO", "MAULWURF", "FANGEN, AUSWEICHEN", "FINDE PAARE", "SCHAU, WIEDERHOLE", "HAUEN, KEINE BOMBE",
      "FUETTERN", "LIEBLINGSBEEREN", "PUTZEN", "SPIELEN", "TRAINIEREN", "PFLEGETAGE", "AUSBRUETEN", "ENTWICKELN", "ARENA-SIEGE", "REVANCHEN GEWONNEN", "WILDE SEHEN", "WILDE BESIEGEN", "FANGEN", "TAGESAUFGABEN", "WOCHENAUFGABEN", "TAGESBONUS", "TIPPEN: ABHOLEN", "ERHALTEN", "AUFGABEN",
-     "TAUSCHEN", "DU BIETEST", "ANGEBOT", "tippen: waehlen", "noch nichts", "ANNEHMEN", "warte auf ihn", "TAUSCH FERTIG!", "kein Platz frei", "Fehler - nichts verloren", "%s entwickelt!", },
+     "TAUSCHEN", "DU BIETEST", "ANGEBOT", "tippen: waehlen", "noch nichts", "ANNEHMEN", "warte auf ihn", "TAUSCH FERTIG!", "kein Platz frei", "Fehler - nichts verloren", "%s entwickelt!",
+     "BESUCH", "FREUDE +%u BAND +%u", "HEUTE BESUCHT", "WARTE AUF FREUND", "ALTES GESCHENK DA", "GESCHENK ZURUECK", "TAUSCHE...", "ERHALTEN %s", "UNGUELTIGES GESCHENK", "BEUTEL VOLL", "TAUSCH ABGEBROCHEN", "HEUTE GETAUSCHT", "GESCHENK UNTERWEGS", "GLEICHE ID", "FREUND: %s", "FREUND HAT GETAUSCHT", "GESCHENK", "KLEINIGKEIT", "ANBIETEN", "FREUNDE", "HOSTEN ODER BEITRETEN", "KEIN FUNK", "FREUND IM LAN-KAMPF", "ANDERE VERSION", "FREUND IST WEG", "KLAERT SICH SPAETER", "SUCHE FREUND...", "BRAUCHT 2 GESCHLUEPFTE", },
   // ---------------- IT ----------------
   {
     "Si evolve!", "Gnam gnam!", "Gli piace!", "Ha fame!", "Vuole un bagno!",
@@ -305,7 +309,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "OGGI: S", "OGGI: A", "PREMI DI OGGI: PRESI", "GRADO A/S: PREMI",
      "PRENDI BACCHE", "MEMORY", "ECO", "TALPE", "PRENDI, SCHIVA", "TROVA LE COPPIE", "GUARDA E RIPETI", "COLPISCI, NO BOMBE",
      "NUTRIRE", "BACCHE PREFERITE", "PULIRE", "GIOCARE", "ALLENARE", "GIORNI DI CURA", "SCHIUDERE", "EVOLVERE", "VITTORIE PALESTRA", "RIVINCITE VINTE", "VEDERE SELVATICI", "BATTERE SELVATICI", "CATTURARE", "MISSIONI DEL GIORNO", "MISSIONI SETTIMANALI", "BONUS GIORNALIERO", "TOCCA: RISCATTA", "RISCATTATO", "MISSIONI",
-     "SCAMBIA", "TU OFFRI", "OFFRE", "tocca: scegli", "ancora niente", "ACCETTA", "in attesa", "SCAMBIO FATTO!", "nessun posto libero", "errore - niente perso", "%s si e evoluto!", },
+     "SCAMBIA", "TU OFFRI", "OFFRE", "tocca: scegli", "ancora niente", "ACCETTA", "in attesa", "SCAMBIO FATTO!", "nessun posto libero", "errore - niente perso", "%s si e evoluto!",
+     "VISITA", "GIOIA +%u LEGAME +%u", "GIA VISITATO", "ATTENDO L'AMICO", "ARRIVATO REGALO", "REGALO RESO", "SCAMBIO...", "RICEVI %s", "REGALO RIFIUTATO", "BORSA PIENA", "SCAMBIO ANNULLATO", "GIA FATTO OGGI", "REGALO IN VIAGGIO", "STESSO ID", "AMICO: %s", "L'AMICO HA GIA FATTO", "REGALO", "REGALINO", "OFFRI", "AMICI", "OSPITA O UNISCITI", "NIENTE RADIO", "AMICO IN LOTTA LAN", "ALTRA VERSIONE", "L'AMICO E USCITO", "SI RISOLVE DOPO", "CERCO UN AMICO...", "SERVONO 2 NATI", },
   // ---------------- PT ----------------
   {
     "Evoluindo!", "Nham nham!", "Ele gosta!", "Esta com fome!", "Precisa de banho!",
@@ -364,7 +369,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "HOJE: S", "HOJE: A", "PREMIOS DE HOJE: JA", "NOTA A/S: PREMIOS",
      "PEGA BAGAS", "MEMORIA", "ECO", "TOUPEIRAS", "PEGUE, DESVIE", "ACHE OS PARES", "OLHE E REPITA", "BATA, SEM BOMBAS",
      "ALIMENTAR", "BAGAS FAVORITAS", "LIMPAR", "BRINCAR", "TREINAR", "DIAS DE CUIDADO", "CHOCAR", "EVOLUIR", "VITORIAS NO GINASIO", "REVANCHES VENCIDAS", "VER SELVAGENS", "VENCER SELVAGENS", "CAPTURAR", "TAREFAS DIARIAS", "TAREFAS SEMANAIS", "BONUS DIARIO", "TOQUE: RESGATAR", "RESGATADO", "TAREFAS",
-     "TROCAR", "VOCE OFERECE", "OFERECE", "toque: escolher", "nada ainda", "ACEITAR", "esperando o outro", "TROCA FEITA!", "sem espaco livre", "falhou - nada perdido", "%s evoluiu!", },
+     "TROCAR", "VOCE OFERECE", "OFERECE", "toque: escolher", "nada ainda", "ACEITAR", "esperando o outro", "TROCA FEITA!", "sem espaco livre", "falhou - nada perdido", "%s evoluiu!",
+     "VISITA", "ALEGRIA +%u LACO +%u", "JA VISITOU HOJE", "ESPERANDO O AMIGO", "PRESENTE ANTIGO CHEGOU", "PRESENTE DEVOLVIDO", "TROCANDO...", "GANHOU %s", "PRESENTE RECUSADO", "MOCHILA CHEIA", "TROCA CANCELADA", "JA TROCOU HOJE", "PRESENTE A CAMINHO", "MESMO ID", "AMIGO: %s", "AMIGO JA TROCOU", "PRESENTE", "LEMBRANCA", "OFERECER", "AMIGOS", "HOSPEDAR OU ENTRAR", "SEM RADIO", "AMIGO NA BATALHA LAN", "OUTRA VERSAO", "SEU AMIGO SAIU", "RESOLVE NA PROXIMA", "PROCURANDO AMIGO...", "PRECISA 2 CHOCADOS", },
 };
 
 // Nombres de medalla en sus tres longitudes [idioma][medalla].

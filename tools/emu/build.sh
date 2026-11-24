@@ -27,7 +27,7 @@ g++ -std=c++17 -O1 -w \
   -DSPRITE_DIR="\"$ROOT/tools/sdcard/mons\"" \
   $(sdl2-config --cflags) \
   -o tamapoke-emu \
-  sketch.cpp wavout.cpp "$ROOT/gbsynth.cpp" "$ROOT/pet.cpp" "$ROOT/i18n.cpp" "$ROOT/party.cpp" "$ROOT/battle.cpp" "$ROOT/link.cpp" "$ROOT/save.cpp" "$ROOT/inventory.cpp" "$ROOT/held_items.cpp" "$ROOT/wild.cpp" "$ROOT/game_events.cpp" "$ROOT/tasks.cpp" "$ROOT/dex_rewards.cpp" "$ROOT/breed.cpp" "$ROOT/persona.cpp" "$ROOT/chain.cpp" "$ROOT/tower.cpp" "$ROOT/challenge.cpp" "$ROOT/rank.cpp" \
+  sketch.cpp wavout.cpp "$ROOT/gbsynth.cpp" "$ROOT/pet.cpp" "$ROOT/i18n.cpp" "$ROOT/party.cpp" "$ROOT/battle.cpp" "$ROOT/link.cpp" "$ROOT/save.cpp" "$ROOT/inventory.cpp" "$ROOT/held_items.cpp" "$ROOT/wild.cpp" "$ROOT/game_events.cpp" "$ROOT/tasks.cpp" "$ROOT/dex_rewards.cpp" "$ROOT/breed.cpp" "$ROOT/persona.cpp" "$ROOT/chain.cpp" "$ROOT/tower.cpp" "$ROOT/challenge.cpp" "$ROOT/rank.cpp" "$ROOT/friends.cpp" \
   host_impl.cpp nvsinfo_stub.cpp font.cpp clock.cpp main_sdl.cpp \
   $(sdl2-config --libs)
 

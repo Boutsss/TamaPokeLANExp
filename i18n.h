@@ -322,6 +322,34 @@ enum StrId : uint16_t {
   S_TRD_NOROOM,    // trade: party and box full
   S_TRD_FAIL,      // trade: our store failed
   S_TRD_EVOLVED,   // trade: evolved on arrival
+  S_FR_VISIT,      // ported (vunguyen2712)
+  S_FR_BONUS,      // ported (vunguyen2712)
+  S_FR_NOBONUS,    // ported (vunguyen2712)
+  S_FR_WAITING,    // ported (vunguyen2712)
+  S_FR_ARRIVED,    // ported (vunguyen2712)
+  S_FR_RETURNED,   // ported (vunguyen2712)
+  S_FR_SWAPPING,   // ported (vunguyen2712)
+  S_FR_GOT,        // ported (vunguyen2712)
+  S_FR_BAD,        // ported (vunguyen2712)
+  S_FR_FULL,       // ported (vunguyen2712)
+  S_FR_CALLED,     // ported (vunguyen2712)
+  S_FR_USED,       // ported (vunguyen2712)
+  S_FR_TRANSIT,    // ported (vunguyen2712)
+  S_FR_SAMEID,     // ported (vunguyen2712)
+  S_FR_OFFERS,     // ported (vunguyen2712)
+  S_FR_PEER_USED,  // ported (vunguyen2712)
+  S_FR_GIFT,       // ported (vunguyen2712)
+  S_FR_SMALL,      // ported (vunguyen2712)
+  S_FR_OFFER,      // ported (vunguyen2712)
+  S_FR_TITLE,      // ported (vunguyen2712)
+  S_FR_PICK,       // ported (vunguyen2712)
+  S_FR_NORADIO,    // ported (vunguyen2712)
+  S_FR_MODE,       // ported (vunguyen2712)
+  S_FR_VERSION,    // ported (vunguyen2712)
+  S_FR_GONE,       // ported (vunguyen2712)
+  S_FR_LATER,      // ported (vunguyen2712)
+  S_FR_WAIT,       // ported (vunguyen2712)
+  S_FR_EGG,        // ported (vunguyen2712)
   STR_COUNT
 };
 

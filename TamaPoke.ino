@@ -47,6 +47,8 @@
 #include "tower.h"
 #include "challenge.h"
 #include "rank.h"
+#include "friends.h"
+#include "noart.h"   // speciesHasArt(): the friends visit draws a number when no art
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
@@ -253,7 +255,7 @@ enum : uint8_t {
   SCR_STARTER = 0, SCR_REGION, SCR_GALLERY, SCR_DEXPICK, SCR_MOVEPICK, SCR_BOX,
   SCR_PARTY, SCR_KEYBOARD, SCR_CARD, SCR_PLAYER, SCR_CLOCK, SCR_GYM, SCR_GYMPICK,
   SCR_EXPLORE, SCR_MART, SCR_LAN, SCR_PICK, SCR_BATTLE, SCR_WIN, SCR_LEARN, SCR_TRAIN, SCR_MENU,
-  SCR_BAGSCR, SCR_GAME, SCR_MAIN, SCR_TASKS, SCR_DAYCARE, SCR_DCPICK, SCR_TOWER, SCR_CHAL, SCR_ARCADE, SCR_TRADE, SCR_TRADEPICK, SCR_COUNT
+  SCR_BAGSCR, SCR_GAME, SCR_MAIN, SCR_TASKS, SCR_DAYCARE, SCR_DCPICK, SCR_TOWER, SCR_CHAL, SCR_ARCADE, SCR_TRADE, SCR_TRADEPICK, SCR_FRIENDS, SCR_COUNT
 };
 extern const char *const SCREEN_NAME[SCR_COUNT];   // const is internal linkage in C++
 
@@ -316,7 +318,7 @@ const char *const SCREEN_NAME[SCR_COUNT] = {
   "starter", "region", "gallery", "dexpick", "movepick", "box",
   "party", "keyboard", "card", "player", "clock", "gym", "gympick",
   "explore", "mart", "lan", "pick", "battle", "win", "learn", "train", "menu",
-  "bag", "minigame", "main", "tasks", "daycare", "dcpick", "tower", "challenge", "arcade", "trade", "tradepick"
+  "bag", "minigame", "main", "tasks", "daycare", "dcpick", "tower", "challenge", "arcade", "trade", "tradepick", "friends"
 };
 
 // Badge art for a region, or nullptr when that region has none yet.
@@ -658,6 +660,14 @@ void tradeTap(int16_t x, int16_t y);
 void tradeLeave();
 void tradePoll();
 uint8_t tradePickPages();
+// Gifts and visits between two boards (ui_friends.ino, friends.cpp). Reached
+// from the LAN screen's FRIENDS button.
+extern bool friendsOpen;
+void renderFriends();
+void friendsTap(int16_t x, int16_t y);
+void friendsSwipeDown();
+void friendsLoop(uint32_t now);
+void friendsOpenScreen();
 void arcadeTap(int16_t x, int16_t y);
 void arcadeSwipe(int dir);
 bool arcadeSwipeV(int dir);
@@ -1090,6 +1100,7 @@ void setup() {
   challengeBegin();
   rankBindPet(&pet);
   rankBegin();   // after tower/challenge: the score reads both
+  friendsBegin();
   tasksRefresh();
 
   audioBegin();  // ES8311 + I2S + amplificador (suena un jingle de arranque)
@@ -1139,6 +1150,9 @@ void loop() {
     lan.tick(now);
     tradePoll();   // a deal struck must be STORED, then released -- even off the trade screen
   }
+  // Outside the live() block on purpose: it also turns the radio off once a
+  // friends peer has left, which is exactly when the link is no longer live.
+  friendsLoop(now);
 
   // avisa con un sonido cuando el bicho pasa a estar listo para evolucionar
   // (incluye el caso de cumplir al despertar). canEvolveNow es false durmiendo.
@@ -1849,6 +1863,10 @@ void onSwipeV(int dir) {
     if (tradeView) tradeView = 0; else tradeLeave();
     return;
   }
+  if (friendsOpen) {
+    if (back) friendsSwipeDown();
+    return;
+  }
   if (arcadeOpen) {
     if (!back) return;
     if (!arcadeSwipeV(dir)) { arcadeClose(); trainOpen = true; }
@@ -2356,6 +2374,10 @@ void onTap(int16_t x, int16_t y) {
   }
   if (tradeOpen) {
     tradeTap(x, y);
+    return;
+  }
+  if (friendsOpen) {
+    friendsTap(x, y);
     return;
   }
   if (bagOpen) {
@@ -2878,6 +2900,7 @@ uint8_t uiCurrentScreen() {
   if (chalOpen) return SCR_CHAL;
   if (arcadeOpen) return SCR_ARCADE;
   if (tradeOpen) return tradeView ? SCR_TRADEPICK : SCR_TRADE;
+  if (friendsOpen) return SCR_FRIENDS;
   if (gymOpen) return gymPick ? SCR_GYMPICK : SCR_GYM;
   if (pet.hasLearnOffer()) return SCR_LEARN;
   if (gameOpen || sackOpen || spdOpen) return SCR_GAME;
@@ -3448,6 +3471,10 @@ void render() {
   }
   if (tradeOpen) {
     renderTrade();
+    return;
+  }
+  if (friendsOpen) {
+    renderFriends();
     return;
   }
   if (gymOpen) {
@@ -5923,8 +5950,8 @@ void renderLan() {
 
   if (lan.state == LINK_OFF || lan.state == LINK_REFUSED ||
       lan.state == LINK_LOST) {
-    const char *lab[2] = { T(S_LAN_HOST), T(S_LAN_JOIN) };
-    for (int i = 0; i < 2; i++) {
+    const char *lab[3] = { T(S_LAN_HOST), T(S_LAN_JOIN), T(S_FR_TITLE) };
+    for (int i = 0; i < 3; i++) {
       int y = 120 + i * 70;
       gfx->fillRoundRect(90, y, 286, 56, 12, UI_BG_DAY);
       gfx->drawRoundRect(90, y, 286, 56, 12, UI_INK);
@@ -6032,10 +6059,16 @@ static void lanOffer(bool host) {
 void lanTap(int16_t x, int16_t y) {
   if (lan.state == LINK_OFF || lan.state == LINK_REFUSED ||
       lan.state == LINK_LOST) {
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < 3; i++) {
       int by = 120 + i * 70;
       if (x < 90 || x > 376 || y < by || y > by + 56) continue;
       sfxPlay(SFX_TAP);
+      if (i == 2) {           // FRIENDS: gifts and visits, its own screen and session
+        lanLeave();
+        lanOpen = false;
+        friendsOpenScreen();
+        return;
+      }
       lanWantHost = (i == 0);
       lanOpen = false;
       pickTrainer = PICK_LAN;
