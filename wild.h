@@ -26,6 +26,12 @@ constexpr uint8_t WILD_LEVEL_SPREAD = 5;         // either side of the player
 
 uint32_t wildShinyThreshold(uint8_t bonus);
 bool wildShinyForRoll(uint32_t roll, uint8_t bonus);
+inline bool wildShinyForRollWithCharm(uint32_t roll, uint8_t bonus, bool shinyCharm) {
+  uint32_t threshold = wildShinyThreshold(bonus);
+  if (shinyCharm) threshold *= 2;
+  return (roll % WILD_SHINY_SCALE) < threshold;
+}
+
 void wildApplyShiny(bool shiny, uint8_t &ivAtk, uint8_t &ivDef,
                     uint8_t &ivSpe, uint8_t &ivHp);
 
