@@ -5,7 +5,8 @@
 #include "tower.h"
 #include "i18n.h"
 #include "challenge.h"
-#include "avatars.h"
+#include "avatar_names.h"   // counts only: no pixels in this TU
+#include "casino.h"
 #include "game_events.h"
 #include <Preferences.h>
 
@@ -30,7 +31,7 @@ static uint32_t s_noticeAt = 0;
 static const uint16_t RANK_AT[RANK_MAX] = { 0, 30, 100, 200, 350, 600, 1000, 1600, 2500, 4000 };
 
 // Trainer avatars by index (avatars.h): RED BLUE GIRL ACE_M ACE_F HIKER SAILOR YOUNGSTER
-static const uint8_t AVATAR_NEEDS[AVATAR_COUNT] = { 1, 1, 1, 4, 4, 6, 8, 2 };
+static const uint8_t AVATAR_NEEDS[AVATAR_BASE_COUNT] = { 1, 1, 1, 4, 4, 6, 8, 2 };
 
 
 bool rankBindPet(const Pet *p) { s_pet = p; return p != nullptr; }
@@ -146,11 +147,13 @@ static void rankOnEvent(GameEv ev, int16_t arg) {
 
 // ---------- unlocks ----------
 uint8_t rankAvatarNeeds(uint8_t avatar) {
-  return AVATAR_NEEDS[avatar % AVATAR_COUNT];
+  return avatar < AVATAR_BASE_COUNT ? AVATAR_NEEDS[avatar] : 0;   // shop avatars: bought, not ranked
 }
 
 bool rankAvatarUnlocked(uint8_t avatar) {
   if (avatar >= AVATAR_COUNT) return false;
+  // The Rocket Game Corner's prizes are unlocked by buying them, not by rank.
+  if (avatar >= AVATAR_BASE_COUNT) return casinoOwns(PK_AVATAR, avatar - AVATAR_BASE_COUNT);
   if ((s_avGrant >> avatar) & 1) return true;
   return s_top >= AVATAR_NEEDS[avatar];
 }
@@ -190,7 +193,7 @@ void rankBegin() {
   // never trust a stored value
   if (s_top < 1) s_top = 1;
   if (s_top > RANK_MAX) s_top = RANK_MAX;
-  s_avGrant &= (uint8_t)((1u << AVATAR_COUNT) - 1);
+  s_avGrant &= (uint8_t)((1u << AVATAR_BASE_COUNT) - 1);
 
   if (fresh) {
     // First boot with ranks: the save's progress is the starting rank, with a

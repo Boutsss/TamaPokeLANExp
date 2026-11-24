@@ -48,6 +48,8 @@
 #include "challenge.h"
 #include "rank.h"
 #include "friends.h"
+#include "casino.h"
+#include "casino_art.h"
 #include "noart.h"   // speciesHasArt(): the friends visit draws a number when no art
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
@@ -255,7 +257,7 @@ enum : uint8_t {
   SCR_STARTER = 0, SCR_REGION, SCR_GALLERY, SCR_DEXPICK, SCR_MOVEPICK, SCR_BOX,
   SCR_PARTY, SCR_KEYBOARD, SCR_CARD, SCR_PLAYER, SCR_CLOCK, SCR_GYM, SCR_GYMPICK,
   SCR_EXPLORE, SCR_MART, SCR_LAN, SCR_PICK, SCR_BATTLE, SCR_WIN, SCR_LEARN, SCR_TRAIN, SCR_MENU,
-  SCR_BAGSCR, SCR_GAME, SCR_MAIN, SCR_TASKS, SCR_DAYCARE, SCR_DCPICK, SCR_TOWER, SCR_CHAL, SCR_ARCADE, SCR_TRADE, SCR_TRADEPICK, SCR_FRIENDS, SCR_COUNT
+  SCR_BAGSCR, SCR_GAME, SCR_MAIN, SCR_TASKS, SCR_DAYCARE, SCR_DCPICK, SCR_TOWER, SCR_CHAL, SCR_ARCADE, SCR_TRADE, SCR_TRADEPICK, SCR_FRIENDS, SCR_CASINO, SCR_CASSHOP, SCR_COUNT
 };
 extern const char *const SCREEN_NAME[SCR_COUNT];   // const is internal linkage in C++
 
@@ -318,7 +320,7 @@ const char *const SCREEN_NAME[SCR_COUNT] = {
   "starter", "region", "gallery", "dexpick", "movepick", "box",
   "party", "keyboard", "card", "player", "clock", "gym", "gympick",
   "explore", "mart", "lan", "pick", "battle", "win", "learn", "train", "menu",
-  "bag", "minigame", "main", "tasks", "daycare", "dcpick", "tower", "challenge", "arcade", "trade", "tradepick", "friends"
+  "bag", "minigame", "main", "tasks", "daycare", "dcpick", "tower", "challenge", "arcade", "trade", "tradepick", "friends", "casino", "casshop"
 };
 
 // Badge art for a region, or nullptr when that region has none yet.
@@ -668,6 +670,18 @@ void friendsTap(int16_t x, int16_t y);
 void friendsSwipeDown();
 void friendsLoop(uint32_t now);
 void friendsOpenScreen();
+// The Rocket Game Corner (ui_casino.ino, casino.cpp): hold ARCADE five seconds.
+extern bool casinoOpen;
+extern uint8_t casShopPage;
+uint8_t casShopPages();
+uint8_t casinoView();
+void renderCasino();
+void casinoTap(int16_t x, int16_t y);
+void casinoSwipeDown();
+void casinoOpenNow();
+void casinoClose();
+void casinoTouchPeek(bool pressed, int16_t x, int16_t y, bool onArcadeRow);
+void drawCardBackground(uint8_t bg, uint32_t t);
 void arcadeTap(int16_t x, int16_t y);
 void arcadeSwipe(int dir);
 bool arcadeSwipeV(int dir);
@@ -1101,6 +1115,7 @@ void setup() {
   rankBindPet(&pet);
   rankBegin();   // after tower/challenge: the score reads both
   friendsBegin();
+  casinoBegin();
   tasksRefresh();
 
   audioBegin();  // ES8311 + I2S + amplificador (suena un jingle de arranque)
@@ -1729,6 +1744,11 @@ void handleTouch() {
 
 static void touchStep(bool pressed, int16_t x, int16_t y) {
   arcadeTouchPeek(pressed, x, y);   // only reads: steers BERRY CATCH while a finger is down
+  // The hidden door: a finger HELD on the training menu's ARCADE row. A held
+  // press is never a tap (taps need < 1.5 s), so the arcade itself does not open.
+  casinoTouchPeek(pressed, x, y,
+                  trainOpen && !casinoOpen && x >= TRAIN_X + 18 && x <= TRAIN_X + TRAIN_W - 18 &&
+                  y >= TRAIN_ROW_Y(3) && y <= TRAIN_ROW_Y(3) + TRAIN_ROW_H);
 
   // saco de entrenamiento: cada toque cuenta al instante (aporrear rapido)
   if (sackOpen) {
@@ -1869,6 +1889,10 @@ void onSwipeV(int dir) {
   }
   if (friendsOpen) {
     if (back) friendsSwipeDown();
+    return;
+  }
+  if (casinoOpen) {
+    if (back) casinoSwipeDown();
     return;
   }
   if (arcadeOpen) {
@@ -2382,6 +2406,10 @@ void onTap(int16_t x, int16_t y) {
   }
   if (friendsOpen) {
     friendsTap(x, y);
+    return;
+  }
+  if (casinoOpen) {
+    casinoTap(x, y);
     return;
   }
   if (bagOpen) {
@@ -2905,6 +2933,7 @@ uint8_t uiCurrentScreen() {
   if (arcadeOpen) return SCR_ARCADE;
   if (tradeOpen) return tradeView ? SCR_TRADEPICK : SCR_TRADE;
   if (friendsOpen) return SCR_FRIENDS;
+  if (casinoOpen) return casinoView() == 5 ? SCR_CASSHOP : SCR_CASINO;
   if (gymOpen) return gymPick ? SCR_GYMPICK : SCR_GYM;
   if (pet.hasLearnOffer()) return SCR_LEARN;
   if (gameOpen || sackOpen || spdOpen) return SCR_GAME;
@@ -3013,6 +3042,7 @@ static uint8_t *uiRimTarget(uint8_t *pages) {
     case SCR_DCPICK:  p = &dcPage;      n = dcPickPages(); break;
     case SCR_TASKS:   p = &tasksPage;   n = 2; break;   // daily, weekly
     case SCR_TRADEPICK: p = &tradePage; n = tradePickPages(); break;
+    case SCR_CASSHOP: p = &casShopPage; n = casShopPages(); break;
     case SCR_CARD:    p = &cardPage;    n = CARD_PAGES; break;
     case SCR_MOVEPICK: {
       uint8_t all[64];
@@ -3479,6 +3509,10 @@ void render() {
   }
   if (friendsOpen) {
     renderFriends();
+    return;
+  }
+  if (casinoOpen) {
+    renderCasino();
     return;
   }
   if (gymOpen) {
@@ -5527,8 +5561,8 @@ static void renderPlayerBadges() {
     gfx->setTextSize(2);
     gfx->setCursor(CX - (int)strlen(rn) * 6, 120);
     gfx->print(rn);
-  } else if (gShowAllAvatars) {          // emulator only: every avatar at once
-    for (uint8_t i = 0; i < AVATAR_COUNT; i++)
+  } else if (gShowAllAvatars) {          // emulator only: the free set at once
+    for (uint8_t i = 0; i < AVATAR_BASE_COUNT; i++)
       drawAvatar(i, 60 + (i % 4) * 88, 60 + (i / 4) * 60, 3);
   } else {
     // the rank's title, small, under the name (rank.cpp)
@@ -5619,7 +5653,8 @@ static void renderPlayerRank() {
   gfx->setTextSize(1);
   gfx->setCursor(CX - (int)strlen(l) * 3, 106);
   gfx->print(l);
-  for (uint8_t i = 0; i < AVATAR_COUNT; i++) {
+  // The rank-gated free set. The casino's 82 are bought, and live in its shop.
+  for (uint8_t i = 0; i < AVATAR_BASE_COUNT; i++) {
     int x = 74 + (i % 4) * 82, y = 130 + (i / 4) * 104;
     bool ok = rankAvatarUnlocked(i);
     gfx->fillRoundRect(x, y, 72, 92, 10, i == pet.avatar ? UI_BAR_OK : (ok ? UI_WHITE : UI_TRACK));
@@ -5669,7 +5704,7 @@ static void renderPlayerMedals() {
 
 void renderPlayer() {
   gfx->fillScreen(RGB565_BLACK);
-  gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
+  drawCardBackground(casino.bg, millis());   // the bought trainer-card background, or plain cream
   if (playerPage < GYM_REGIONS) renderPlayerBadges();
   else if (playerPage == PLAYER_RANK_PAGE) renderPlayerRank();
   else renderPlayerMedals();

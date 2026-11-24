@@ -376,6 +376,35 @@ public:
   static constexpr uint32_t WALLET_CAP = 999999;
   uint32_t wallet = 0;      // spendable, clamped at WALLET_CAP
   uint32_t stepsTotal = 0;  // lifetime steps, uncapped and never spent -- display only
+  // The Rocket Game Corner's coins (casino.h). In the PLAYER checkpoint beside
+  // the wallet, so buying coins is one atomic write: the dollars leave and the
+  // coins arrive together or not at all. Capped like the real Coin Case.
+  uint16_t coins = 0;
+  void addCoins(uint16_t n) {
+    uint32_t c = (uint32_t)coins + n;
+    coins = c > 9999 ? 9999 : (uint16_t)c;
+    saveNow();
+  }
+  bool spendCoins(uint16_t n) {
+    if (n > coins) return false;
+    coins -= n;
+    if (saveNow()) return true;
+    coins += n;              // it did not land: nothing was spent
+    return false;
+  }
+  // `n` coins at `dollarsPer` each, clamped to the Coin Case's room. False
+  // (nothing changes) if the wallet is short or the case is full.
+  bool buyCoins(uint16_t n, uint16_t dollarsPer) {
+    if (coins >= 9999) return false;
+    if ((uint32_t)coins + n > 9999) n = 9999 - coins;
+    uint32_t cost = (uint32_t)n * dollarsPer;
+    if (cost > wallet) return false;
+    wallet -= cost;
+    coins += n;
+    if (saveNow()) return true;
+    wallet += cost; coins -= n;   // undo: the write did not land
+    return false;
+  }
   // Credits n steps. Called every couple of seconds while walking, so like the
   // ordinary stat drains it only marks the periodic save pending rather than
   // writing immediately -- an immediate save() here would turn a walk into a
