@@ -51,6 +51,64 @@ int main(){
   // what commits everything set above. save() itself is private on purpose.
   pet.renameTrainer("DYLAN");
 
+  // --- COMPLETENESS. Everything the firmware stored must be in the table.
+  // This is what stops the backup rotting: add a key to pet.cpp and forget
+  // save.cpp, and this fails instead of quietly dropping it from every export.
+  //
+  // It runs HERE, against the store the firmware just wrote -- not after a
+  // restore. After an import the store only holds what the backup put back, so
+  // a forgotten key would be missing from both sides and the check would pass
+  // itself. It did exactly that until this was moved.
+  {
+    std::set<std::string> inTable;
+    for (uint16_t i=0;i<SAVE_FIELD_COUNT;i++) inTable.insert(SAVE_FIELDS[i].key);
+    int missing = 0;
+    for (auto &kv : nvs()) {
+      if (inTable.count(kv.first)) continue;
+      printf("      key '%s' is stored but NOT backed up\n", kv.first.c_str());
+      missing++;
+    }
+    ck(missing==0, "every key the firmware writes is in the backup table");
+    ck(inTable.size()==SAVE_FIELD_COUNT, "and the table has no duplicates");
+  }
+
+  static uint8_t buf[SAVE_TRANSFER_MAX];
+  size_t n = saveExport(buf, sizeof(buf));
+  ck(n > 0, "a save exports");
+  ck(n < sizeof(buf), "and fits a sensible buffer");
+  // Fitting is not enough. saveExport() returns 0 rather than truncating, so
+  // outgrowing the ceiling turns EXPORT into "EXPORT FAIL" -- the backup simply
+  // stops existing, and it would do so on the release that grew the dex rather
+  // than on the one that shipped this test. A quarter of the buffer spare is the
+  // margin; when this fails, raise SAVE_TRANSFER_MAX rather than trimming the
+  // backup, because a backup that is quietly PARTIAL is worse than none.
+  ck(n < sizeof(buf) - sizeof(buf) / 4,
+     "with room left for the dex and the record layouts to keep growing");
+  printf("      (%u bytes of %u)\n", (unsigned)n, (unsigned)sizeof(buf));
+
+  // --- a mangled blob must never be applied
+  {
+    std::vector<uint8_t> t(buf, buf+n);
+    t[0] = 'X';
+    ck(!saveImport(t.data(), t.size()), "a blob with the wrong magic is refused");
+    t = std::vector<uint8_t>(buf, buf+n);
+    t[4] = SAVE_VERSION + 9;
+    ck(!saveImport(t.data(), t.size()), "and one from a future version");
+    t = std::vector<uint8_t>(buf, buf+n);
+    t[SAVE_HDR + 3] ^= 0xFF;                   // flip a byte in the middle
+    ck(!saveImport(t.data(), t.size()), "a single flipped byte fails the checksum");
+    t = std::vector<uint8_t>(buf, buf+n-1);    // chopped short
+    ck(!saveImport(t.data(), t.size()), "and a truncated blob is refused");
+    ck(!saveImport(buf, 3), "as is one too short to hold a header");
+    // and none of that touched the live save
+    ck(nvs().count("party") == 1, "a refused import leaves the save alone");
+  }
+
+  // --- the real thing: wipe everything, restore, and compare
+  pet.factoryReset();
+  ck(nvs().empty() || nvs().count("party")==0, "the wipe really emptied NVS");
+  ck(saveImport(buf, n), "the backup imports");
+
   Pet p2; Party q2;
   p2.begin(); q2.begin();
   ck(p2.speciesId==6 && p2.shiny, "the creature is back, shiny and all");
@@ -91,6 +149,17 @@ int main(){
   ck(q2.box[7].dex==1+7*3 && q2.box[7].level==17, "with the right creatures in it");
 
   // --- a restore must not leave anything of whatever was there before
+  {
+    Pet p3; p3.begin();
+    p3.badges = 0xFFFF;
+    p3.renameTrainer("GHOST");
+    ck(saveImport(buf, n), "a second restore over a different save");
+    Pet p4; p4.begin();
+    ck(!strcmp(p4.trainerName,"DYLAN") && p4.badges==0x00BF,
+       "overwrites it rather than merging with it");
+  }
+
+  // --- a second restore must replace, not merge with, an unrelated save
   {
     Pet p3; p3.begin();
     p3.badges = 0xFFFF;
