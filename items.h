@@ -84,6 +84,14 @@ static const ItemEntry ITEM_TBL[ITEM_COUNT] = {
   { "PROTEIN",      IC_TRAIN, TRAIN_ATK,              5, 8,  9800 },
   { "IRON",         IC_TRAIN, TRAIN_DEF,              5, 8,  9800 },
   { "CARBOS",       IC_TRAIN, TRAIN_SPE,              5, 8,  9800 },
+  { "ORAN BERRY",   IC_HELD,  10,                     0, 0,  0 },
+  { "SITRUS BERRY", IC_HELD,  25,                     0, 0,  0 },
+  { "LUM BERRY",    IC_HELD,  0,                      0, 0,  0 },
+  { "LEFTOVERS",    IC_HELD,  0,                      0, 0,  0 },
+  { "FOCUS SASH",   IC_HELD,  0,                      0, 0,  0 },
+  { "QUICK CLAW",   IC_HELD,  20,                     0, 0,  0 },
+  { "SHINY CHARM",  IC_KEY,   0,                      0, 0,  0 },
+  { "OVAL CHARM",   IC_KEY,   0,                      0, 0,  0 },
 };
 
 inline bool itemValid(ItemKey k) { return k > ITEM_NONE && k < ITEM_COUNT; }
