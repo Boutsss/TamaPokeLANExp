@@ -3,6 +3,7 @@
 #include "pet.h"
 #include "party.h"
 #include "moves.h"
+#include "items.h"
 
 // Turn resolution. Deliberately free of any UI or hardware so the whole thing
 // can be simulated headlessly -- see tools/emu.
@@ -27,6 +28,9 @@ struct Combatant {
   bool recharge = false;     // EF_RECHARGE spent this creature's next turn
   uint8_t charging = 0;      // EF_CHARGE move already wound up
   bool shiny = false;        // which sprite variant to stream
+  uint8_t held = ITEM_NONE;  // held item snapshot for this battle
+  bool itemUsed = false;     // consumable already triggered this battle
+  int8_t holder = -1;        // player's pet/party/box slot; -1 for opponents/LAN
   char name[12] = "";
 
   bool fainted() const { return hp == 0; }
@@ -52,6 +56,7 @@ struct TurnLog {
   bool charged = false;    // spent the turn winding up
   bool healed = false;
   bool targetFainted = false;
+  uint8_t atkItem = ITEM_NONE, defItem = ITEM_NONE;
 };
 
 uint16_t stagedStat(uint16_t base, int8_t stage);
@@ -61,7 +66,7 @@ uint16_t battleDamage(const Combatant &atk, const Combatant &def, uint8_t mv,
 // True if `a` using `ma` acts before `b` using `mb`. Priority first, then the
 // staged speed, and paralysis halves it.
 bool battleMovesFirst(const Combatant &a, uint8_t ma,
-                      const Combatant &b, uint8_t mb);
+                      const Combatant &b, uint8_t mb, uint8_t *claw = nullptr);
 
 // One creature's action. Applies damage, ailments, stat stages and recoil.
 void battleAct(Combatant &atk, Combatant &def, uint8_t mv, TurnLog &log);
