@@ -33,6 +33,8 @@ void arcadeOpenFromTrain(); void arcadeClose();
 extern bool tradeOpen; extern uint8_t tradeView;
 extern bool friendsOpen;
 extern bool casinoOpen;
+extern bool cardBookOpen;
+extern bool lanOpen, lanPractice;
 void casinoOpenNow(); void casinoClose(); void onTap(int16_t,int16_t);
 void casLobbyBtn(uint8_t i, int *x, int *y, int *w, int *h);
 extern Party party;
@@ -103,6 +105,9 @@ int main(){
   }
   crumbIs("casshop");
   casinoClose();
+  // the card book, empty (its own "no cards yet" page) -- and the LAN practice list
+  clearAll(); cardBookOpen=true; check("cardbook"); crumbIs("cardbook"); cardBookOpen=false;
+  clearAll(); lanOpen=true; lanPractice=true; check("lan-practice"); lanOpen=false; lanPractice=false;
   for (uint8_t p=0;p<4;p++){ clearAll(); cardOpen=true; cardPage=p;
     char n[16]; snprintf(n,sizeof(n),"card%u",p); check(n); }
   clearAll(); startBattle(9,50); check("battle");

@@ -675,6 +675,14 @@ bringing. A running **head-to-head record** is kept against each rival —
 keyed by their device, not their typed name, so renaming doesn't reset the
 score — and shown on the pairing screen the next time you two fight.
 
+**PRACTICE against old opponents.** Every LAN battle remembers your rival's
+team exactly as they brought it (species, levels, stats and moves), one entry
+per rival's device -- the four most recent. The LAN screen's **PRACTICE** row
+lists them with your practice record against each; tap one to fight that team
+against the computer, which plays it with the smarter battle AI. No radio
+needed, no rewards and no badges: it is practice. Meeting the same rival again
+updates their team to what they brought most recently.
+
 ### Trading
 
 Pair two boards on the **LAN** screen as for a battle, then tap **TRADE**
@@ -713,6 +721,15 @@ Once paired, each side sees the friend's trainer name and creature, and can:
 | | **Once a day per board.** A swap that is called off -- an invalid item, or a bag already holding 99 of what would arrive -- does not use up the day. |
 | | Items only change hands once BOTH boards have agreed. If the link breaks at the exact moment of the swap, the board left unsure keeps the gift aside ("GIFT IN TRANSIT") and it settles by itself the next time those two boards pair: either it arrives or it comes back. Until then that board cannot swap with anyone else (visits still work). A lost packet never copies or destroys an item. |
 | **VISIT** | Either side taps VISIT and both screens show the two creatures side by side for 5 s. Both pets must be hatched. The first visit each day gives **+15 joy and +3 bond** to each pet (the bond still counts against the normal daily bond cap of 20). Further visits that day are just for show. |
+
+**Trainer cards** are swapped automatically while two boards are paired on
+FRIENDS (the screen says **CARDS SWAPPED!**). Each card shows the trainer's
+name, rank title, avatar, card background, badges, Pokedex count, medals, best
+streak and the creature they were raising. Your collection is on the player
+card's last page, **TRAINER CARDS**: **EXCHANGE** goes straight to FRIENDS
+(and back), **CARD BOOK** pages through the cards you hold with a rim drag, each
+on its owner's own background. The book keeps 12, one per friend; meeting a
+friend again updates their card.
 
 Swipe down to step back: out of the item chooser or the visit first, then off
 the screen (which ends the session and tells the friend). The swap protocol is

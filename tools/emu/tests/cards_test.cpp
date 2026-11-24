@@ -100,8 +100,10 @@ int main(){
     ck(ok && !strcmp(got.name, "ALI") && got.avatar == SHOP_AVATAR_FIRST + 3 && got.bg == 2 && got.petDex == 133,
        "and ours reached them: our name, casino avatar and card background");
   }
-  waitMs(2000);
+  int w0 = nvsBlobWrites()["cards"];
+  waitMs(4000);
   ck(cardBookCount() == 1, "the same card arriving again is not filed twice");
+  ck(nvsBlobWrites()["cards"] == w0, "nor re-written to flash on every repeat (it arrives every 1.5 s)");
 
   // ---- the gift swap still works with cards flying, on a lossy link
   dropEvery = 3;

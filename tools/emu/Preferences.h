@@ -12,6 +12,9 @@ inline NvsStore &nvs() { static NvsStore s; return s; }
 inline int &nvsWriteBudget() { static int n = -1; return n; }
 inline void nvsFailWritesAfter(int successfulWrites) { nvsWriteBudget() = successfulWrites; }
 inline void nvsResumeWrites() { nvsWriteBudget() = -1; }
+// How many times each blob key has been written: lets a test catch a value
+// re-saved on every frame or resend (flash wear the store cannot show).
+inline std::map<std::string, int> &nvsBlobWrites() { static std::map<std::string, int> m; return m; }
 inline bool nvsCanWrite() {
   int &budget = nvsWriteBudget();
   if (budget < 0) return true;
@@ -58,6 +61,7 @@ public:
     if (!nvsCanWrite()) return 0;
     const uint8_t *b = (const uint8_t *)p;
     kv[k] = std::vector<uint8_t>(b, b + n);
+    nvsBlobWrites()[k]++;
     return n;
   }
   // Size of a stored blob, 0 if absent. The firmware uses it to tell an

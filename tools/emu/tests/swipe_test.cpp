@@ -11,6 +11,7 @@
 #include "pet.h"
 #include "moves.h"
 #include "party.h"
+#include "card.h"
 #include "items.h"
 #include "inventory.h"
 #include <cstdio>
@@ -86,6 +87,7 @@ static void check(const char *name, bool *open, uint8_t *page){
 uint8_t learnableFor(int16_t dex, uint8_t lvl, uint8_t *out, uint8_t max);
 extern bool casinoOpen; extern uint8_t casShopKind, casShopPage;
 extern const char *const SCREEN_NAME[];
+extern bool cardBookOpen; extern uint8_t cardBookPage;
 void casinoOpenNow(); void casinoClose(); void onTap(int16_t,int16_t);
 void casLobbyBtn(uint8_t i, int *x, int *y, int *w, int *h);
 
@@ -140,6 +142,10 @@ int main(){
   casShopKind = 1;                                check("casshop",  &casinoOpen,   &casShopPage);
   if (strcmp(SCREEN_NAME[uiCurrentScreen()], "casshop")) { printf("FAIL  casshop    paging left the shop\n"); bad++; }
   casinoClose();
+  // The trainer-card book: one card a page, on the rim.
+  for (uint8_t k = 0; k < 4; k++) { TrainerCard c; c.fid = 100 + k; snprintf(c.name, sizeof c.name, "T%u", k); cardBookAdd(c, 1); }
+  clearAll(); cardBookOpen=true;                  check("cardbook", &cardBookOpen, &cardBookPage);
+  cardBookOpen=false;
   // The Pokedex pages within ONE region and changes region on a vertical swipe.
   // Every species must be reachable: it was capped at 10 flat pages when the dex
   // was 151 long, which silently hid everything past 160 once it grew to 386.
