@@ -180,6 +180,16 @@ int main() {
   }
 
 
+  // Equipped items are copied from durable creature records into combatants.
+  {
+    Pet heldPet; heldPet.dbgHatchAs(6, false); heldPet.held = IT_ORAN_BERRY;
+    Combatant fromPet; combatantFromPet(fromPet, heldPet);
+    ck(fromPet.held == IT_ORAN_BERRY, "the live pet's held item enters battle");
+    PartyMon heldMon; heldMon.dex = 25; heldMon.level = 50; heldMon.held = IT_FOCUS_SASH;
+    Combatant fromParty; combatantFromParty(fromParty, heldMon);
+    ck(fromParty.held == IT_FOCUS_SASH, "a party creature's held item enters battle");
+  }
+
   // --- held items: healing berries, status cure, passive recovery and sash
   {
     Combatant oran; mk(oran, 6, 50);
