@@ -3,6 +3,7 @@
 #include <string.h>
 #include "dex.h"
 #include "items.h"
+#include "held_items.h"
 #include "nvsinfo.h"   // logKeyFailure(): save()/boxSave() used to be silent on failure
 
 Party party;
@@ -133,6 +134,7 @@ bool Party::boxAdd(const PartyMon &m) {
 
 void Party::boxReleaseAt(uint8_t i) {
   if (i >= BOX_SLOTS) return;
+  heldReturn(box[i].held);
   box[i] = PartyMon();
   boxSave();
 }
@@ -175,6 +177,7 @@ void Party::replaceAt(uint8_t i, const PartyMon &m) {
 
 void Party::releaseAt(uint8_t i) {
   if (i >= PARTY_SLOTS) return;
+  heldReturn(slots[i].held);
   slots[i] = PartyMon();
   save();
 }
