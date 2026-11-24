@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "dex.h"
+#include "items.h"
 #include "nvsinfo.h"   // logKeyFailure(): save()/boxSave() used to be silent on failure
 
 Party party;
@@ -56,6 +57,8 @@ void Party::begin() {
   for (auto &s : slots) {
     if (s.dex < 1 || s.dex > DEX_COUNT) s.dex = 0;
     s.nick[sizeof(s.nick) - 1] = 0;
+    if (!itemIsHeld(s.held)) s.held = ITEM_NONE;
+    if (!itemIsHeld(s.held)) s.held = ITEM_NONE;
   }
   // The box is a separate key and simply absent on an older save, which leaves
   // it zeroed -- exactly what an empty box is.
@@ -91,14 +94,20 @@ void Party::begin() {
   }
 }
 
-void Party::save() {
-  if (prefs.putBytes("party", slots, sizeof(slots)) != sizeof(slots))
+bool Party::save() {
+  if (prefs.putBytes("party", slots, sizeof(slots)) != sizeof(slots)) {
     logKeyFailure("party", "party");
+    return false;
+  }
+  return true;
 }
 
-void Party::boxSave() {
-  if (prefs.putBytes("box", box, sizeof(box)) != sizeof(box))
+bool Party::boxSave() {
+  if (prefs.putBytes("box", box, sizeof(box)) != sizeof(box)) {
     logKeyFailure("party", "box");
+    return false;
+  }
+  return true;
 }
 
 uint8_t Party::boxCount() const {
