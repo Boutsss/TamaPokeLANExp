@@ -374,6 +374,20 @@ A caught creature takes a party slot, then a box slot, then asks — the same pa
 farewell already uses. It is **not** added to the Pokédex on capture: registration
 means "you raised this", so it happens when you actually make it the one you raise.
 
+### Shiny chains
+
+Beat **or catch** the same wild species again and again to build a **chain**,
+shown under the EXPLORE button (`CHAIN PIDGEY x5`).
+
+| | Rule |
+|---|---|
+| Extend | the same species again: **+1** (stops counting at 99) |
+| Restart | a different species starts a new chain on that one |
+| Break | a **whole game day** with no wild win or catch |
+| Encounters | while it lives, the chained species is **half** of every encounter in its region |
+| Shiny odds | for the chained species ×(1 + length), at most **×16**: the flat **1/4096** becomes **1/256** at length 15+, **1/128** with the Shiny Charm |
+| Legendaries | never start or extend a chain |
+
 ### Gym battles and badges
 
 **TMs unlock at level 40**, all at once, and nothing before — so the early game

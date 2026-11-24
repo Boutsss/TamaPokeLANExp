@@ -43,6 +43,7 @@
 #include "tasks.h"
 #include "dex_rewards.h"
 #include "breed.h"
+#include "chain.h"
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
@@ -992,6 +993,7 @@ void setup() {
   tasksBegin(pet);
   dexRewardsBegin(&pet);
   breedBegin(&pet);   // after party.begin(): it reads banked creatures
+  chainBegin(&pet);
   tasksRefresh();
 
   audioBegin();  // ES8311 + I2S + amplificador (suena un jingle de arranque)
@@ -3015,6 +3017,17 @@ void renderExplore() {
   gfx->setTextSize(3);
   gfx->setCursor(CX - (int)strlen(T(S_EXPLORE)) * 9, EXPLORE_BTN_Y + 24);
   gfx->print(T(S_EXPLORE));
+
+  // A live shiny chain, between the button and the tile dots (chain.h).
+  if (uint8_t len = chainLen(pet.currentDay())) {
+    char cl[40];
+    snprintf(cl, sizeof(cl), T(S_CHAIN_FMT), DEX_TBL[chainDex(pet.currentDay())].name, (unsigned)len);
+    int cs = (int)strlen(cl) * 12 <= uiSafeHalfWidth(418) * 2 - 20 ? 2 : 1;
+    gfx->setTextColor(inkColor());
+    gfx->setTextSize(cs);
+    gfx->setCursor(CX - (int)strlen(cl) * 3 * cs, cs == 2 ? 408 : 412);
+    gfx->print(cl);
+  }
   uiChrome();
   gfx->flush();
 }
@@ -7354,8 +7367,11 @@ void daycareTap(int16_t x, int16_t y) {
 bool startWildBattle(uint8_t region, bool hard) {
   if (pet.isEgg() || pet.ceremony != CER_NONE) return false;
   if (region >= REGION_COUNT || !regionAvailable(region)) return false;
+  // A live shiny chain makes its species half of every roll in its region.
+  const uint32_t today = pet.currentDay();
+  int16_t dex = chainPick(region, today, random(2) == 0);
   uint8_t tier = wildTierForRoll((uint8_t)random(100));
-  int16_t dex = wildPickSpecies(region, tier, (uint32_t)random(65536) * 31u + random(31));
+  if (!dex) dex = wildPickSpecies(region, tier, (uint32_t)random(65536) * 31u + random(31));
   // A tier can be empty when only some packs are installed -- Kanto has no
   // R_LEGENDARIO gap, but a future region might. Fall back rather than refusing
   // the encounter, since "nothing happened" reads as a broken button.
@@ -7370,8 +7386,11 @@ bool startWildBattle(uint8_t region, bool hard) {
   // Bonus 0: nothing in this build earns one yet, so every wild shiny is the
   // flat 1/4096. The parameter stays because it is where a farewell reward
   // would land, and wild_test already pins the curve it would follow.
-  wildShiny = wildShinyForRollWithCharm((uint32_t)random(WILD_SHINY_SCALE), 0,
-                                       bag.has(IT_SHINY_CHARM));
+  // The chained species' odds scale with the chain (chain.h); anything else in
+  // the same roll keeps the flat odds, as before.
+  wildShiny = (uint32_t)random(WILD_SHINY_SCALE) <
+              wildShinyThresholdFor(0, dex == chainDex(today) ? chainShinyMult(chainLen(today)) : 1,
+                                    bag.has(IT_SHINY_CHARM));
   wildApplyShiny(wildShiny, wildIv[0], wildIv[1], wildIv[2], wildIv[3]);
   wildCaught = false;
   wildDropN = 0;

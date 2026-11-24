@@ -52,6 +52,8 @@ const SaveField SAVE_FIELDS[] = {
   { "dcare", SK_BYTES },
   // the live creature's personality (legacy mirror of the checkpoint byte)
   { "prsn", SK_U8 },
+  // the shiny chain (chain.cpp)
+  { "wchain", SK_BYTES },
 };
 const uint16_t SAVE_FIELD_COUNT = sizeof(SAVE_FIELDS) / sizeof(SAVE_FIELDS[0]);
 

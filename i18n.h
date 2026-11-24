@@ -202,6 +202,7 @@ enum StrId : uint8_t {
   S_PTL_ENERGETIC, // loves
   S_PTL_PICKY,     // loves (keep the 7 in PT_ order)
   S_PT_LOVES_FMT,  // card: "<trait> - loves <thing>"
+  S_CHAIN_FMT,     // explore: a live shiny chain, "CHAIN PIDGEY x5"
   STR_COUNT
 };
 

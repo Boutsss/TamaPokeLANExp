@@ -32,6 +32,14 @@ inline bool wildShinyForRollWithCharm(uint32_t roll, uint8_t bonus, bool shinyCh
   return (roll % WILD_SHINY_SCALE) < threshold;
 }
 
+// The full shiny threshold for one encounter, out of WILD_SHINY_SCALE: the base
+// (with `bonus`), times a shiny chain's multiplier (chainShinyMult(); 1 for no
+// chain), doubled by the SHINY CHARM. THE answer startWildBattle() uses.
+inline uint32_t wildShinyThresholdFor(uint8_t bonus, uint32_t chainMult, bool shinyCharm) {
+  uint32_t t = wildShinyThreshold(bonus) * (chainMult ? chainMult : 1);
+  return shinyCharm ? t * 2 : t;
+}
+
 void wildApplyShiny(bool shiny, uint8_t &ivAtk, uint8_t &ivDef,
                     uint8_t &ivSpe, uint8_t &ivHp);
 
