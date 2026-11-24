@@ -225,14 +225,14 @@ int main(int argc, char **argv) {
   // adjacent RETIRE or CLOSE targets.
   click(233, 60);
   click(233, uiMenuRowCenterY(4));
-  if (!tasksOpen || uiCurrentScreen() != 25) {
+  if (!tasksOpen || menuOpen || uiCurrentScreen() != 25) {
     printf("FAIL: TASKS menu row -> tasksOpen=%d screen=%u\\n",
            (int)tasksOpen, uiCurrentScreen());
     return 1;
   }
   printf("PASS: menu TASKS row opens the daily/weekly task screen\\n");
   click(233, 423);  // task screen BACK pill
-  if (tasksOpen) { printf("FAIL: task screen BACK did not close\\n"); return 1; }
+  if (tasksOpen || menuOpen) { printf("FAIL: task screen BACK did not return to the pet\\n"); return 1; }
   printf("PASS: task screen BACK returns to the pet\\n");
 
   uint8_t oldAvatar = pet.avatar;
