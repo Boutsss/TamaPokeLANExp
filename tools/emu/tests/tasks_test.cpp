@@ -43,6 +43,39 @@ int main(){
   int fav=-1; for(uint8_t s=0;s<TASK_DAILY;s++)if(tasksDef(s).kind==TK_FAV_BERRY)fav=s;
   if(fav>=0){uint8_t n=tasksProgress(fav);gameEvent(EV_FEED,0);ck(tasksProgress(fav)==n,"ordinary berry does not count as favourite");}
 
+  // A reward journal survives a failure after the journal is written but before the bag.
+  for(uint8_t n=tasksProgress(feed);n<tasksDef(feed).target;n++) gameEvent(EV_FEED,0);
+  uint8_t rewardItem=tasksDef(feed).item, rewardQty=tasksDef(feed).qty;
+  uint8_t beforeReward=bag.count(rewardItem);
+  nvsFailWritesAfter(1); // task journal succeeds; inventory write fails
+  ck(!tasksClaim(feed),"claim waits when durable inventory write fails");
+  nvsResumeWrites();
+  ck(bag.count(rewardItem)==beforeReward&&!tasksClaimed(feed),"failed inventory write grants nothing");
+  tasksForget(); bag.begin(); tasksBegin(p);
+  ck(tasksClaimed(feed)&&bag.count(rewardItem)==beforeReward+rewardQty,
+     "startup recovers a journaled reward exactly once");
+
+  // A reset after the bag write but before the final claimed marker must not pay twice.
+  uint32_t recoveryDay=day+1; int recoverySlot=-1;
+  for(uint32_t d=recoveryDay;d<recoveryDay+500&&!recoverySlot;d++){
+    p.lastSeenEpoch=d*86400UL+3600; tasksRefresh();
+    for(uint8_t s=0;s<TASK_DAILY;s++) if(tasksDef(s).kind==TK_FEED) recoverySlot=s;
+  }
+  ck(recoverySlot>=0,"find another daily feed task for post-write recovery");
+  if(recoverySlot>=0){
+    p.lastSeenEpoch=recoveryDay*86400UL+3600; tasksRefresh();
+    for(uint8_t n=0;n<tasksDef(recoverySlot).target;n++) gameEvent(EV_FEED,0);
+    uint8_t item=tasksDef(recoverySlot).item, qty=tasksDef(recoverySlot).qty;
+    uint8_t before=bag.count(item);
+    nvsFailWritesAfter(2); // journal and bag persist; final task marker fails
+    ck(!tasksClaim(recoverySlot),"claim reports incomplete finalization when marker write fails");
+    nvsResumeWrites();
+    uint8_t paid=bag.count(item);
+    ck(paid==before+qty,"reward is durable before claim finalization");
+    tasksForget(); bag.begin(); tasksBegin(p);
+    ck(tasksClaimed(recoverySlot)&&bag.count(item)==paid,
+       "startup finalizes an already-paid reward without duplicating it");
+  }
   // Move to a day whose task is one action from completion, then claim once.
   uint32_t claimDay=day;
   p.lastSeenEpoch=claimDay*86400UL+3600; tasksRefresh();
