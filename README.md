@@ -668,6 +668,28 @@ each gives up its own creature only once the other has said that. If the
 radio drops, a board powers off or a write fails partway, the worst case is
 the same creature on both boards, never on neither.
 
+### Friends: gift swaps and visits
+
+On the **LAN** screen tap **FRIENDS**, then HOST on one board and JOIN on the
+other (two HOSTs or two JOINs also work: the higher device id hosts). It rides
+the same link as a LAN battle, so different builds refuse each other
+("DIFFERENT VERSION"), and a board on FRIENDS refuses a board waiting for a LAN
+BATTLE ("FRIEND IS ON LAN"). A friend that leaves or goes quiet for 60 s ends the
+session with "YOUR FRIEND LEFT".
+
+Once paired, each side sees the friend's trainer name and creature, and can:
+
+| | rule |
+|---|---|
+| **GIFT SWAP** | Each side offers ONE item from its own bag (anything but key items; tap the item row to cycle, then OFFER). Both receive the other's. A board with nothing giftable offers a **small gift** instead -- a POKE BALL or an ORAN BERRY, made fresh, so nothing leaves its bag. |
+| | **Once a day per board.** A swap that is called off -- an invalid item, or a bag already holding 99 of what would arrive -- does not use up the day. |
+| | Items only change hands once BOTH boards have agreed. If the link breaks at the exact moment of the swap, the board left unsure keeps the gift aside ("GIFT IN TRANSIT") and it settles by itself the next time those two boards pair: either it arrives or it comes back. Until then that board cannot swap with anyone else (visits still work). A lost packet never copies or destroys an item. |
+| **VISIT** | Either side taps VISIT and both screens show the two creatures side by side for 5 s. Both pets must be hatched. The first visit each day gives **+15 joy and +3 bond** to each pet (the bond still counts against the normal daily bond cap of 20). Further visits that day are just for show. |
+
+Swipe down to step back: out of the item chooser or the visit first, then off
+the screen (which ends the session and tells the friend). The swap protocol is
+written up in `docs/adventure-friends.md`.
+
 ### The three endings, retiring, and your party
 
 Every life ends one of three ways. You choose and witness each — none ever

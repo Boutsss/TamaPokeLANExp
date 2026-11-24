@@ -13,6 +13,7 @@ Personal, non-commercial fan project. Code MIT; sprites CC BY-NC (PMD SpriteColl
 | `species.h` / `dex.h` | The 151: names, typings, evolution chains, base stats, rarity tiers, favourite berry |
 | `types.h` | Type-effectiveness helpers over the generated 18x18 chart in `dex.h` |
 | `party.cpp/.h` | The 6 retired pets banked by farewell/release (not runaway) |
+| `friends.cpp/.h`, `ui_friends.ino` | Two-board daily gift swap (2-phase commit, NVS journal `frJrn`) and pet visits, over the LAN link in friends mode. Protocol: `docs/adventure-friends.md` |
 | `i18n.cpp/.h` | 6-language string table (ES/EN/FR/DE/IT/PT) |
 | `audio.cpp/.h` | ES8311 codec over I2S |
 | `rtcbat.cpp/.h` | PCF85063 RTC + AXP2101 battery/PMU/PWR button |
