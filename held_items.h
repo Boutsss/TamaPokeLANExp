@@ -18,3 +18,4 @@ bool heldGive(Pet &p, Party &pt, uint8_t who, ItemKey item);
 bool heldTake(Pet &p, Party &pt, uint8_t who);
 void heldReturn(ItemKey &held);
 void heldBattleSync(Pet &p, Party &pt, const Combatant &c);
+int shinyCharmOdds(int base);
