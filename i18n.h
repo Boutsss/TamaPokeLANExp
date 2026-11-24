@@ -9,7 +9,11 @@ enum Lang : uint8_t { LANG_ES = 0, LANG_EN, LANG_FR, LANG_DE, LANG_IT, LANG_PT, 
 extern Lang gLang;  // idioma activo (definido en i18n.cpp)
 
 // IDs de cadena. El orden debe coincidir con la tabla STRINGS de i18n.cpp.
-enum StrId : uint8_t {
+// uint16_t, NOT uint8_t: the table passed 255 entries when the feature ports
+// landed (v3.29). Same trap as CLAUDE.md "uint8_t with a dex of 386" -- a byte
+// wide enum stops compiling, which is the lucky version of it; never store a
+// StrId in a uint8_t, and loop over STR_COUNT with an int.
+enum StrId : uint16_t {
   // estado del bicho (statusMsg)
   S_EVOLVING, S_EATING, S_LIKES, S_HUNGRY, S_NEEDS_BATH,
   S_EXHAUSTED, S_SAD, S_CHUBBY, S_IS_SHINY, S_HAPPY,
@@ -214,6 +218,28 @@ enum StrId : uint8_t {
   S_TW_CONT,       // tower: continue a run
   S_TW_BTN,        // gym chooser: the tower button
   S_RM_PILL,       // ladder pill: rematch mode
+  S_CH_TITLE,      // weekly challenge
+  S_CH_WHY,        // weekly challenge
+  S_CH_DONE,       // weekly challenge
+  S_CH_R_TYPE,     // weekly challenge
+  S_CH_R_LEVEL,    // weekly challenge
+  S_CH_R_SOLO,     // weekly challenge
+  S_CH_R_NOIT,     // weekly challenge
+  S_CH_R_TRIO,     // weekly challenge
+  S_CH_D_TYPE,     // weekly challenge
+  S_CH_D_LEVEL,    // weekly challenge
+  S_CH_D_SOLO,     // weekly challenge
+  S_CH_D_NOIT,     // weekly challenge
+  S_CH_D_TRIO,     // weekly challenge
+  S_CH_REWARD,     // weekly challenge
+  S_CH_RESET,      // weekly challenge
+  S_CH_PAID,       // weekly challenge
+  S_CH_NOFIT,      // weekly challenge
+  S_CH_REFUSED,    // weekly challenge
+  S_CH_NONE,       // weekly challenge
+  S_CH_BTN,        // gym chooser: the weekly challenge button
+  S_LAN_SHORT,     // gym chooser: the LAN button, short
+  S_CH_START,      // weekly challenge: start
   STR_COUNT
 };
 

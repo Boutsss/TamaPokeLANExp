@@ -30,7 +30,7 @@ extern TrainerMon btlTeam[];
 extern Combatant btlFoe, btlYou;
 extern uint32_t btlWinUntil; extern uint8_t btlMenu; extern int8_t btlSwapWho; extern bool btlOver;
 int twBtnCenterY(); int btlCellCenterX(int i); int btlCellCenterY(int i);
-#define LANBTN_Y 336
+int uiChooserBtnX(int i); int uiChooserBtnY();
 static int bad=0;
 static void ck(bool ok,const char *s){printf("%s  %s\n",ok?"PASS":"FAIL",s);if(!ok)bad++;}
 
@@ -73,7 +73,7 @@ int main(){
   // ---- locked: the button opens a screen that says why, and START does nothing
   uiTileGo(6); render();                     // GYM tile -> its chooser
   ck(gymOpen && gymPick, "the GYM tile opens on its chooser");
-  onTap(233 + 12 + 80, LANBTN_Y + 20); render();
+  onTap(uiChooserBtnX(1), uiChooserBtnY()); render();
   ck(towerOpen, "TOWER opens the tower screen even while locked");
   onTap(233, twBtnCenterY()); render();
   ck(towerOpen && !pickOpen, "but START does nothing until a champion falls");
@@ -84,7 +84,7 @@ int main(){
   pet.winBadge(0, TRAINER_COUNT - 1, false);
   TowerTeam shown;
   ck(towerTeamFor(towerFloor(), towerSeed(), shown) && shown.count == TOWER_TEAM, "floor 1 has a team of three");
-  onTap(233 + 12 + 80, LANBTN_Y + 20); render();
+  onTap(uiChooserBtnX(1), uiChooserBtnY()); render();
   onTap(233, twBtnCenterY()); render();
   ck(pickOpen && !towerOpen, "START opens the team picker");
   extern uint8_t pickTrainer;

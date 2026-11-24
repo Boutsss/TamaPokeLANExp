@@ -45,6 +45,7 @@
 #include "breed.h"
 #include "chain.h"
 #include "tower.h"
+#include "challenge.h"
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
@@ -251,7 +252,7 @@ enum : uint8_t {
   SCR_STARTER = 0, SCR_REGION, SCR_GALLERY, SCR_DEXPICK, SCR_MOVEPICK, SCR_BOX,
   SCR_PARTY, SCR_KEYBOARD, SCR_CARD, SCR_PLAYER, SCR_CLOCK, SCR_GYM, SCR_GYMPICK,
   SCR_EXPLORE, SCR_MART, SCR_LAN, SCR_PICK, SCR_BATTLE, SCR_WIN, SCR_LEARN, SCR_TRAIN, SCR_MENU,
-  SCR_BAGSCR, SCR_GAME, SCR_MAIN, SCR_TASKS, SCR_DAYCARE, SCR_DCPICK, SCR_TOWER, SCR_COUNT
+  SCR_BAGSCR, SCR_GAME, SCR_MAIN, SCR_TASKS, SCR_DAYCARE, SCR_DCPICK, SCR_TOWER, SCR_CHAL, SCR_COUNT
 };
 extern const char *const SCREEN_NAME[SCR_COUNT];   // const is internal linkage in C++
 
@@ -299,6 +300,9 @@ uint8_t martPages();
 uint8_t dcPickPages();
 bool startWildBattle(uint8_t region, bool hard);
 void startTowerBattle();
+void startChallengeBattle();
+void renderChallenge();
+void challengeTap(int16_t x, int16_t y);
 void startRematchBattle(uint8_t region, uint8_t idx);
 void renderTower();
 void towerTap(int16_t x, int16_t y);
@@ -311,7 +315,7 @@ const char *const SCREEN_NAME[SCR_COUNT] = {
   "starter", "region", "gallery", "dexpick", "movepick", "box",
   "party", "keyboard", "card", "player", "clock", "gym", "gympick",
   "explore", "mart", "lan", "pick", "battle", "win", "learn", "train", "menu",
-  "bag", "minigame", "main", "tasks", "daycare", "dcpick", "tower"
+  "bag", "minigame", "main", "tasks", "daycare", "dcpick", "tower", "challenge"
 };
 
 // Badge art for a region, or nullptr when that region has none yet.
@@ -420,13 +424,16 @@ uint8_t btlMyAct = 0;        // host: our own action, latched until theirs lands
 #define UI_TAP_FINGER 94
 
 // The LAN battle button on the gym region chooser.
-// LAN and TOWER share the row under the region chooser, as two halves.
-#define LANBTN_W 160
+// LAN, TOWER and WEEKLY share the row under the region chooser, as thirds. The
+// row spans 340 px: at its bottom edge (y=380) the glass is +-180 px wide.
+#define LANBTN_W 104
 #define LANBTN_H UI_TAP_MIN
-#define LANBTN_X (233 - LANBTN_W - 12)
+#define LANBTN_X (233 - 170)
 #define LANBTN_Y 336
-#define TWBTN_X (233 + 12)
+#define TWBTN_X (LANBTN_X + LANBTN_W + 14)
 #define TWBTN_W LANBTN_W
+#define CHBTN_X (TWBTN_X + TWBTN_W + 14)
+#define CHBTN_W LANBTN_W
 
 // The BOX button is the hub in the middle of the party ring now (PSLOT_HUB_R),
 // so it has no rectangle of its own any more.
@@ -527,6 +534,7 @@ uint8_t pickTrainer = 0;
 bool pickHard = false;
 bool pickRematch = false;  // the ladder's REMATCH state: tower.cpp's stronger team
 #define PICK_TOWER 0xFE    // the Battle Tower: three, everyone at TOWER_LEVEL
+#define PICK_CHAL 0xFD     // the weekly challenge: the week's rule decides who may come
 // Which region the picker was opened FOR, snapshotted when it opens -- the same
 // arrangement as btlRegion, and for the same reason. gymRegion belongs to the
 // chooser and the player can move it; anything the picker decides has to keep
@@ -628,6 +636,8 @@ bool towerOpen = false;
 // The ladder's pill has a third state once that region's champion fell on easy:
 // REMATCH, the same ladder with tower.cpp's stronger teams.
 bool gymRematch = false;
+// The weekly gym challenge screen (challenge.cpp), from the chooser's WEEKLY.
+bool chalOpen = false;
 uint8_t dcView = 0;               // 0 home, 1 picker
 uint8_t dcPage = 0;               // the picker's page (uiRimTarget)
 uint8_t martPage = 0;
@@ -816,9 +826,26 @@ void uiArc(int cx, int cy, int r, int a0, int a1, int w, uint16_t col) {
 // Where things are, asked of the firmware so a test never restates a layout
 // (CLAUDE.md: a test that keeps its own copy of a layout proves the transcription).
 int uiGymPillY() { return GYMDIF_Y + GYMDIF_H / 2; }
+// The chooser's three buttons: 0 LAN, 1 TOWER, 2 WEEKLY.
+int uiChooserBtnX(int i) {
+  return (i == 0 ? LANBTN_X : i == 1 ? TWBTN_X : CHBTN_X) + LANBTN_W / 2;
+}
+int uiChooserBtnY() { return LANBTN_Y + LANBTN_H / 2; }
 int uiGymRowCenterY(int i) { int x, y, w, h; gymRowRect(i, &x, &y, &w, &h); return y + h / 2; }
 int pickGoX() { return PICK_GO_X + PICK_BTN_W / 2; }
 int pickGoY() { return PICK_GO_Y + PICK_BTN_H / 2; }
+
+// One of the three buttons under the gym chooser; the label shrinks to size 1
+// rather than spill out of its third of the row.
+static void rpickButton(int x, int w, const char *label, bool live) {
+  gfx->fillRoundRect(x, LANBTN_Y, w, LANBTN_H, 11, live ? UI_BG_DAY : UI_TRACK);
+  gfx->drawRoundRect(x, LANBTN_Y, w, LANBTN_H, 11, live ? UI_INK : UI_INK_SOFT);
+  gfx->setTextColor(live ? UI_INK : UI_INK_SOFT);
+  uint8_t sz = (int)strlen(label) * 12 <= w - 12 ? 2 : 1;
+  gfx->setTextSize(sz);
+  gfx->setCursor(x + w / 2 - (int)strlen(label) * 3 * sz, LANBTN_Y + (sz == 2 ? 14 : 18));
+  gfx->print(label);
+}
 
 void gymRowRect(int i, int *x, int *y, int *w, int *h) {
   int ry = GYM_ROW_Y(i);
@@ -1034,6 +1061,7 @@ void setup() {
   chainBegin(&pet);
   towerBindPet(&pet);
   towerBegin();
+  challengeBegin();
   tasksRefresh();
 
   audioBegin();  // ES8311 + I2S + amplificador (suena un jingle de arranque)
@@ -1780,6 +1808,10 @@ void onSwipeV(int dir) {
     if (back) { towerOpen = false; gymOpen = true; gymPick = true; }
     return;
   }
+  if (chalOpen) {
+    if (back) { chalOpen = false; gymOpen = true; gymPick = true; }
+    return;
+  }
 
   // The two multi-region tiles are two levels deep: chooser, then ladder/grid.
   // DOWN walks back out of them one step at a time; UP keeps the region
@@ -2274,6 +2306,10 @@ void onTap(int16_t x, int16_t y) {
     towerTap(x, y);
     return;
   }
+  if (chalOpen) {
+    challengeTap(x, y);
+    return;
+  }
   if (bagOpen) {
     bagTap(x, y);
     return;
@@ -2323,6 +2359,14 @@ void onTap(int16_t x, int16_t y) {
         x >= TWBTN_X && x <= TWBTN_X + TWBTN_W) {      // the Battle Tower
       gymOpen = false; gymPick = false;
       towerOpen = true;
+      sfxPlay(SFX_TAP);
+      return;
+    }
+    if (y >= LANBTN_Y && y <= LANBTN_Y + LANBTN_H &&
+        x >= CHBTN_X && x <= CHBTN_X + CHBTN_W) {      // the weekly challenge
+      gymOpen = false; gymPick = false;
+      chalOpen = true;
+      challengeRefreshFor(pet, party, pet.currentDay());
       sfxPlay(SFX_TAP);
       return;
     }
@@ -2776,6 +2820,7 @@ uint8_t uiCurrentScreen() {
   if (martOpen) return SCR_MART;
   if (daycareOpen) return dcView ? SCR_DCPICK : SCR_DAYCARE;
   if (towerOpen) return SCR_TOWER;
+  if (chalOpen) return SCR_CHAL;
   if (gymOpen) return gymPick ? SCR_GYMPICK : SCR_GYM;
   if (pet.hasLearnOffer()) return SCR_LEARN;
   if (gameOpen || sackOpen || spdOpen) return SCR_GAME;
@@ -2842,6 +2887,7 @@ void uiTileGo(int i) {
   martConfirmItem = ITEM_NONE;
   daycareOpen = false;
   towerOpen = false;
+  chalOpen = false;
   switch (TILE[i].scr) {
     // The two multi-region screens land on their CHOOSER, never on whichever
     // region was last set. Opening straight into it is how Johto and Hoenn came
@@ -3338,6 +3384,10 @@ void render() {
   }
   if (towerOpen) {
     renderTower();
+    return;
+  }
+  if (chalOpen) {
+    renderChallenge();
     return;
   }
   if (gymOpen) {
@@ -4458,6 +4508,7 @@ static void buildSquad(uint8_t maxLvl, uint8_t maxCount, uint16_t mask, uint8_t 
 // must read the region the picker was opened for.
 uint8_t squadCap(uint8_t idx, bool hard) {
   if (idx == PICK_TOWER) return TOWER_TEAM;
+  if (idx == PICK_CHAL) return challengeSquadMax(challengeCurrent());
   if (idx >= TRAINER_COUNT) return TRAINER_TEAM_MAX;   // PICK_LAN: uncapped six
   if (pickRematch) return TRAINER_TEAM_MAX;
   return hard ? PICK_TRAINERS[idx].count : TRAINER_TEAM_MAX;
@@ -4541,6 +4592,31 @@ void startTowerBattle() {
   btlHard = false;
   btlKind = BK_TOWER;
   btlOpenTeam(tt.mon, tt.count, tt.iv, tt.smart, towerFoeName(towerFloor()));
+}
+
+// The weekly challenge: the leader's team adjusted to the week's rule, your
+// level capped by it, and the squad checked against the rule AGAIN here -- the
+// picker's FIGHT and the fight's start ask the same function.
+void startChallengeBattle() {
+  if (pet.isEgg() || pet.ceremony != CER_NONE || !challengeUnlockedFor(pet)) return;
+  if (!challengeRefreshFor(pet, party, pet.currentDay())) return;
+  const ChalWeek &c = challengeCurrent();
+  if (!challengeTeamDrawable(c)) return;
+  TrainerMon tm[TRAINER_TEAM_MAX];
+  uint8_t n = challengeTeam(c, tm);
+  if (!n) return;
+  buildSquad(challengeYourCap(c), challengeSquadMax(c), squadMask);
+  int16_t d[TRAINER_TEAM_MAX];
+  for (uint8_t i = 0; i < btlSquadN; i++) d[i] = btlSquad[i].dex;
+  if (!btlSquadN || !challengeAllowsSquad(c, d, btlSquadN)) { btlSquadN = 0; return; }
+  if (challengeItemsOff(c))           // held items do nothing, and are never spent
+    for (uint8_t i = 0; i < btlSquadN; i++) btlSquad[i].held = ITEM_NONE;
+  btlYou = btlSquad[0];
+  btlTrainer = (int8_t)c.leader;
+  btlRegion = c.region;
+  btlHard = false;
+  btlKind = BK_CHALLENGE;
+  btlOpenTeam(tm, n, CHAL_IV, false, TRAINER_SETS[c.region].list[c.leader].name);
 }
 
 // A gym rematch: tower.cpp's stronger team, the badge untouched, your level
@@ -4927,6 +5003,14 @@ static void btlResolve(uint8_t yourMove) {
       switch (btlKind) {
         case BK_TOWER: towerWin(&btlReward); break;
         case BK_REMATCH: rematchWin(btlRegion, (uint8_t)btlTrainer, &btlReward); break;
+        case BK_CHALLENGE:
+          // Pays once a week; a repeat win this week is a win and nothing more.
+          if (challengeWin()) {
+            btlReward.n = 2;
+            btlReward.item[0] = IT_ULTRABALL; btlReward.qty[0] = CHAL_BALLS;
+            btlReward.item[1] = challengeRewardHeld(challengeCurrent().week); btlReward.qty[1] = 1;
+          }
+          break;
         default:
           if (!pet.hasBadge(btlRegion, btlTrainer, btlHard)) {
             pet.winBadge(btlRegion, btlTrainer, btlHard);
@@ -5101,8 +5185,9 @@ void renderWin() {
   gfx->print(l);
 
   // A tower floor or a rematch has no badge: say what it was and what it paid.
-  if (btlKind == BK_TOWER || btlKind == BK_REMATCH) {
+  if (btlKind == BK_TOWER || btlKind == BK_REMATCH || btlKind == BK_CHALLENGE) {
     if (btlKind == BK_TOWER) snprintf(l, sizeof(l), T(S_TW_STREAK_FMT), (unsigned)towerStreak(), (unsigned)towerBest());
+    else if (btlKind == BK_CHALLENGE) snprintf(l, sizeof(l), "%s", T(btlReward.n ? S_CH_PAID : S_CH_DONE));
     else snprintf(l, sizeof(l), "%s", T(S_RM_PILL));
     gfx->setTextColor(UI_INK);
     gfx->setTextSize(2);
@@ -5450,6 +5535,7 @@ static void btlReturnHome() {
   if (btlTrainer < 0 || btlLink || btlWild) return;
   if (btlKind == BK_TOWER) towerOpen = true;
   else if (btlKind == BK_REMATCH) { gymOpen = true; gymPick = false; }
+  else if (btlKind == BK_CHALLENGE) chalOpen = true;
 }
 
 static void btlRun() {
@@ -5925,11 +6011,37 @@ uint8_t pickCandidates() {
 // Trims the selection to the first `cap` candidates. The default used to be
 // "everything", which with a live pet plus six banked is seven against a cap of
 // six -- so the screen opened already invalid.
+static int16_t pickDexOf(uint8_t n) {
+  return n == 0 ? pet.speciesId : party.slots[n - 1].dex;
+}
+// May candidate n come at all? THE answer the picker's draw, its toggle, its
+// default and its FIGHT all ask -- and startChallengeBattle() asks the
+// challenge's own rule again, so the fight cannot start with a squad the
+// picker would have refused.
+bool pickAllows(uint8_t n) {
+  if (pickTrainer != PICK_CHAL) return true;
+  return challengeAllowsMon(challengeCurrent(), pickDexOf(n));
+}
 void pickDefault(uint8_t cap) {
   squadMask = 0;
   uint8_t taken = 0;
   for (uint8_t n = 0; n <= PARTY_SLOTS && taken < cap; n++)
-    if (pickExists(n)) { squadMask |= (1 << n); taken++; }
+    if (pickExists(n) && pickAllows(n)) { squadMask |= (1 << n); taken++; }
+}
+// The squad the picker would send, as dex numbers, for challengeAllowsSquad().
+static uint8_t pickSquadDex(int16_t *out) {
+  uint8_t c = 0;
+  for (uint8_t n = 0; n <= PARTY_SLOTS; n++)
+    if (pickExists(n) && (squadMask & (1 << n))) out[c++] = pickDexOf(n);
+  return c;
+}
+static bool pickGoLegal() {
+  uint8_t cap = squadCap(pickTrainer, pickHard);
+  if (pickChosen() == 0 || pickChosen() > cap) return false;
+  if (pickTrainer != PICK_CHAL) return true;
+  int16_t d[PARTY_SLOTS + 1];
+  uint8_t c = pickSquadDex(d);
+  return challengeAllowsSquad(challengeCurrent(), d, c);
 }
 
 static void drawPickCell(uint8_t n, int x, int y, uint8_t capLvl) {
@@ -5944,6 +6056,7 @@ static void drawPickCell(uint8_t n, int x, int y, uint8_t capLvl) {
     nm = m.nick[0] ? m.nick : DEX_TBL[dex].name;
   }
   if (capLvl && lvl > capLvl) lvl = capLvl;   // show the level it will FIGHT at
+  if (!pickAllows(n)) on = false;               // the week's rule keeps it out: drawn off
   gfx->fillRoundRect(x, y, PICK_CELL_W, PICK_CELL_H, 10, on ? UI_BG_DAY : UI_TRACK);
   gfx->drawRoundRect(x, y, PICK_CELL_W, PICK_CELL_H, 10, on ? UI_INK : 0x8410);
   const uint8_t *th = thumbs.get(dex);
@@ -5982,6 +6095,9 @@ void renderPick() {
   if (pickTrainer == PICK_LAN) {
     snprintf(head, sizeof(head), "%s: %s", T(S_LAN),
              lanWantHost ? T(S_LAN_HOST) : T(S_LAN_JOIN));
+  } else if (pickTrainer == PICK_CHAL) {
+    top = challengeYourCap(challengeCurrent());
+    snprintf(head, sizeof(head), "%s", T(S_CH_TITLE));
   } else if (pickTrainer == PICK_TOWER) {
     top = TOWER_LEVEL;
     char f[16];
@@ -6024,7 +6140,7 @@ void renderPick() {
     else gfx->drawCircle(dx, 332, 4, UI_INK);
   }
 
-  bool ok = pickChosen() > 0 && pickChosen() <= cap;
+  bool ok = pickGoLegal();
   gfx->fillRoundRect(PICK_BACK_X, PICK_GO_Y, PICK_BTN_W, PICK_BTN_H, 12, UI_TRACK);
   gfx->drawRoundRect(PICK_BACK_X, PICK_GO_Y, PICK_BTN_W, PICK_BTN_H, 12, UI_INK);
   gfx->setTextColor(UI_INK);
@@ -6050,13 +6166,13 @@ void pickTap(int16_t x, int16_t y) {
     pickOpen = false;
     if (pickTrainer == PICK_LAN) { lanOpen = true; }
     else if (pickTrainer == PICK_TOWER) { towerOpen = true; }
+    else if (pickTrainer == PICK_CHAL) { chalOpen = true; }
     else { gymOpen = true; }
     return;
   }
   if (y >= PICK_GO_Y && y <= PICK_GO_Y + PICK_BTN_H &&
       x >= PICK_GO_X && x <= PICK_GO_X + PICK_BTN_W) {
-    uint8_t cap = squadCap(pickTrainer, pickHard);
-    if (pickChosen() == 0 || pickChosen() > cap) return;   // GO stays inert
+    if (!pickGoLegal()) { sfxPlay(SFX_DENY); return; }   // GO stays inert
     sfxPlay(SFX_TAP);
     pickOpen = false;
     if (pickTrainer == PICK_LAN) {
@@ -6075,6 +6191,7 @@ void pickTap(int16_t x, int16_t y) {
     // giving the function a second source of truth to disagree with.
     gymRegion = pickRegion;
     if (pickTrainer == PICK_TOWER) startTowerBattle();
+    else if (pickTrainer == PICK_CHAL) startChallengeBattle();
     else if (pickRematch) startRematchBattle(pickRegion % GYM_REGIONS, pickTrainer);
     else startTrainerBattle(pickTrainer, pickHard);
     return;
@@ -6087,6 +6204,7 @@ void pickTap(int16_t x, int16_t y) {
     int cx0 = PICK_X(drawn), cy0 = PICK_Y(drawn);
     drawn++;
     if (x < cx0 || x > cx0 + PICK_CELL_W || y < cy0 || y > cy0 + PICK_CELL_H) continue;
+    if (!pickAllows(n)) { sfxPlay(SFX_DENY); return; }
     squadMask ^= (1 << n);
     sfxPlay(SFX_TAP);
     return;
@@ -6519,20 +6637,11 @@ static void renderRegionPick(uint8_t mode) {
     }
   }
   if (forGyms) {
-    gfx->fillRoundRect(LANBTN_X, LANBTN_Y, LANBTN_W, LANBTN_H, 11, UI_BG_DAY);
-    gfx->drawRoundRect(LANBTN_X, LANBTN_Y, LANBTN_W, LANBTN_H, 11, UI_INK);
-    gfx->setTextColor(UI_INK);
-    gfx->setTextSize(2);
-    gfx->setCursor(LANBTN_X + LANBTN_W / 2 - (int)strlen(T(S_LAN)) * 6, LANBTN_Y + 14);
-    gfx->print(T(S_LAN));
-    // Locked is drawn greyed but still opens: the tower screen says WHY, and a
-    // grey button with no reason reads as broken.
-    bool tw = towerUnlocked();
-    gfx->fillRoundRect(TWBTN_X, LANBTN_Y, TWBTN_W, LANBTN_H, 11, tw ? UI_BG_DAY : UI_TRACK);
-    gfx->drawRoundRect(TWBTN_X, LANBTN_Y, TWBTN_W, LANBTN_H, 11, tw ? UI_INK : UI_INK_SOFT);
-    gfx->setTextColor(tw ? UI_INK : UI_INK_SOFT);
-    gfx->setCursor(TWBTN_X + TWBTN_W / 2 - (int)strlen(T(S_TW_BTN)) * 6, LANBTN_Y + 14);
-    gfx->print(T(S_TW_BTN));
+    // Locked is drawn greyed but still opens: the screen behind it says WHY,
+    // and a grey button with no reason reads as broken.
+    rpickButton(LANBTN_X, LANBTN_W, T(S_LAN_SHORT), true);
+    rpickButton(TWBTN_X, TWBTN_W, T(S_TW_BTN), towerUnlocked());
+    rpickButton(CHBTN_X, CHBTN_W, T(S_CH_BTN), challengeUnlockedFor(pet));
   }
   if (pages > 1) {                        // dots: which page of regions this is
     int total = pages * 16 - 8;
@@ -7608,6 +7717,74 @@ void towerTap(int16_t x, int16_t y) {
     pickDefault(TOWER_TEAM);
     pickOpen = true;
   }
+}
+
+// ---------- the weekly gym challenge (logic: challenge.cpp) ----------
+// Same layout family as the tower: what the week is, its rule, the leader's
+// adjusted team, the reward, and one finger-sized START into the picker, where
+// pickAllows() keeps out whoever the rule does.
+int chBtnCenterY() { return TW_BTN_Y + TW_BTN_H / 2; }
+
+static void chRuleText(const ChalWeek &c, char *head, size_t hn, char *desc, size_t dn) {
+  switch (c.rule) {
+    case CR_TYPE:  snprintf(head, hn, T(S_CH_R_TYPE), typeName(c.param)); snprintf(desc, dn, "%s", T(S_CH_D_TYPE)); break;
+    case CR_LEVEL: snprintf(head, hn, T(S_CH_R_LEVEL), (unsigned)c.param);
+                   snprintf(desc, dn, T(S_CH_D_LEVEL), (unsigned)c.param, (unsigned)c.param); break;
+    case CR_SOLO:  snprintf(head, hn, "%s", T(S_CH_R_SOLO)); snprintf(desc, dn, "%s", T(S_CH_D_SOLO)); break;
+    case CR_NOITEMS: snprintf(head, hn, "%s", T(S_CH_R_NOIT)); snprintf(desc, dn, "%s", T(S_CH_D_NOIT)); break;
+    default:       snprintf(head, hn, "%s", T(S_CH_R_TRIO)); snprintf(desc, dn, "%s", T(S_CH_D_TRIO)); break;
+  }
+}
+
+void renderChallenge() {
+  gfx->fillScreen(RGB565_BLACK);
+  gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
+  twCenter(T(S_CH_TITLE), 46, 2, UI_INK);
+  if (!challengeUnlockedFor(pet) || !challengeRefreshFor(pet, party, pet.currentDay())) {
+    twCenter(T(challengeUnlockedFor(pet) ? S_CH_NONE : S_CH_WHY), 200, 2, UI_INK_SOFT);
+    twCenter(T(S_BACK), 414, 2, UI_INK_SOFT);
+    gfx->flush();
+    return;
+  }
+  const ChalWeek &c = challengeCurrent();
+  const Trainer &t = TRAINER_SETS[c.region % GYM_REGIONS].list[c.leader % TRAINER_GYMS];
+  char l[64], d[64];
+  snprintf(l, sizeof(l), "%s - %s", t.name, TRAINER_SETS[c.region % GYM_REGIONS].region);
+  twCenter(l, 82, 2, UI_INK);
+  chRuleText(c, l, sizeof(l), d, sizeof(d));
+  twCenter(l, 112, (int)strlen(l) * 18 <= 300 ? 3 : 2, UI_BAR_BAD);
+  twCenter(d, 146, 1, UI_INK_SOFT);
+  TrainerMon tm[TRAINER_TEAM_MAX];
+  uint8_t n = challengeTeam(c, tm);
+  for (uint8_t k = 0; k < n; k++) {
+    snprintf(l, sizeof(l), "%s Lv.%u", DEX_TBL[tm[k].dex].name, (unsigned)tm[k].level);
+    twCenter(l, 166 + k * 18, 1, UI_INK);
+  }
+  snprintf(l, sizeof(l), T(S_CH_REWARD), (unsigned)CHAL_BALLS, itemEntry(challengeRewardHeld(c.week)).name);
+  twCenter(l, 284, 1, UI_INK_SOFT);
+  bool done = challengeDone();
+  gfx->fillRoundRect(CX - TW_BTN_W / 2, TW_BTN_Y, TW_BTN_W, TW_BTN_H, 18, done ? UI_TRACK : UI_BAR_OK);
+  gfx->drawRoundRect(CX - TW_BTN_W / 2, TW_BTN_Y, TW_BTN_W, TW_BTN_H, 18, UI_INK);
+  twCenter(T(done ? S_CH_DONE : S_CH_START), TW_BTN_Y + TW_BTN_H / 2 - 12, 3, done ? UI_INK_SOFT : UI_WHITE);
+  if (done) twCenter(T(S_CH_RESET), TW_BTN_Y + TW_BTN_H - 14, 1, UI_INK_SOFT);
+  twCenter(T(S_BACK), 414, 2, UI_INK_SOFT);
+  gfx->flush();
+}
+
+void challengeTap(int16_t x, int16_t y) {
+  if (y >= 404) { sfxPlay(SFX_TAP); chalOpen = false; gymOpen = true; gymPick = true; return; }
+  if (!challengeUnlockedFor(pet) || !challengeRefreshFor(pet, party, pet.currentDay())) { sfxPlay(SFX_DENY); return; }
+  if (y < TW_BTN_Y || y > TW_BTN_Y + TW_BTN_H || x < CX - TW_BTN_W / 2 || x > CX + TW_BTN_W / 2) return;
+  // A cleared week can still be fought; it simply pays nothing more.
+  sfxPlay(SFX_TAP);
+  chalOpen = false;
+  pickTrainer = PICK_CHAL;
+  pickRematch = false;
+  pickHard = false;
+  pickRegion = challengeCurrent().region;
+  pickPage = 0;
+  pickDefault(challengeSquadMax(challengeCurrent()));
+  pickOpen = true;
 }
 
 // ---------- wild encounters ----------

@@ -182,7 +182,7 @@ bool startWildBattle(uint8_t region, bool hard);
 void onTap(int16_t x, int16_t y);   // the first-boot shots tap their way in
 extern bool exploreOpen, gymOpen, playerOpen, martOpen, daycareOpen;
 extern uint8_t dcView;
-extern bool towerOpen, gymRematch, gymHard;
+extern bool towerOpen, gymRematch, gymHard, chalOpen;
 void daycareOpened(); void dcDebugPick(uint8_t a, uint8_t b);
 #include "chain.h"
 extern ItemKey martConfirmItem;
@@ -323,6 +323,7 @@ static int shotMode(const char *screen, const char *out, int lvl, int iv, int de
     if (!strcmp(screen, "dcpick")) { dcDebugPick(0, 0xFF); dcView = 1; }
   }
   else if (!strcmp(screen, "tower")) { pet.winBadge(0, 12, false); towerOpen = true; }
+  else if (!strcmp(screen, "challenge")) { pet.winBadge(0, 0, false); chalOpen = true; }
   else if (!strcmp(screen, "gymsrm")) { pet.winBadge(0, 12, false); gymOpen = true; gymRematch = true; }
   else if (!strcmp(screen, "gyms")) { gymOpen = true; }
   else if (!strcmp(screen, "gympick")) { gymOpen = true; gymPick = true; }

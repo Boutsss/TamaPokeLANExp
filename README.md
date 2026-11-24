@@ -435,6 +435,25 @@ difficulty pill: `EASY → HARD → REMATCH`.
 | Order | sequential, like the ladder; your level is capped to the rematch's best |
 | Rewards | every win: an Oran (leader) / Sitrus (Elite 4) / Lum (champion) Berry; the **first** win adds 2 / 3 Ultra Balls or Leftovers from the champion. No badge changes. |
 
+### Weekly gym challenge
+
+The **WEEKLY** button on the gym chooser, open once you hold **any badge**. Each
+week (Monday to Sunday, the same week the weekly tasks use) one gym leader you
+have reached is drawn with **one rule**:
+
+| Rule | You | The leader |
+|---|---|---|
+| Type only | every creature you bring has that type | their usual team |
+| Level cap | everyone capped to ¾ of their best level | their whole team **at** that level |
+| Solo | exactly one | their ace alone |
+| No held items | held items do nothing (and are never spent) | — |
+| Trio | exactly three | their last three |
+
+The picker greys out anyone the rule keeps out, and FIGHT refuses a squad that
+breaks it. Leaders' IVs are 20. The first win of the week pays **3 Ultra Balls**
+and a held item that rotates weekly; you can fight again, or retry after a loss,
+as often as you like.
+
 ### LAN battles
 
 Pair two boards over ESP-NOW from the gym ladder's **LAN BATTLE** button — one
