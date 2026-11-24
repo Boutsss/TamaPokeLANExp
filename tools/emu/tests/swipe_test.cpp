@@ -84,6 +84,10 @@ static void check(const char *name, bool *open, uint8_t *page){
   printf("PASS  %-10s pages on the rim and clamps at both ends\n", name);
 }
 uint8_t learnableFor(int16_t dex, uint8_t lvl, uint8_t *out, uint8_t max);
+extern bool casinoOpen; extern uint8_t casShopKind, casShopPage;
+extern const char *const SCREEN_NAME[];
+void casinoOpenNow(); void casinoClose(); void onTap(int16_t,int16_t);
+void casLobbyBtn(uint8_t i, int *x, int *y, int *w, int *h);
 
 int main(){
   setup();
@@ -129,6 +133,13 @@ int main(){
     tasksPage = 1; onSwipe(1);  if (!tasksOpen || tasksPage != 1) moved = true;
     if (moved) { printf("FAIL  tasks      a horizontal swipe paged or closed it\n"); bad++; }
     else printf("PASS  %-10s a horizontal swipe neither pages nor closes it\n", "tasks"); }
+  // The Rocket Game Corner's prize shop pages on the rim (82 avatars: 14 pages),
+  // and paging must neither leave the shop nor close the casino.
+  clearAll(); casinoOpenNow();
+  { int x,y,w,h; casLobbyBtn(4,&x,&y,&w,&h); onTap(x+w/2, y+h/2); }
+  casShopKind = 1;                                check("casshop",  &casinoOpen,   &casShopPage);
+  if (strcmp(SCREEN_NAME[uiCurrentScreen()], "casshop")) { printf("FAIL  casshop    paging left the shop\n"); bad++; }
+  casinoClose();
   // The Pokedex pages within ONE region and changes region on a vertical swipe.
   // Every species must be reachable: it was capped at 10 flat pages when the dex
   // was 151 long, which silently hid everything past 160 once it grew to 386.

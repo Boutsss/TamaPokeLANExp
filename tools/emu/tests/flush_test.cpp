@@ -32,6 +32,9 @@ extern bool towerOpen, chalOpen;
 void arcadeOpenFromTrain(); void arcadeClose();
 extern bool tradeOpen; extern uint8_t tradeView;
 extern bool friendsOpen;
+extern bool casinoOpen;
+void casinoOpenNow(); void casinoClose(); void onTap(int16_t,int16_t);
+void casLobbyBtn(uint8_t i, int *x, int *y, int *w, int *h);
 extern Party party;
 void startBattle(int16_t dex, uint8_t lvl);
 
@@ -90,6 +93,16 @@ int main(){
   clearAll(); tradeOpen=true; tradeView=0; check("trade"); crumbIs("trade");
   tradeView=1; check("tradepick"); crumbIs("tradepick"); tradeOpen=false; tradeView=0;
   clearAll(); friendsOpen=true; check("friends"); crumbIs("friends"); friendsOpen=false;
+  // The casino: the lobby and each of its five screens (the last is the shop).
+  clearAll(); casinoOpenNow(); check("casino"); crumbIs("casino");
+  for (uint8_t i = 0; i < 5; i++) {
+    casinoClose(); casinoOpenNow();
+    int x,y,w,h; casLobbyBtn(i,&x,&y,&w,&h); onTap(x+w/2, y+h/2);
+    const char *nm[5] = { "cas-slots", "cas-hilo", "cas-bj", "cas-coins", "casshop" };
+    check(nm[i]);
+  }
+  crumbIs("casshop");
+  casinoClose();
   for (uint8_t p=0;p<4;p++){ clearAll(); cardOpen=true; cardPage=p;
     char n[16]; snprintf(n,sizeof(n),"card%u",p); check(n); }
   clearAll(); startBattle(9,50); check("battle");

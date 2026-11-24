@@ -476,6 +476,34 @@ arduino-cli upload -p /dev/cu.usbmodemXXXX --fqbn "$FQBN" .
 bash tools/flash.sh --monitor
 ```
 
+### The Rocket Game Corner (hidden)
+
+There is a casino behind the arcade. On the training menu, **press and hold the
+ARCADE row for five seconds** (a normal tap still opens the arcade). A Team
+Rocket grunt deals; he laughs when you lose and grumbles when you win.
+
+| | |
+|---|---|
+| Coins | bought at BUY COINS for **$1 each** (packs of 50, 500 and 2500), from the same wallet the Mart uses. The Coin Case holds **9,999**. Coins cannot be sold back. |
+| Bets | 10, 50 or 100 coins (tap the red chip to change) |
+| **Slots** | one pay line; tap SPIN, then STOP each reel (they also stop on their own). The result is decided when you press SPIN, not by your timing. Pays x bet: **7 7 7** 300, **R R R** 100, **BAR x3** 50, Poke Ball or bolt x3 15, moon or cherry x3 8, cherry-cherry first 4, a cherry first 2. Long-run return 92%. |
+| **High / Low** | guess whether the next card is higher or lower (ace low, king high). A tie loses. Each right guess doubles the pot (up to 9,999); CASH OUT whenever. |
+| **Blackjack** | one deck, reshuffled every hand. Dealer stands on all 17s. Blackjack pays 3:2, a win 1:1, a push returns the bet. DOUBLE on your first two cards takes exactly one more card at twice the bet. |
+| Leaving | swipe down. A blackjack hand in play is stood on and settled; a High/Low pot is cashed out; spinning reels stop and pay. |
+
+**Prizes** -- everything is **9,999 coins**. Tap a prize once to select it and
+again to buy it; an owned prize is equipped with one tap. Page with a rim drag.
+
+| Kind | What there is |
+|---|---|
+| Card backs | 28: CLASSIC (free), TEAM ROCKET, Poke, Great, Ultra and Master Ball, GAME CORNER, all 18 types, MOON STONE, SAFARI, GOLD. Used by High/Low and Blackjack. |
+| Avatars | 82 trainers from Red/Blue and Gold/Silver/Crystal: the Elite Four, gym leaders, Professors Oak and Elm, Gold, Kris, Silver, Champion Red, Team Rocket and many more. Shown on your trainer card. |
+| Trainer-card backgrounds | 48: the free default, all 18 types, Kanto places (Pallet Town, Viridian Wood, Mt Moon, Lavender, Cinnabar, Seafoam, Safari Zone, Victory Road, Indigo), themes (Team Rocket, Game Corner, Poke Balls, Game Boy, Sunset, Night Sky, Sakura...), and **six animated ones** (LIVE FIELD, FOREST, BEACH, CAVE, MANSION and AURORA). The design fills the card's rim; inside it is softened so the card stays readable. |
+
+Your coins are saved with your wallet, so buying coins can never take the
+money without giving the coins. A prize is paid for before it is recorded, so a
+power cut at the wrong moment can cost coins but never hands out a free prize.
+
 ### Wild encounters, catching and the bag
 
 **EXPLORE** is its own stop immediately beside the pet on the horizontal axis.
