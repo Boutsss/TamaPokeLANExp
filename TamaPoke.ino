@@ -46,6 +46,7 @@
 #include "chain.h"
 #include "tower.h"
 #include "challenge.h"
+#include "rank.h"
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
@@ -563,7 +564,8 @@ bool playerOpen = false;
 // one page, and the page you are on IS the region -- no extra control needed,
 // and horizontal paging already works everywhere else.
 uint8_t playerPage = 0;
-#define PLAYER_PAGES (GYM_REGIONS + 1)
+#define PLAYER_PAGES (GYM_REGIONS + 2)   // a badge page per ladder, medals, then rank
+#define PLAYER_RANK_PAGE (GYM_REGIONS + 1)
 #define playerBadgeRegion (playerPage % GYM_REGIONS)
 uint8_t gymPage = 0;
 #define GYM_ROWS 5
@@ -1062,6 +1064,8 @@ void setup() {
   towerBindPet(&pet);
   towerBegin();
   challengeBegin();
+  rankBindPet(&pet);
+  rankBegin();   // after tower/challenge: the score reads both
   tasksRefresh();
 
   audioBegin();  // ES8311 + I2S + amplificador (suena un jingle de arranque)
@@ -2322,7 +2326,8 @@ void onTap(int16_t x, int16_t y) {
     }
     // the avatar is the only other live target; everything else backs out
     if (playerPage == 0 && x > CX - 40 && x < CX + 40 && y > 70 && y < 146) {
-      pet.avatar = (uint8_t)((pet.avatar + 1) % AVATAR_COUNT);
+      // Only avatars the rank has unlocked; the rank page shows the rest.
+      pet.avatar = rankNextAvatar(pet.avatar);
       pet.saveNow();
       sfxPlay(SFX_TAP);
       return;
@@ -2901,7 +2906,9 @@ void uiTileGo(int i) {
       galleryOpen = true; galleryPick = true; galleryPage = 0; rpickPage = 0;
       galleryDirty = true;
       break;
-    case SCR_PLAYER: playerOpen = true; playerPage = 0; break;
+    // Re-score on open: progress that arrived without an event (a restore, the
+    // console) must not leave the card showing a stale rank. Never lowers it.
+    case SCR_PLAYER: playerOpen = true; playerPage = 0; rankUpdate(); break;
     default: break;   // the pet tile is everything else being shut
   }
   sfxPlay(SFX_TAP);
@@ -4105,6 +4112,9 @@ void drawCelebration() {
     snprintf(buf, sizeof(buf), T(S_STREAK_DAYS_FMT), pet.streak);
     l1 = T(S_GREAT);
     l2 = buf;
+  } else if (rankNoticeActive(millis())) {   // a new trainer rank (rank.cpp)
+    l1 = T(S_RK_UP);
+    l2 = rankTitle(rankShown());
   }
   if (!l1) return;
   gfx->fillRoundRect(73, 150, 320, 96, 16, UI_BAR_WARN);
@@ -5756,7 +5766,13 @@ static void renderPlayerBadges() {
     for (uint8_t i = 0; i < AVATAR_COUNT; i++)
       drawAvatar(i, 60 + (i % 4) * 88, 60 + (i / 4) * 60, 3);
   } else {
-    drawAvatar(pet.avatar, CX - AVATAR_PX * 2, 72, 4);
+    // the rank's title, small, under the name (rank.cpp)
+    const char *ti = rankTitle(rankShown());
+    gfx->setTextColor(UI_BAR_WARN);
+    gfx->setTextSize(1);
+    gfx->setCursor(CX - (int)strlen(ti) * 3, 66);
+    gfx->print(ti);
+    drawAvatar(pet.avatar, CX - AVATAR_PX * 2, 76, 4);
     // the sprite alone is not always obvious at 16x16, so it is named
     const char *an = AVATARS[pet.avatar % AVATAR_COUNT].name;
     gfx->setTextColor(UI_INK);
@@ -5816,6 +5832,44 @@ static void renderPlayerBadges() {
 
 // Page 2: the medals. They used to sit on the creature's card; they belong with
 // the player, since totalMedals accumulates across every pet you raise.
+// The rank page: where you stand, what the next rank needs, and every avatar
+// with the rank that unlocks it -- locked ones drawn dim, never hidden.
+static void renderPlayerRank() {
+  uint8_t r = rankShown();
+  char l[48];
+  snprintf(l, sizeof(l), T(S_RK_RANK_FMT), (unsigned)r, (unsigned)RANK_MAX);
+  gfx->setTextColor(UI_INK);
+  gfx->setTextSize(2);
+  gfx->setCursor(CX - (int)strlen(l) * 6, 40);
+  gfx->print(l);
+  const char *ti = rankTitle(r);
+  gfx->setTextColor(UI_BAR_WARN);
+  gfx->setTextSize((int)strlen(ti) * 18 <= 300 ? 3 : 2);
+  gfx->setCursor(CX - (int)strlen(ti) * ((int)strlen(ti) * 18 <= 300 ? 9 : 6), 70);
+  gfx->print(ti);
+  uint32_t pts = rankPoints();
+  uint32_t next = r < RANK_MAX ? rankThreshold(r + 1) : rankThreshold(RANK_MAX);
+  snprintf(l, sizeof(l), T(S_RK_PTS_FMT), (unsigned long)pts, (unsigned long)next);
+  gfx->setTextColor(UI_INK_SOFT);
+  gfx->setTextSize(1);
+  gfx->setCursor(CX - (int)strlen(l) * 3, 106);
+  gfx->print(l);
+  for (uint8_t i = 0; i < AVATAR_COUNT; i++) {
+    int x = 74 + (i % 4) * 82, y = 130 + (i / 4) * 104;
+    bool ok = rankAvatarUnlocked(i);
+    gfx->fillRoundRect(x, y, 72, 92, 10, i == pet.avatar ? UI_BAR_OK : (ok ? UI_WHITE : UI_TRACK));
+    gfx->drawRoundRect(x, y, 72, 92, 10, ok ? UI_INK : UI_INK_SOFT);
+    drawAvatar(i, x + 4, y + 6, 4);
+    if (!ok) {
+      snprintf(l, sizeof(l), "R%u", (unsigned)rankAvatarNeeds(i));
+      gfx->setTextColor(UI_BAR_BAD);
+      gfx->setTextSize(2);
+      gfx->setCursor(x + 36 - (int)strlen(l) * 6, y + 72);
+      gfx->print(l);
+    }
+  }
+}
+
 static void renderPlayerMedals() {
   int got = 0;
   for (int i = 0; i < MED_COUNT; i++)
@@ -5852,6 +5906,7 @@ void renderPlayer() {
   gfx->fillScreen(RGB565_BLACK);
   gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
   if (playerPage < GYM_REGIONS) renderPlayerBadges();
+  else if (playerPage == PLAYER_RANK_PAGE) renderPlayerRank();
   else renderPlayerMedals();
 
   gfx->setTextColor(UI_INK_SOFT);

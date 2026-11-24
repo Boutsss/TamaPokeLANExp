@@ -57,6 +57,8 @@ const SaveField SAVE_FIELDS[] = {
   // Battle Tower run and gym rematches won (tower.cpp)
   // the weekly gym challenge (challenge.cpp)
   { "chal", SK_BYTES },
+  // trainer rank (rank.cpp)
+  { "rkTop", SK_U8 },  { "rkCat", SK_U16 },  { "rkChW", SK_U16 },  { "rkChL", SK_U16 },  { "rkAvG", SK_U8 },
   { "twStrk", SK_U16 },  { "twBest", SK_U16 },  { "twSeed", SK_U32 },  { "rmWin", SK_BYTES },
 };
 const uint16_t SAVE_FIELD_COUNT = sizeof(SAVE_FIELDS) / sizeof(SAVE_FIELDS[0]);

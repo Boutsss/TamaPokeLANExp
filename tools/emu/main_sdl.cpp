@@ -185,6 +185,7 @@ extern uint8_t dcView;
 extern bool towerOpen, gymRematch, gymHard, chalOpen;
 void daycareOpened(); void dcDebugPick(uint8_t a, uint8_t b);
 #include "chain.h"
+#include "rank.h"
 extern ItemKey martConfirmItem;
 extern bool galleryDirty;
 extern uint8_t galleryRegion;
@@ -323,6 +324,7 @@ static int shotMode(const char *screen, const char *out, int lvl, int iv, int de
     if (!strcmp(screen, "dcpick")) { dcDebugPick(0, 0xFF); dcView = 1; }
   }
   else if (!strcmp(screen, "tower")) { pet.winBadge(0, 12, false); towerOpen = true; }
+  else if (!strcmp(screen, "rank")) { for (int i = 0; i < 9; i++) pet.winBadge(0, i, false); playerOpen = true; playerPage = GYM_REGIONS + 1; rankUpdate(); }
   else if (!strcmp(screen, "challenge")) { pet.winBadge(0, 0, false); chalOpen = true; }
   else if (!strcmp(screen, "gymsrm")) { pet.winBadge(0, 12, false); gymOpen = true; gymRematch = true; }
   else if (!strcmp(screen, "gyms")) { gymOpen = true; }

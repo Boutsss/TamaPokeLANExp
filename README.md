@@ -664,6 +664,40 @@ training rather than rolling their own — special attack runs off the ATK IV an
 training, special defence off the DEF IV and training. So the physical/special
 split lives on the species, not the individual — no extra IVs to roll.
 
+### Trainer rank, titles and avatars
+
+A **score** built from progress you already have, turned into one of **ten
+ranks**. The highest rank you reach is kept: it never goes down. Your title is
+under your name on the player card, the **last page** of the card shows the
+score and every avatar with the rank that unlocks it, and a banner says when
+you rank up.
+
+| Progress | Points |
+|---|---|
+| badge (easy, any region) | 10 |
+| badge (hard), on top | 10 |
+| gym rematch won (first time per leader) | 10 |
+| species in the Pokédex | 2 |
+| best Battle Tower streak (up to 100) | 5 a floor |
+| wild catch (up to 250) | 2 |
+| weekly challenge cleared (up to 50) | 30 |
+
+| Rank | Points | Title | Unlocks |
+|---|---|---|---|
+| 1 | 0 | Rookie | Red, Blue, Girl |
+| 2 | 30 | Trainer | Youngster |
+| 3 | 100 | Ace Trainer | |
+| 4 | 200 | Gym Challenger | the two Ace trainers |
+| 5 | 350 | Gym Leader | |
+| 6 | 600 | Veteran | Hiker |
+| 7 | 1000 | Elite | |
+| 8 | 1600 | Champion | Sailor |
+| 9 | 2500 | Master | |
+| 10 | 4000 | Legend | |
+
+Tapping your avatar only cycles through unlocked ones. An avatar you were
+already wearing before ranks existed stays yours.
+
 ### Bonds, streaks, medals, Pokédex
 
 - **Streak** (player-wide, survives across pets): first care each real day; milestones

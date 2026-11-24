@@ -240,6 +240,19 @@ enum StrId : uint16_t {
   S_CH_BTN,        // gym chooser: the weekly challenge button
   S_LAN_SHORT,     // gym chooser: the LAN button, short
   S_CH_START,      // weekly challenge: start
+  S_RK_TITLE1,     // rank 1 title (keep the 10 in order)
+  S_RK_TITLE2,     // rank 2 title (keep the 10 in order)
+  S_RK_TITLE3,     // rank 3 title (keep the 10 in order)
+  S_RK_TITLE4,     // rank 4 title (keep the 10 in order)
+  S_RK_TITLE5,     // rank 5 title (keep the 10 in order)
+  S_RK_TITLE6,     // rank 6 title (keep the 10 in order)
+  S_RK_TITLE7,     // rank 7 title (keep the 10 in order)
+  S_RK_TITLE8,     // rank 8 title (keep the 10 in order)
+  S_RK_TITLE9,     // rank 9 title (keep the 10 in order)
+  S_RK_TITLE10,    // rank 10 title (keep the 10 in order)
+  S_RK_RANK_FMT,   // player card: "RANK 3 / 10"
+  S_RK_PTS_FMT,    // player card: points and the next rank
+  S_RK_UP,         // main screen: rank-up banner
   STR_COUNT
 };
 
