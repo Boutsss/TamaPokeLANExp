@@ -499,6 +499,13 @@ public:
   // code: the serial console already simulates rolls, and the region tests have
   // to see which creature a switch landed on.
   int16_t eggPeek() const { return eggTarget; }
+  // The game day, for anything outside Pet that rations itself per day (the
+  // daycare's one-breed-a-day cooldown). Same clock as today().
+  uint32_t currentDay() const { return today(); }
+  // The daycare's SWAP IN NOW: an uncracked egg becomes `dex`. Returns whether
+  // the checkpoint landed; RAM is rolled back if it did not. breed.cpp only
+  // clears its queue after this returns true (see breed.h, THE HAND-OVER).
+  bool eggSwapTo(int16_t dex, bool bonusShiny);
   int16_t rollInRegion(uint8_t r, uint8_t tier);
   // Which of EEVEE's branches this player can actually be handed right now.
   // THE single answer: evolve() picks from it and lineHasUnregistered() asks it
@@ -625,7 +632,9 @@ private:
   void registerCare();   // primer cuidado del dia: racha + vinculo
   void addBond(uint8_t amt);
   uint8_t rollIV(int bonus) const;  // una tirada 8-31 empujada por el cuidado
-  void rollIVs();                   // los 4, con las garantias de legendario/shiny
+  // Rolls the 4 IVs with the legendary/shiny floors. `inherit` (atk, def, spe,
+  // hp) comes from the daycare: a value other than BREED_IV_ROLL is used as is.
+  void rollIVs(const uint8_t *inherit = nullptr);
   uint8_t ivFromGene(uint8_t gene) const;  // migracion de guardados con genes
   void defTick(bool resting);       // la calma forja la defensa (ver pet.cpp)
   void snapshotForParty();          // copy into endedMon before newEgg() wipes it

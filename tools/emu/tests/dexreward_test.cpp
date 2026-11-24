@@ -58,6 +58,12 @@ int main(){
   regNew(1);
   ck(dexGiftsGranted()==g0+2 && bag.count(IT_SITRUS_BERRY)==2, "the owed gift is paid on the next registration");
 
+  // OVAL CHARM at DEX_OVAL_AT registrations -- not one before.
+  while (p.registeredCount() < DEX_OVAL_AT - 1) regNew(1);
+  ck(!bag.has(IT_OVAL_CHARM), "no OVAL CHARM one short of 100");
+  regNew(1);
+  ck(bag.has(IT_OVAL_CHARM) && (dexRewardFlags() & DXRW_OVAL), "the 100th registration grants the OVAL CHARM");
+
   // SHINY CHARM: completing a region's OBTAINABLE dex, once.
   const uint8_t K = 0;   // Kanto
   uint16_t need = regionObtainableCount(K);

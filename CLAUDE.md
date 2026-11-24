@@ -1854,7 +1854,7 @@ is recorded here as fact so nobody redesigns it from the old notes.
 
 | Gesture | Means | Where |
 |---|---|---|
-| Horizontal | move along the TILE AXIS | `PLAYER . PARTY . [PET] . EXPLORE . MART . GYM . DEX` |
+| Horizontal | move along the TILE AXIS | `PLAYER . DAYCARE . PARTY . [PET] . EXPLORE . MART . GYM . DEX` |
 | Up | deeper (the pet's card, a sheet) | everywhere |
 | Down | BACK, one level | everywhere |
 | Rim drag | PAGE the current screen | every paged screen |
@@ -1871,8 +1871,11 @@ the page and how many there are. The arc scrollbar, the rim drag and
 and its coverage from one edit. Adding a screen to `onSwipe` instead is the old
 mistake wearing new clothes.
 
-**The tile order is not arbitrary.** `PLAYER . PARTY . [PET] . EXPLORE . MART .
-GYM . DEX` keeps yours on the left and the world on the right. Explore is beside
+**The tile order is not arbitrary.** `PLAYER . DAYCARE . PARTY . [PET] . EXPLORE .
+MART . GYM . DEX` keeps yours on the left and the world on the right. The
+daycare (v3.29) works on the banked creatures, so it sits one step beyond
+PARTY; its picker is a level deeper (`SCR_DCPICK`), pages on the rim, and down
+walks back out of it. Explore is beside
 the pet because it is a primary loop, not an action owned by the gym ladder. The
 pet screen names both neighboring destinations so the horizontal axis is visible
 before somebody already knows to swipe. The Mart sits between Explore and the

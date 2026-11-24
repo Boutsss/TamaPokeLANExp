@@ -1,6 +1,7 @@
 #include "pet.h"
 #include "game_events.h"
 #include "held_items.h"
+#include "breed.h"
 #include "avatars.h"
 #include "dex.h"
 #include "moves.h"
@@ -553,14 +554,20 @@ void Pet::newEgg() {
   speciesId = -1;
   prevSpeciesId = -1;
   for (int i = 0; i < REGION_COUNT; i++) eggByRegion[i] = 0;
-  eggTarget = pickEggSpecies();  // especie oculta segun rareza y pokedex
+  // A daycare egg, if one is queued, is the next egg instead of a roll. Only
+  // the player's own Pet (opened) may take it: a scratch Pet must never spend
+  // it. Step 1 of breed.h's hand-over -- the queue is cleared after save().
+  int16_t bredDex = 0;
+  bool bredShiny = false;
+  const bool bred = opened && breedPeekQueued(bredDex, bredShiny);
+  eggTarget = bred ? bredDex : pickEggSpecies();  // especie oculta segun rareza y pokedex
   eggByRegion[region % REGION_COUNT] = eggTarget;
   starterPick = (registeredCount() == 0);  // primera partida: el jugador elige inicial
   // sorteo shiny: 1/48 base, mejor con despedida y con racha/vinculo altos
   int shinyBase = (lastEnd == CER_FAREWELL ? 24 : 48) - careBonus();
   if (shinyBase < 8) shinyBase = 8;
   shinyBase = shinyCharmOdds(shinyBase);
-  eggShiny = (random(shinyBase) == 0);
+  eggShiny = (random(shinyBase) == 0) || (bred && bredShiny);
   // The debt lands on the creature about to hatch, and is spent doing so --
   // it is a one-day penalty, not a running total that compounds each retire.
   evoPen = retirePending ? EVO_PENALTY_LEVELS : 0;
@@ -577,7 +584,24 @@ void Pet::newEgg() {
   sleeping = false;
   frozen = false;
   held = 0;
-  save();
+  const bool landed = save();
+  if (opened) {
+    if (bred && landed) breedCommitTaken();   // step 3: only once the egg is durable
+    else if (!bred) breedForgetLive();        // an ordinary egg: no IVs are waiting
+  }
+}
+
+bool Pet::eggSwapTo(int16_t dex, bool bonusShiny) {
+  if (!isEgg() || eggTaps != 0 || ceremony != CER_NONE || starterPick) return false;
+  if (dex < 1 || dex > DEX_COUNT) return false;
+  const int16_t oldT = eggTarget, oldR = eggByRegion[region % REGION_COUNT];
+  const bool oldS = eggShiny;
+  eggTarget = dex;
+  eggByRegion[region % REGION_COUNT] = dex;
+  eggShiny = eggShiny || bonusShiny;
+  if (save()) return true;
+  eggTarget = oldT; eggByRegion[region % REGION_COUNT] = oldR; eggShiny = oldS;
+  return false;
 }
 
 // progresion offline: el tiempo paso aunque estuviera apagado, pero con
@@ -1459,12 +1483,18 @@ uint8_t Pet::ivFromGene(uint8_t gene) const {
   return 8 + (uint8_t)(((uint16_t)(gene - 90) * 23) / 20);
 }
 
-void Pet::rollIVs() {
+void Pet::rollIVs(const uint8_t *inherit) {
   int bonus = careBonus();
   ivAtk = rollIV(bonus);
   ivDef = rollIV(bonus);
   ivSpe = rollIV(bonus);
   ivHp = rollIV(bonus);
+  // A daycare egg keeps what its parents decided; the floors below still apply.
+  if (inherit) {
+    uint8_t *p[4] = { &ivAtk, &ivDef, &ivSpe, &ivHp };
+    for (int i = 0; i < 4; i++)
+      if (inherit[i] != BREED_IV_ROLL) *p[i] = inherit[i] > 31 ? 31 : inherit[i];
+  }
   // los legendarios nacen con 3 de 4 IV perfectos, como en los juegos
   if (speciesId >= 1 && speciesId <= DEX_COUNT && DEX_TBL[speciesId].rarity == R_LEGENDARIO) {
     uint8_t *p[4] = { &ivAtk, &ivDef, &ivSpe, &ivHp };
@@ -1575,7 +1605,10 @@ void Pet::hatch() {
   shiny = eggShiny;
   // IV del individuo (cada crianza es unica). Se tiran ANTES de resetear el
   // vinculo a proposito: el careBonus que los empuja es el del bicho anterior.
-  rollIVs();
+  // A daycare egg brings the IVs it inherited (breed.cpp).
+  uint8_t inherited[4];
+  const bool bredHatch = opened && breedTakeLive(speciesId, inherited);
+  rollIVs(bredHatch ? inherited : nullptr);
   trAtk = trDef = trSpe = 0;
   goodTicks = 0;
   berryKnown = false;

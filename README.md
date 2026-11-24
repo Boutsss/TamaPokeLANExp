@@ -3,7 +3,7 @@
 [![Flash in browser](https://img.shields.io/badge/flash-in%20browser-FF6B00?logo=googlechrome&logoColor=white)](https://reallyjustsomeguy.github.io/TamaPokeLANExp/web/)
 [![MakerWorld](https://img.shields.io/badge/MakerWorld-3D%20case-00AE42?logo=bambulab&logoColor=white)](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)
 ![Board](https://img.shields.io/badge/board-ESP32--S3%20round%20AMOLED-E7352C?logo=espressif&logoColor=white)
-![Firmware](https://img.shields.io/badge/firmware-v3.28-8A2BE2)
+![Firmware](https://img.shields.io/badge/firmware-v3.29-8A2BE2)
 ![Code](https://img.shields.io/badge/code-MIT-blue)
 ![Languages](https://img.shields.io/badge/languages-6-FFCB05)
 [![Stars](https://img.shields.io/github/stars/DylanPDao/TamaPoke?style=flat&logo=github&color=yellow)](https://github.com/DylanPDao/TamaPoke/stargazers)
@@ -59,6 +59,11 @@ same gating every region has always used.
   steps are detected from the same accelerometer readings instead.
 - **`tools/debugger/`** — a live serial monitor + save editor for testing
   against real hardware. Not part of the firmware itself.
+- **From [vunguyen2712's fork](https://github.com/vunguyen2712/TamaPoke):** the
+  **daycare**, **held items** with **Pokédex rewards** and the **Shiny / Oval
+  Charms**, and **daily / weekly tasks** — re-built on this fork's save format,
+  so a v3.28 save upgrades in place (`tools/emu/tests/upgrade328_test.cpp`
+  proves it against a save the real v3.28 firmware wrote).
 
 ## Screens
 
@@ -167,7 +172,7 @@ the navigation — three axes, one meaning each, everywhere:
 
 | Gesture | Means |
 |---|---|
-| **Horizontal swipe** | move along the **tile axis**: `PLAYER · PARTY · [PET] · EXPLORE · MART · GYM · POKÉDEX`. It **bumps** at both ends and never closes anything. |
+| **Horizontal swipe** | move along the **tile axis**: `PLAYER · DAYCARE · PARTY · [PET] · EXPLORE · MART · GYM · POKÉDEX`. It **bumps** at both ends and never closes anything. |
 | **Swipe up** | go **deeper** — from the pet, its stat card |
 | **Swipe down** | go **back**, one level, from anywhere |
 | **Drag the rim** | **page** whatever is in front of you (the arc scrollbar at 2–5 o'clock) |
@@ -465,6 +470,76 @@ every game:
 | Hyper Potion | $1,200 |
 | Full Heal | $600 |
 | Protein / Iron / Carbos | $9,800 each |
+
+### The Daycare
+
+Two swipes right of the pet, past PARTY. Pick two of your **banked** creatures
+(party or box) as parents A and B and tap **BREED**; the egg is queued and
+becomes your **next egg**. The parents are not used up or changed.
+
+| | Rule |
+|---|---|
+| Compatible | two different creatures that **share a type**, or one of them is **Ditto** (never two Dittos) |
+| Never | anything whose evolution line contains a **legendary** |
+| The egg | the **first form** of the non-Ditto parent's line (parent A's if both qualify), and only if it could hatch from an ordinary egg here — its sprite pack must be on the card |
+| IVs | **3 of 4** inherited, each from a random parent; the 4th is rolled at hatch. With the **Oval Charm**: all **4**, each the **better** parent's |
+| Shiny | both parents shiny: an extra **1 in 16** on top of the egg's own roll |
+| Limit | **one breed per game day**, and **one queued egg** at a time |
+| SWAP IN | makes an **uncracked** egg on screen the bred one right now — two taps, because it replaces that egg |
+
+A queued egg whose region pack has left the card waits in the queue instead of
+hatching as a number.
+
+### Held items, Pokédex rewards and the charms
+
+Open the **Bag**, tap a held item, then pick who holds it — the live creature
+or anyone in the party or box. One item per creature; a released or runaway
+creature's item goes back to the bag. Items work in gym and wild battles; **LAN
+battles carry no items** on either side, so they stay even.
+
+| Item | Effect in battle | Used up? |
+|---|---|---|
+| Oran Berry | heals **10 HP** once at half HP or below | yes |
+| Sitrus Berry | heals **25%** of max HP once at half HP or below | yes |
+| Lum Berry | cures an ailment or confusion once | yes |
+| Focus Sash | survives one hit from **full HP** with 1 HP | yes |
+| Leftovers | heals **1/16** of max HP at the end of every turn | no |
+| Quick Claw | **20%** chance to move first (priority moves still win) | no |
+
+They are never sold. They come from the **Pokédex**: every **25** species
+registered gives one, cycling Oran ×3 → Sitrus ×2 → Lum ×2 → Quick Claw → Focus
+Sash → Leftovers. An existing save is paid every milestone it has already
+passed on its first boot.
+
+| Key item | How | Effect |
+|---|---|---|
+| **Oval Charm** | **100** species registered | daycare eggs inherit all 4 IVs, the better parent's |
+| **Shiny Charm** | complete one region's **obtainable** dex (what can hatch or evolve from something that can, with its pack on the card) | egg shiny odds **halved** (floor 1 in 4); wild shiny chance **doubled** |
+
+### Daily and weekly tasks
+
+From the menu. **3 daily** tasks and **2 weekly** ones (weeks start Monday) are
+drawn from fixed pools; finishing one makes its reward claimable, and claiming
+all three dailies unlocks a **daily bonus** (Great Ball ×2, Hyper Potion,
+Protein or Poké Ball, rotating by day). Rolls only move **forward**: setting the
+clock back does not hand out a fresh set. A reward is written down before it is
+paid, so a power cut mid-claim pays it exactly once on the next boot.
+
+| Daily pool (target → reward) | Weekly pool (target → reward) |
+|---|---|
+| feed 5 → Poké Ball ×2 | care 5 days → Great Ball ×2 |
+| favourite berry 2 → Potion | feed 25 → Potion ×4 |
+| clean 2 → Potion ×2 | play 8 → Poké Ball ×5 |
+| play 2 → Poké Ball ×2 | train 8 → Protein ×2 |
+| train 2 → Protein | beat 8 wild → Hyper Potion ×2 |
+| care day 1 → Potion ×2 | catch 3 → Great Ball ×4 |
+| hatch 1 → Great Ball | 2 gym wins → Great Ball ×3 |
+| evolve 1 → Protein | 3 rematch wins → Hyper Potion ×2 |
+| gym win 1 → Great Ball ×2 | evolve 1 → Protein ×3 |
+| rematch win 1 → Hyper Potion | hatch 1 → Great Ball ×3 |
+| see 3 wild → Poké Ball ×3 | |
+| beat 2 wild → Potion ×2 | |
+| catch 1 → Great Ball ×2 | |
 
 ### Battle stats & IVs
 

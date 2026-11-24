@@ -114,6 +114,9 @@ void dexRewardsCheck(const Pet &p) {
     rwGifts++;
     changed = true;
   }
+  if (!(rwFlags & DXRW_OVAL) && n >= DEX_OVAL_AT) {
+    if (grant(IT_OVAL_CHARM, 1)) { rwFlags |= DXRW_OVAL; changed = true; }
+  }
   if (!(rwFlags & DXRW_SHINY)) {
     uint8_t bits[OBT_BYTES];
     obtainableBits(bits);
@@ -133,7 +136,7 @@ static void dexRewardSink(GameEv ev, int16_t) {
 void dexRewardsBegin(Pet *p) {
   rwOpen = rwPrefs.begin("tamapoke", false);
   if (!rwOpen) { Serial.println("dexrw: NVS would not open"); return; }
-  rwFlags = rwPrefs.getUChar("dxrw", 0) & DXRW_SHINY;
+  rwFlags = rwPrefs.getUChar("dxrw", 0) & (DXRW_SHINY | DXRW_OVAL);
   rwGifts = rwPrefs.getUChar("dxgf", 0);
   rwPet = p;
   gameEventSubscribe(dexRewardSink);

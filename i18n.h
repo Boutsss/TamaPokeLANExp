@@ -166,6 +166,26 @@ enum StrId : uint8_t {
   S_WALLET_FMT,     // "Wallet: $%lu"
   S_MART_BUY_Q,     // buy confirm: "Buy %s?"
   S_MART_PRICE_FMT, // buy confirm sub-line: "COST: $%lu"
+  S_DC_TITLE,       // daycare: screen title
+  S_DC_PICK,        // daycare: an empty parent slot: tap to choose
+  S_DC_BREED,       // daycare: the breed button
+  S_DC_SWAP,        // daycare: make the uncracked egg the bred one
+  S_DC_SURE,        // daycare: second tap confirms the swap
+  S_DC_V_EMPTY,     // daycare: verdict: nothing picked yet
+  S_DC_V_SAME,      // daycare: verdict
+  S_DC_V_DITTO,     // daycare: verdict
+  S_DC_V_LEGEND,    // daycare: verdict
+  S_DC_V_TYPE,      // daycare: verdict
+  S_DC_V_NOEGG,     // daycare: verdict: the egg could not hatch here
+  S_DC_V_OK,        // daycare: verdict
+  S_DC_FULL,        // daycare: an egg is already queued
+  S_DC_WAIT,        // daycare: bred today already
+  S_DC_TODAY,       // daycare: cooldown is clear
+  S_DC_MADE,        // daycare: an egg was just bred
+  S_DC_SWAPPED,     // daycare: the live egg was swapped
+  S_DC_NEXT_FMT,    // daycare: the queued egg: "NEXT EGG: %s"
+  S_DC_NONE,        // daycare: the picker has nobody to show
+  S_DC_SAVEFAIL,    // daycare: the breed did not save
   STR_COUNT
 };
 

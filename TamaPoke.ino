@@ -42,10 +42,11 @@
 #include "game_events.h"
 #include "tasks.h"
 #include "dex_rewards.h"
+#include "breed.h"
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
-#define FW_VERSION "3.28"
+#define FW_VERSION "3.29"
 
 Arduino_DataBus *bus = new Arduino_ESP32QSPI(
   LCD_CS, LCD_SCLK, LCD_SDIO0, LCD_SDIO1, LCD_SDIO2, LCD_SDIO3);
@@ -233,7 +234,7 @@ enum : uint8_t {
   SCR_STARTER = 0, SCR_REGION, SCR_GALLERY, SCR_DEXPICK, SCR_MOVEPICK, SCR_BOX,
   SCR_PARTY, SCR_KEYBOARD, SCR_CARD, SCR_PLAYER, SCR_CLOCK, SCR_GYM, SCR_GYMPICK,
   SCR_EXPLORE, SCR_MART, SCR_LAN, SCR_PICK, SCR_BATTLE, SCR_WIN, SCR_LEARN, SCR_TRAIN, SCR_MENU,
-  SCR_BAGSCR, SCR_GAME, SCR_MAIN, SCR_TASKS, SCR_COUNT
+  SCR_BAGSCR, SCR_GAME, SCR_MAIN, SCR_TASKS, SCR_DAYCARE, SCR_DCPICK, SCR_COUNT
 };
 extern const char *const SCREEN_NAME[SCR_COUNT];   // const is internal linkage in C++
 
@@ -274,7 +275,11 @@ void tasksTap(int16_t x, int16_t y);
 uint8_t bagPages();
 void renderMart();
 void martTap(int16_t x, int16_t y);
+void renderDaycare();
+void daycareTap(int16_t x, int16_t y);
+void daycareOpened();
 uint8_t martPages();
+uint8_t dcPickPages();
 bool startWildBattle(uint8_t region, bool hard);
 PartyMon wildToPartyMon();
 void focusSwap(uint8_t slot);
@@ -285,7 +290,7 @@ const char *const SCREEN_NAME[SCR_COUNT] = {
   "starter", "region", "gallery", "dexpick", "movepick", "box",
   "party", "keyboard", "card", "player", "clock", "gym", "gympick",
   "explore", "mart", "lan", "pick", "battle", "win", "learn", "train", "menu",
-  "bag", "minigame", "main", "tasks"
+  "bag", "minigame", "main", "tasks", "daycare", "dcpick"
 };
 
 // Badge art for a region, or nullptr when that region has none yet.
@@ -574,6 +579,12 @@ bool bagTakeMode = false;
 // The Poke Mart. Between EXPLORE and GYM on the tile axis: walk to earn,
 // spend at the Mart, then prove it at the gym.
 bool martOpen = false;
+// The daycare (breed.cpp). A tile of its own, between PLAYER and PARTY: it works
+// on the banked creatures, so it sits on "your" side of the axis. Two views:
+// HOME, and a PICKER over every banked creature that pages on the rim.
+bool daycareOpen = false;
+uint8_t dcView = 0;               // 0 home, 1 picker
+uint8_t dcPage = 0;               // the picker's page (uiRimTarget)
 uint8_t martPage = 0;
 // The item pending a buy confirmation; ITEM_NONE means no dialog is up. A
 // value rather than a bool, like partyDetail/galleryDetail, since the dialog
@@ -741,8 +752,8 @@ void uiArc(int cx, int cy, int r, int a0, int a1, int w, uint16_t col) {
 
 // The gesture model. Its tables and handlers live down beside uiCurrentScreen(),
 // but handleTouch() and onSwipe() sit ~1000 lines above them.
-#define TILE_COUNT 7   // PLAYER . PARTY . [PET] . EXPLORE . MART . GYM . DEX
-#define TILE_PET 2
+#define TILE_COUNT 8   // PLAYER . DAYCARE . PARTY . [PET] . EXPLORE . MART . GYM . DEX
+#define TILE_PET 3
 #define RIM_R0 186     // a drag starting outside this radius pages, not swipes
 #define RIM_STEP 20    // degrees of arc per page
 #define RIM_BAR_R 222  // where the arc scrollbar is drawn
@@ -965,6 +976,7 @@ void setup() {
 
   tasksBegin(pet);
   dexRewardsBegin(&pet);
+  breedBegin(&pet);   // after party.begin(): it reads banked creatures
   tasksRefresh();
 
   audioBegin();  // ES8311 + I2S + amplificador (suena un jingle de arranque)
@@ -1625,6 +1637,13 @@ void onSwipeV(int dir) {
     if (back) uiTileGo(TILE_PET);
     return;
   }
+  // The picker is a level deeper than the daycare's home; down walks out of it
+  // one step at a time, like the gym and Pokedex choosers.
+  if (daycareOpen) {
+    if (!back) return;
+    if (dcView) dcView = 0; else uiTileGo(TILE_PET);
+    return;
+  }
 
   // The two multi-region tiles are two levels deep: chooser, then ladder/grid.
   // DOWN walks back out of them one step at a time; UP keeps the region
@@ -2109,6 +2128,10 @@ void onTap(int16_t x, int16_t y) {
   }
   if (martOpen) {
     martTap(x, y);
+    return;
+  }
+  if (daycareOpen) {
+    daycareTap(x, y);
     return;
   }
   if (bagOpen) {
@@ -2599,6 +2622,7 @@ uint8_t uiCurrentScreen() {
   if (lanOpen) return SCR_LAN;
   if (exploreOpen) return SCR_EXPLORE;
   if (martOpen) return SCR_MART;
+  if (daycareOpen) return dcView ? SCR_DCPICK : SCR_DAYCARE;
   if (gymOpen) return gymPick ? SCR_GYMPICK : SCR_GYM;
   if (pet.hasLearnOffer()) return SCR_LEARN;
   if (gameOpen || sackOpen || spdOpen) return SCR_GAME;
@@ -2631,14 +2655,16 @@ uint8_t uiCurrentScreen() {
 // and Pokedex tiles until a region is picked. One table, so uiTileIndex() and
 // uiTileGo() cannot end up with different ideas of what is on the axis.
 //
-// PLAYER . PARTY . [PET] . EXPLORE . MART . GYM . DEX -- yours on the left, the
-// world on the right. Exploration is a primary loop, not a gym action, so it
+// PLAYER . DAYCARE . PARTY . [PET] . EXPLORE . MART . GYM . DEX -- yours on the
+// left, the world on the right. The daycare works on the banked creatures, so it
+// sits beside PARTY, one step further out than the party itself. Exploration is a primary loop, not a gym action, so it
 // gets the first world-facing stop and the main screen can name it directly.
 // The Mart sits right after it: walk to earn (EXPLORE's own encounters cost
 // nothing to reach), spend at the Mart, then prove the gear at the gym.
 struct TileDef { uint8_t scr, alt; };
 static const TileDef TILE[TILE_COUNT] = {
-  { SCR_PLAYER, SCR_PLAYER }, { SCR_PARTY, SCR_PARTY }, { SCR_MAIN, SCR_MAIN },
+  { SCR_PLAYER, SCR_PLAYER }, { SCR_DAYCARE, SCR_DCPICK }, { SCR_PARTY, SCR_PARTY },
+  { SCR_MAIN, SCR_MAIN },
   { SCR_EXPLORE, SCR_EXPLORE }, { SCR_MART, SCR_MART }, { SCR_GYM, SCR_GYMPICK },
   { SCR_GALLERY, SCR_DEXPICK },
 };
@@ -2661,6 +2687,7 @@ void uiTileGo(int i) {
   galleryDetail = 0;
   martOpen = false;
   martConfirmItem = ITEM_NONE;
+  daycareOpen = false;
   switch (TILE[i].scr) {
     // The two multi-region screens land on their CHOOSER, never on whichever
     // region was last set. Opening straight into it is how Johto and Hoenn came
@@ -2668,6 +2695,7 @@ void uiTileGo(int i) {
     case SCR_GYM: gymOpen = true; gymPick = true; gymPage = 0; rpickPage = 0; break;
     case SCR_EXPLORE: exploreOpen = true; break;
     case SCR_MART: martOpen = true; martPage = 0; break;
+    case SCR_DAYCARE: daycareOpen = true; daycareOpened(); break;
     case SCR_PARTY: partyOpen = true; break;
     case SCR_GALLERY:
       galleryOpen = true; galleryPick = true; galleryPage = 0; rpickPage = 0;
@@ -2695,6 +2723,7 @@ static uint8_t *uiRimTarget(uint8_t *pages) {
     case SCR_BOX:     p = &boxPage;     n = BOX_SLOTS / BOX_PER_PAGE; break;
     case SCR_BAGSCR:  p = &bagPage;     n = bagPages(); break;
     case SCR_MART:    p = &martPage;    n = martPages(); break;
+    case SCR_DCPICK:  p = &dcPage;      n = dcPickPages(); break;
     case SCR_CARD:    p = &cardPage;    n = CARD_PAGES; break;
     case SCR_MOVEPICK: {
       uint8_t all[64];
@@ -3136,6 +3165,10 @@ void render() {
   }
   if (martOpen) {
     renderMart();
+    return;
+  }
+  if (daycareOpen) {
+    renderDaycare();
     return;
   }
   if (gymOpen) {
@@ -6888,6 +6921,320 @@ void martTap(int16_t x, int16_t y) {
   // going to the pet tile instead of closing a modal since the Mart is on
   // the tile axis.
   uiTileGo(TILE_PET);
+}
+
+// ---------- the daycare (rules and persistence: breed.cpp) ----------
+//
+// HOME: the two parents as cards, BREED and SWAP IN as finger-sized buttons
+// (UI_TAP_FINGER tall -- this is new work, so it gets the real floor, not the
+// legacy 44), one verdict line and the queued egg underneath.
+// PICKER: every banked creature, party then box, DC_PER_PAGE a page, paged on
+// the rim through uiRimTarget() like every other paged screen. A row that the
+// other parent occupies is drawn locked, not hidden.
+//
+// Geometry lives in the dc*Rect()/dc*At() functions below and nowhere else, so
+// draw, tap and daycare_ui_test all ask the same answer (CLAUDE.md: a test that
+// keeps its own copy of a layout proves the transcription).
+#define DC_NONE 0xFF
+#define DC_PER_PAGE 4
+#define DC_CARD_Y 96
+#define DC_CARD_H 100
+#define DC_BTN_Y 236
+#define DC_BTN_H UI_TAP_FINGER
+#define DC_ROW_Y(i) (96 + (i) * 64)
+#define DC_ROW_H 56
+#define DC_MSG_MS 4000UL
+
+static uint8_t dcPickFor = 0;                  // 0 = parent A, 1 = parent B
+static uint8_t dcA = DC_NONE, dcB = DC_NONE;   // banked index (breed.h BREED_BANK)
+static StrId dcMsg = STR_COUNT;                // STR_COUNT = nothing to say
+static uint32_t dcMsgUntil = 0;
+static uint32_t dcSwapArmUntil = 0;            // SWAP IN takes two taps: it replaces an egg
+
+static void dcSay(StrId s) { dcMsg = s; dcMsgUntil = millis() + DC_MSG_MS; }
+
+// Card i (0 = A, 1 = B): x0, x1 across, DC_CARD_Y.. down.
+static void dcCardRect(uint8_t i, int *x0, int *x1) { *x0 = i ? 240 : 56; *x1 = i ? 410 : 226; }
+// Button i (0 = BREED, 1 = SWAP IN).
+static void dcBtnRect(uint8_t i, int *x0, int *x1) { *x0 = i ? 240 : 70; *x1 = i ? 396 : 226; }
+int dcCardAt(int16_t x, int16_t y) {
+  if (y < DC_CARD_Y || y > DC_CARD_Y + DC_CARD_H) return -1;
+  for (uint8_t i = 0; i < 2; i++) { int a, b; dcCardRect(i, &a, &b); if (x >= a && x <= b) return i; }
+  return -1;
+}
+int dcBtnAt(int16_t x, int16_t y) {
+  if (y < DC_BTN_Y || y > DC_BTN_Y + DC_BTN_H) return -1;
+  for (uint8_t i = 0; i < 2; i++) { int a, b; dcBtnRect(i, &a, &b); if (x >= a && x <= b) return i; }
+  return -1;
+}
+int dcRowAt(int16_t x, int16_t y) {
+  if (x < 76 || x > 390) return -1;
+  for (int i = 0; i < DC_PER_PAGE; i++)
+    if (y >= DC_ROW_Y(i) && y <= DC_ROW_Y(i) + DC_ROW_H) return i;
+  return -1;
+}
+// For tests and the screenshot tool: where things are, asked of the firmware.
+int dcCardCenterX(uint8_t i) { int a, b; dcCardRect(i, &a, &b); return (a + b) / 2; }
+int dcCardCenterY() { return DC_CARD_Y + DC_CARD_H / 2; }
+int dcBtnCenterX(uint8_t i) { int a, b; dcBtnRect(i, &a, &b); return (a + b) / 2; }
+int dcBtnCenterY() { return DC_BTN_Y + DC_BTN_H / 2; }
+int dcRowCenterY(uint8_t i) { return DC_ROW_Y(i) + DC_ROW_H / 2; }
+uint8_t dcPickedA() { return dcA; }
+// The emulator's --shot and the UI test set up a pair without tapping through it.
+void dcDebugPick(uint8_t a, uint8_t b) { dcA = a; dcB = b; }
+uint8_t dcPickedB() { return dcB; }
+
+// Banked indices that hold a creature, in party-then-box order.
+static uint8_t dcList(uint8_t *out) {
+  uint8_t n = 0;
+  for (uint8_t i = 0; i < BREED_BANK; i++) {
+    const PartyMon *m = breedBanked(i);
+    if (m && !m->empty()) out[n++] = i;
+  }
+  return n;
+}
+uint8_t dcPickPages() {
+  uint8_t list[BREED_BANK];
+  uint8_t n = dcList(list);
+  return n ? (uint8_t)((n + DC_PER_PAGE - 1) / DC_PER_PAGE) : 1;
+}
+
+static const char *dcName(const PartyMon &m) { return m.nick[0] ? m.nick : DEX_TBL[m.dex].name; }
+
+// A pick goes stale if the slot changed under it (released, swapped to the box).
+static void dcValidate() {
+  const PartyMon *a = dcA == DC_NONE ? nullptr : breedBanked(dcA);
+  const PartyMon *b = dcB == DC_NONE ? nullptr : breedBanked(dcB);
+  if (!a || a->empty()) dcA = DC_NONE;
+  if (!b || b->empty()) dcB = DC_NONE;
+}
+
+static StrId dcVerdictText(uint8_t v) {
+  switch (v) {
+    case BV_OK: return S_DC_V_OK;
+    case BV_SAME: return S_DC_V_SAME;
+    case BV_TWO_DITTO: return S_DC_V_DITTO;
+    case BV_LEGEND: return S_DC_V_LEGEND;
+    case BV_NO_TYPE: return S_DC_V_TYPE;
+    case BV_NO_EGG: return S_DC_V_NOEGG;
+    default: return S_DC_V_EMPTY;
+  }
+}
+
+static uint8_t dcVerdict() {
+  if (dcA == DC_NONE || dcB == DC_NONE) return BV_EMPTY;
+  return breedCheckIdx(dcA, dcB);
+}
+
+// ONE predicate for "BREED is live", asked by the draw AND the tap -- the same
+// reason uiButtonDisabled() exists (a greyed button must not still be tappable).
+bool dcBreedLive() {
+  return dcVerdict() == BV_OK && !breedHasQueued() && !breedOnCooldown(pet.currentDay());
+}
+
+void daycareOpened() {
+  dcView = 0;
+  dcPage = 0;
+  dcMsg = STR_COUNT;
+  dcSwapArmUntil = 0;
+  dcValidate();
+}
+
+static void dcCenter(const char *s, int y, uint8_t size) {
+  gfx->setTextSize(size);
+  gfx->setCursor(CX - (int)strlen(s) * 3 * size, y);
+  gfx->print(s);
+}
+
+static void dcTitle(const char *t) {
+  gfx->fillScreen(RGB565_BLACK);
+  gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
+  // Sized by the chord, not by eye: at y=38 the glass is +-127 px wide, and a
+  // wider pill hangs its top corners off the panel.
+  int half = uiSafeHalfWidth(38) - 12;
+  gfx->fillRoundRect(CX - half, 38, half * 2, 46, 14, UI_WHITE);
+  gfx->drawRoundRect(CX - half, 38, half * 2, 46, 14, UI_INK);
+  gfx->setTextColor(UI_INK);
+  uint8_t sz = (int)strlen(t) * 18 <= half * 2 - 16 ? 3 : 2;
+  dcCenter(t, sz == 3 ? 50 : 54, sz);
+}
+
+static void dcCard(uint8_t i, uint8_t idx) {
+  int x0, x1;
+  dcCardRect(i, &x0, &x1);
+  const PartyMon *m = idx == DC_NONE ? nullptr : breedBanked(idx);
+  bool has = m && !m->empty();
+  gfx->fillRoundRect(x0, DC_CARD_Y, x1 - x0, DC_CARD_H, 14, has ? UI_WHITE : UI_TRACK);
+  gfx->drawRoundRect(x0, DC_CARD_Y, x1 - x0, DC_CARD_H, 14, UI_INK);
+  gfx->setTextColor(UI_INK);
+  int cx = (x0 + x1) / 2;
+  char l[24];
+  gfx->setTextSize(2);
+  l[0] = (char)('A' + i); l[1] = 0;
+  gfx->setCursor(cx - 6, DC_CARD_Y + 10);
+  gfx->print(l);
+  const char *name = has ? dcName(*m) : T(S_DC_PICK);
+  gfx->setCursor(cx - (int)strlen(name) * 6, DC_CARD_Y + 40);
+  gfx->print(name);
+  if (has) {
+    snprintf(l, sizeof(l), "Lv%u%s", (unsigned)m->level, m->shiny ? " *" : "");
+    gfx->setCursor(cx - (int)strlen(l) * 6, DC_CARD_Y + 68);
+    gfx->print(l);
+  }
+}
+
+static void dcButton(uint8_t i, const char *label, bool live) {
+  int x0, x1;
+  dcBtnRect(i, &x0, &x1);
+  gfx->fillRoundRect(x0, DC_BTN_Y, x1 - x0, DC_BTN_H, 16, live ? UI_BAR_OK : UI_TRACK);
+  gfx->drawRoundRect(x0, DC_BTN_Y, x1 - x0, DC_BTN_H, 16, UI_INK);
+  gfx->setTextColor(live ? UI_WHITE : 0x8410);
+  gfx->setTextSize(2);
+  gfx->setCursor((x0 + x1) / 2 - (int)strlen(label) * 6, DC_BTN_Y + DC_BTN_H / 2 - 8);
+  gfx->print(label);
+}
+
+static void renderDcHome() {
+  dcValidate();
+  dcTitle(T(S_DC_TITLE));
+  dcCard(0, dcA);
+  dcCard(1, dcB);
+
+  // The last thing that happened, else whether this pair can breed.
+  uint8_t v = dcVerdict();
+  bool msg = dcMsg != STR_COUNT && millis() < dcMsgUntil;
+  gfx->setTextColor(msg || v == BV_OK ? UI_INK : UI_BAR_WARN);
+  dcCenter(T(msg ? dcMsg : dcVerdictText(v)), 210, 2);
+
+  dcButton(0, T(S_DC_BREED), dcBreedLive());
+  bool armed = millis() < dcSwapArmUntil;
+  dcButton(1, T(armed ? S_DC_SURE : S_DC_SWAP), breedCanSwapIn(pet));
+
+  // The queued egg, or the cooldown.
+  char l[40];
+  gfx->setTextColor(UI_INK);
+  if (breedHasQueued()) {
+    const BredEgg &e = breedQueued();
+    snprintf(l, sizeof(l), T(S_DC_NEXT_FMT), DEX_TBL[e.dex].name);
+    dcCenter(l, 342, 2);
+    if (!breedQueuedHatchable()) {
+      gfx->setTextColor(UI_BAR_WARN);
+      dcCenter(T(S_DC_V_NOEGG), 366, 2);
+    } else {
+      char iv[4][4];
+      for (int i = 0; i < 4; i++) {
+        if (e.iv[i] == BREED_IV_ROLL) snprintf(iv[i], sizeof(iv[i]), "?");
+        else snprintf(iv[i], sizeof(iv[i]), "%u", (unsigned)e.iv[i]);
+      }
+      snprintf(l, sizeof(l), "IV %s %s %s %s", iv[0], iv[1], iv[2], iv[3]);
+      dcCenter(l, 366, 2);
+    }
+  } else {
+    bool wait = breedOnCooldown(pet.currentDay());
+    gfx->setTextColor(wait ? UI_BAR_WARN : UI_INK);
+    dcCenter(T(wait ? S_DC_WAIT : S_DC_TODAY), 342, 2);
+    if (bag.has(IT_OVAL_CHARM)) { gfx->setTextColor(UI_INK); dcCenter(itemEntry(IT_OVAL_CHARM).name, 366, 2); }
+  }
+  gfx->setTextColor(UI_INK);
+  dcCenter(T(S_BACK), 402, 2);
+  uiChrome();
+  gfx->flush();
+}
+
+static void renderDcPick() {
+  uint8_t list[BREED_BANK];
+  uint8_t n = dcList(list);
+  uint8_t pages = dcPickPages();
+  if (dcPage >= pages) dcPage = pages - 1;
+  char head[24];
+  snprintf(head, sizeof(head), "%s %c", T(S_DC_PICK), 'A' + dcPickFor);
+  dcTitle(head);
+  if (!n) { gfx->setTextColor(UI_BAR_WARN); dcCenter(T(S_DC_NONE), 200, 2); }
+  uint8_t other = dcPickFor == 0 ? dcB : dcA;
+  const PartyMon *om = other == DC_NONE ? nullptr : breedBanked(other);
+  for (uint8_t r = 0; r < DC_PER_PAGE; r++) {
+    uint8_t k = (uint8_t)(dcPage * DC_PER_PAGE + r);
+    if (k >= n) break;
+    const PartyMon &m = *breedBanked(list[k]);
+    bool locked = list[k] == other;
+    // With the other parent already chosen, say whether this one would pair.
+    bool pairs = om && !om->empty() && !locked && breedCheck(m, *om) == BV_OK;
+    int y = DC_ROW_Y(r);
+    gfx->fillRoundRect(76, y, 314, DC_ROW_H, 10, locked ? UI_TRACK : (pairs ? UI_BAR_OK : UI_WHITE));
+    gfx->drawRoundRect(76, y, 314, DC_ROW_H, 10, UI_INK);
+    gfx->setTextColor(locked ? 0x8410 : (pairs ? UI_WHITE : UI_INK));
+    gfx->setTextSize(2);
+    gfx->setCursor(92, y + DC_ROW_H / 2 - 8);
+    gfx->print(dcName(m));
+    char l[12];
+    snprintf(l, sizeof(l), "Lv%u%s", (unsigned)m.level, m.shiny ? "*" : "");
+    gfx->setCursor(374 - (int)strlen(l) * 12, y + DC_ROW_H / 2 - 8);
+    gfx->print(l);
+  }
+  gfx->setTextColor(UI_INK);
+  dcCenter(T(S_BACK), 402, 2);
+  uiChrome();
+  gfx->flush();
+}
+
+void renderDaycare() {
+  if (dcView == 1) renderDcPick();
+  else renderDcHome();
+}
+
+static void dcTapHome(int16_t x, int16_t y) {
+  int c = dcCardAt(x, y);
+  int b = dcBtnAt(x, y);
+  if (b != 1) dcSwapArmUntil = 0;   // anything but SWAP IN disarms it
+  if (c >= 0) {
+    sfxPlay(SFX_TAP);
+    dcPickFor = (uint8_t)c;
+    dcPage = 0;
+    dcView = 1;
+    return;
+  }
+  if (b == 0) {
+    if (!dcBreedLive()) {
+      sfxPlay(SFX_DENY);
+      if (breedHasQueued()) dcSay(S_DC_FULL);
+      else if (dcVerdict() == BV_OK) dcSay(S_DC_WAIT);
+      return;
+    }
+    uint8_t res = breedMake(dcA, dcB, pet.currentDay());
+    if (res == BR_OK) { sfxPlay(SFX_HATCH); dcSay(S_DC_MADE); }
+    else { sfxPlay(SFX_DENY); if (res == BR_SAVE_FAILED) dcSay(S_DC_SAVEFAIL); }
+    return;
+  }
+  if (b == 1) {   // armed by the first tap, done by the second
+    if (!breedCanSwapIn(pet)) { sfxPlay(SFX_DENY); dcSwapArmUntil = 0; return; }
+    if (millis() >= dcSwapArmUntil) { sfxPlay(SFX_TAP); dcSwapArmUntil = millis() + DC_MSG_MS; return; }
+    dcSwapArmUntil = 0;
+    if (breedSwapIn(pet)) { sfxPlay(SFX_HATCH); dcSay(S_DC_SWAPPED); }
+    else { sfxPlay(SFX_DENY); dcSay(S_DC_SAVEFAIL); }
+    return;
+  }
+  if (y >= 392) uiTileGo(TILE_PET);   // the BACK label, same as the Mart's
+}
+
+static void dcTapPick(int16_t x, int16_t y) {
+  if (y >= 392) { sfxPlay(SFX_TAP); dcView = 0; return; }
+  int r = dcRowAt(x, y);
+  if (r < 0) return;
+  uint8_t list[BREED_BANK];
+  uint8_t n = dcList(list);
+  uint8_t k = (uint8_t)(dcPage * DC_PER_PAGE + r);
+  if (k >= n) return;
+  uint8_t other = dcPickFor == 0 ? dcB : dcA;
+  if (list[k] == other) { sfxPlay(SFX_DENY); return; }
+  sfxPlay(SFX_TAP);
+  if (dcPickFor == 0) dcA = list[k]; else dcB = list[k];
+  dcMsg = STR_COUNT;
+  dcView = 0;
+}
+
+void daycareTap(int16_t x, int16_t y) {
+  if (dcView == 1) dcTapPick(x, y);
+  else dcTapHome(x, y);
 }
 
 // ---------- wild encounters ----------

@@ -29,6 +29,7 @@ extern bool cardOpen, galleryOpen, clockOpen, kbOpen, menuOpen, partyOpen, party
 extern bool trainOpen, movePickOpen, battleOpen, gymOpen, playerOpen, boxOpen, pickOpen;
 extern bool exploreOpen;
 extern bool martOpen;
+extern bool daycareOpen; extern uint8_t dcView, dcPage;
 extern bool btlWild;
 extern uint8_t cardPage, gymPage, playerPage, movePickPage, boxPage, pickPage, partyDetail;
 extern uint8_t martPage;
@@ -60,6 +61,7 @@ static void clearAll(){
   trainOpen=movePickOpen=battleOpen=gymOpen=playerOpen=boxOpen=pickOpen=false;
   exploreOpen=false;
   martOpen=false;
+  daycareOpen=false; dcView=0;
   bagOpen=false;
   partyDetail=0; boxSel=boxSwapFrom=0;
 }
@@ -110,6 +112,10 @@ int main(){
   // The Mart's catalogue is the static item table, not the bag -- always the
   // same length regardless of what is carried, so no seeding is needed.
   clearAll(); martOpen=true;                      check("mart",     &martOpen,     &martPage);
+  // The daycare's picker lists every banked creature -- 6 party + 18 box here,
+  // so several pages -- and pages on the rim like everything else.
+  clearAll(); daycareOpen=true; dcView=1;         check("dcpick",   &daycareOpen,  &dcPage);
+  if (dcView != 1) { printf("FAIL  dcpick     paging left the picker for the daycare's home\n"); bad++; }
   // The Pokedex pages within ONE region and changes region on a vertical swipe.
   // Every species must be reachable: it was capped at 10 flat pages when the dex
   // was 151 long, which silently hid everything past 160 once it grew to 386.

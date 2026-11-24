@@ -180,7 +180,9 @@ void startTrainerBattle(uint8_t idx, bool hard);
 uint8_t currentExploreRegion();
 bool startWildBattle(uint8_t region, bool hard);
 void onTap(int16_t x, int16_t y);   // the first-boot shots tap their way in
-extern bool exploreOpen, gymOpen, playerOpen, martOpen;
+extern bool exploreOpen, gymOpen, playerOpen, martOpen, daycareOpen;
+extern uint8_t dcView;
+void daycareOpened(); void dcDebugPick(uint8_t a, uint8_t b);
 extern ItemKey martConfirmItem;
 extern bool galleryDirty;
 extern uint8_t galleryRegion;
@@ -304,6 +306,18 @@ static int shotMode(const char *screen, const char *out, int lvl, int iv, int de
   else if (!strcmp(screen, "mart")) { pet.wallet = 12345; pet.stepsTotal = 87654; martOpen = true; }
   else if (!strcmp(screen, "martconfirm")) {
     pet.wallet = 12345; pet.stepsTotal = 87654; martOpen = true; martConfirmItem = IT_SUPERPOTION;
+  }
+  else if (!strcmp(screen, "daycare") || !strcmp(screen, "dcpick")) {
+    // a compatible pair (CHARIZARD + CHARMELEON) and one that is not (SQUIRTLE)
+    const int16_t dex[3] = { 6, 5, 7 };
+    for (int i = 0; i < 3; i++) {
+      PartyMon m; m.dex = dex[i]; m.level = 30 + i * 4;
+      m.ivAtk = 31; m.ivDef = 12; m.ivSpe = 25; m.ivHp = 18; m.shiny = (i == 1);
+      party.replaceAt(i, m);
+    }
+    daycareOpen = true; daycareOpened();
+    dcDebugPick(0, 1);
+    if (!strcmp(screen, "dcpick")) { dcDebugPick(0, 0xFF); dcView = 1; }
   }
   else if (!strcmp(screen, "gyms")) { gymOpen = true; }
   else if (!strcmp(screen, "gympick")) { gymOpen = true; gymPick = true; }

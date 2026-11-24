@@ -20,7 +20,7 @@ with the feature-fork versions.
 | `game_events.cpp/.h` | Event bus for gameplay systems | Add sinks only after checking event ordering and duplicate delivery |
 | `tasks.cpp/.h` | Daily and weekly tasks | Depends on event bus, Pet, Party, inventory/items, wild, tower, breed |
 | `tower.cpp/.h` | Battle tower and rematches | Depends on trainer/battle APIs and reward inventory |
-| `breed.cpp/.h` | Daycare and breeding | Depends on dex evolution tables, species art/region availability, items and party |
+| `breed.cpp/.h` (PORTED) | Daycare and breeding | Depends on dex evolution tables, species art/region availability, items and party |
 | `rank.cpp/.h` | Trainer rank, unlocks and themes | Depends on catch/challenge counters and UI/theme plumbing |
 | `challenge.cpp/.h` | Weekly gym challenge | Depends on trainer tables, party, battle and rank |
 | `persona.cpp/.h` | Creature personality modifiers | Requires a safe persistent trait field; base PartyMon has no feature-fork `spare` field |
@@ -67,14 +67,33 @@ Held items (ORAN/SITRUS/LUM BERRY, LEFTOVERS, FOCUS SASH, QUICK CLAW) work in
 gym and wild battles and are carried on `Pet::held` / `PartyMon::held`. They
 enter the game ONLY through Pokedex rewards (`dex_rewards.cpp`, ported from the
 feature fork's `items.cpp`): an item every 25 registrations, and the SHINY CHARM
-for completing a region's obtainable dex. The OVAL CHARM is in the catalogue but
-is not granted until a daycare exists. LAN battles carry no held items on
+for completing a region's obtainable dex. The OVAL CHARM
+is granted at 100 registrations and improves daycare IV inheritance. LAN battles carry no held items on
 either side (`LinkMon` has no field for one), which keeps the two boards fair.
+
+## Daycare (ported)
+
+`breed.cpp/.h` carries the feature fork's rules unchanged and its `dcare` NVS
+layout byte for byte, but the hand-over to the live egg is rebuilt: the queue is
+cleared only AFTER the pet checkpoint holding the new egg has landed, and
+`breedBegin()` finishes a hand-over a power cut interrupted. The feature fork
+cleared first and could lose the egg. The screen is a tile on this base's axis
+(`PLAYER . DAYCARE . PARTY . [PET] ...`), drawn in this base's style with
+finger-sized targets and rim paging, not the feature fork's hub. Tests:
+`breed_test` (rules, inheritance, both power-loss windows) and
+`daycare_ui_test` (real taps and swipes).
+
+## Existing saves
+
+`upgrade328_test` loads a save written by the real v3.28 firmware -- both the
+raw NVS store (install without erase) and its EXPORT (restore from backup) --
+and checks every creature, the bag and the wallet come through.
 
 ## Persistent state additions to the base save manifest
 
 Feature-specific keys added to the BASE `SAVE_FIELDS` table so far: `tasks`
-(`SK_BYTES`), and `dxgf` / `dxrw` (`SK_U8`, Pokedex rewards). `SAVE_TRANSFER_MAX`
+(`SK_BYTES`), `dxgf` / `dxrw` (`SK_U8`, Pokedex rewards) and `dcare` (`SK_BYTES`,
+the daycare). `SAVE_TRANSFER_MAX`
 was raised 4096 -> 6144 when `PartyMon` grew a held-item byte. Its fixed compact payload is versioned
 independently and bounded by the existing backup maximum. The base checkpoint
 keys `petA`, `petB`, `plyA`, and `plyB` remain present.
