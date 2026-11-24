@@ -51,6 +51,42 @@ int main(){
   // what commits everything set above. save() itself is private on purpose.
   pet.renameTrainer("DYLAN");
 
+  // Feature-port save fields are reserved in the base manifest before their
+  // gameplay modules are integrated. Seed representative values now so this
+  // test proves the backup round-trips every reserved key and its exact type.
+  uint8_t tasksBlob[20], rmWinBlob[8], dcareBlob[23], chainBlob[8];
+  uint8_t chalBlob[12], friendJournal[18], arcadeHi[8], arcadeRewards[5];
+  for (uint8_t i=0;i<sizeof(tasksBlob);i++) tasksBlob[i]=i+1;
+  for (uint8_t i=0;i<sizeof(rmWinBlob);i++) rmWinBlob[i]=0x20+i;
+  for (uint8_t i=0;i<sizeof(dcareBlob);i++) dcareBlob[i]=0x40+i;
+  for (uint8_t i=0;i<sizeof(chainBlob);i++) chainBlob[i]=0x60+i;
+  for (uint8_t i=0;i<sizeof(chalBlob);i++) chalBlob[i]=0x70+i;
+  for (uint8_t i=0;i<sizeof(friendJournal);i++) friendJournal[i]=0x80+i;
+  for (uint8_t i=0;i<sizeof(arcadeHi);i++) arcadeHi[i]=0x90+i;
+  for (uint8_t i=0;i<sizeof(arcadeRewards);i++) arcadeRewards[i]=0xA0+i;
+  {
+    Preferences extra;
+    extra.begin("tamapoke", false);
+    extra.putBytes("tasks", tasksBlob, sizeof(tasksBlob));
+    extra.putUShort("twStrk", 0x1234); extra.putUShort("twBest", 0x2345);
+    extra.putUInt("twSeed", 0x12345678);
+    extra.putBytes("rmWin", rmWinBlob, sizeof(rmWinBlob));
+    extra.putBytes("dcare", dcareBlob, sizeof(dcareBlob));
+    extra.putUChar("hitm", 7); extra.putUChar("dxrw", 3); extra.putUChar("dxgf", 9);
+    extra.putBytes("wchain", chainBlob, sizeof(chainBlob));
+    extra.putUChar("rkTop", 6); extra.putUShort("rkCat", 0x3456);
+    extra.putUShort("rkChW", 0x4567); extra.putUShort("rkChL", 0x5678);
+    extra.putUChar("rkThm", 2); extra.putUChar("rkAvG", 5);
+    extra.putBytes("chal", chalBlob, sizeof(chalBlob)); extra.putUChar("prsn", 4);
+    extra.putUInt("frId", 0x23456789); extra.putUInt("frGday", 0x3456789A);
+    extra.putUInt("frVday", 0x456789AB);
+    extra.putBytes("frJrn", friendJournal, sizeof(friendJournal));
+    extra.putBytes("arcHi", arcadeHi, sizeof(arcadeHi));
+    extra.putUInt("arcDay", 0x56789ABC);
+    extra.putBytes("arcRw", arcadeRewards, sizeof(arcadeRewards));
+    extra.end();
+  }
+
   // --- COMPLETENESS. Everything the firmware stored must be in the table.
   // This is what stops the backup rotting: add a key to pet.cpp and forget
   // save.cpp, and this fails instead of quietly dropping it from every export.
@@ -108,6 +144,41 @@ int main(){
   pet.factoryReset();
   ck(nvs().empty() || nvs().count("party")==0, "the wipe really emptied NVS");
   ck(saveImport(buf, n), "the backup imports");
+
+  // All staged feature state survived the same real export / wipe / import.
+  {
+    Preferences extra;
+    extra.begin("tamapoke", true);
+    uint8_t got[24] = {0};
+    ck(extra.getBytes("tasks", got, sizeof(tasksBlob)) == sizeof(tasksBlob) &&
+       !memcmp(got, tasksBlob, sizeof(tasksBlob)), "daily/weekly task state round-trips");
+    ck(extra.getUShort("twStrk", 0)==0x1234 && extra.getUShort("twBest", 0)==0x2345 &&
+       extra.getUInt("twSeed", 0)==0x12345678, "tower state round-trips");
+    ck(extra.getBytes("rmWin", got, sizeof(rmWinBlob)) == sizeof(rmWinBlob) &&
+       !memcmp(got, rmWinBlob, sizeof(rmWinBlob)), "rematch state round-trips");
+    ck(extra.getBytes("dcare", got, sizeof(dcareBlob)) == sizeof(dcareBlob) &&
+       !memcmp(got, dcareBlob, sizeof(dcareBlob)), "daycare state round-trips");
+    ck(extra.getUChar("hitm", 0)==7 && extra.getUChar("dxrw", 0)==3 &&
+       extra.getUChar("dxgf", 0)==9, "held item and dex reward state round-trip");
+    ck(extra.getBytes("wchain", got, sizeof(chainBlob)) == sizeof(chainBlob) &&
+       !memcmp(got, chainBlob, sizeof(chainBlob)), "wild chain state round-trips");
+    ck(extra.getUChar("rkTop", 0)==6 && extra.getUShort("rkCat", 0)==0x3456 &&
+       extra.getUShort("rkChW", 0)==0x4567 && extra.getUShort("rkChL", 0)==0x5678 &&
+       extra.getUChar("rkThm", 0)==2 && extra.getUChar("rkAvG", 0)==5,
+       "trainer rank state round-trips");
+    ck(extra.getBytes("chal", got, sizeof(chalBlob)) == sizeof(chalBlob) &&
+       !memcmp(got, chalBlob, sizeof(chalBlob)) && extra.getUChar("prsn", 0)==4,
+       "challenge and personality state round-trip");
+    ck(extra.getUInt("frId", 0)==0x23456789 && extra.getUInt("frGday", 0)==0x3456789A &&
+       extra.getUInt("frVday", 0)==0x456789AB, "friend identity and visit days round-trip");
+    ck(extra.getBytes("frJrn", got, sizeof(friendJournal)) == sizeof(friendJournal) &&
+       !memcmp(got, friendJournal, sizeof(friendJournal)), "friend exchange journal round-trips");
+    ck(extra.getBytes("arcHi", got, sizeof(arcadeHi)) == sizeof(arcadeHi) &&
+       !memcmp(got, arcadeHi, sizeof(arcadeHi)) && extra.getUInt("arcDay", 0)==0x56789ABC &&
+       extra.getBytes("arcRw", got, sizeof(arcadeRewards)) == sizeof(arcadeRewards) &&
+       !memcmp(got, arcadeRewards, sizeof(arcadeRewards)), "arcade records and prizes round-trip");
+    extra.end();
+  }
 
   Pet p2; Party q2;
   p2.begin(); q2.begin();
