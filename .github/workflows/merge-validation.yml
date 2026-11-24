@@ -1,0 +1,34 @@
+name: Merge branch validation
+
+on:
+  push:
+    branches:
+      - "merge/tamapoke-feature-port"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  firmware-core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsdl2-dev
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run firmware emulator and regression tests
+        run: bash tools/emu/tests/run.sh
+
+      - name: Verify save-safe web installer layout
+        run: python3 tools/check_installer.py
