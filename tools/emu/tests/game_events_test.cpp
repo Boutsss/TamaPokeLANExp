@@ -54,6 +54,14 @@ int main() {
     if (calls[i] == 0 || lastEv[i] != EV_TOWER_WIN || lastArg[i] != 7) all = false;
   ck(all, "all ten subscribers receive the same event");
 
+  ck(gameEventUnsubscribe(sinks[4]), "one subscriber can be removed independently");
+  int removedBefore = calls[4];
+  int retainedBefore = calls[5];
+  gameEvent(EV_CHAIN, 9);
+  ck(calls[4] == removedBefore && calls[5] == retainedBefore + 1,
+     "removing one listener leaves every other listener connected");
+  ck(!gameEventUnsubscribe(sinks[4]), "removing an absent listener is harmless");
+
   int before[10];
   for (int i = 0; i < 10; i++) before[i] = calls[i];
   gameEventClearSinks();
