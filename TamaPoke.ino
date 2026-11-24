@@ -53,7 +53,22 @@ Arduino_DataBus *bus = new Arduino_ESP32QSPI(
 Arduino_CO5300 *panel = new Arduino_CO5300(
   bus, LCD_RESET, 0 /*rotation*/, LCD_WIDTH, LCD_HEIGHT, 6, 0, 0, 0);
 // Framebuffer completo en PSRAM: dibujamos todo y hacemos flush() (sin parpadeo)
+#ifdef ARDUINO_ARCH_ESP32
+// Samples the touch chip just before every panel push: see touchSampleMidFrame().
+// Ported from vunguyen2712/TamaPoke v3.19 ("catch quick taps").
+void touchSampleMidFrame();
+class TouchCanvas : public Arduino_Canvas {
+public:
+  using Arduino_Canvas::Arduino_Canvas;
+  void flush(bool force_flush = false) override {
+    touchSampleMidFrame();
+    Arduino_Canvas::flush(force_flush);
+  }
+};
+Arduino_Canvas *gfx = new TouchCanvas(LCD_WIDTH, LCD_HEIGHT, panel);
+#else
 Arduino_Canvas *gfx = new Arduino_Canvas(LCD_WIDTH, LCD_HEIGHT, panel);
+#endif
 
 TouchDrvCST92xx touch;
 Pet pet;
@@ -1467,6 +1482,16 @@ void handleSerial() {
       if (pet.isRegistered(i)) Serial.printf(" %d", i);
     Serial.println();
     Serial.println("DONE");
+  } else if (line.startsWith("TAP ")) {        // TAP x y [ms]: a finger, through the real path
+    int x = 0, y = 0, ms = 80;
+    sscanf(line.c_str() + 4, "%d %d %d", &x, &y, &ms);
+    fakeGesture(x, y, x, y, ms / 20);
+    Serial.println("DONE");
+  } else if (line.startsWith("DRAG ")) {       // DRAG x0 y0 x1 y1 [ms]
+    int a = 0, b = 0, c = 0, d = 0, ms = 300;
+    sscanf(line.c_str() + 5, "%d %d %d %d %d", &a, &b, &c, &d, &ms);
+    fakeGesture(a, b, c, d, ms / 20);
+    Serial.println("DONE");
   } else if (line == "HEALTH") {
     Serial.printf("up=%lus heap=%u min=%u sd=%d mon=%d\n",
                   (unsigned long)(millis() / 1000), ESP.getFreeHeap(),
@@ -1515,17 +1540,81 @@ bool inPetZone(int16_t x, int16_t y) {
 }
 
 // el toque se resuelve al LEVANTAR el dedo para distinguir tap de deslizar
+// A frame takes 75-95 ms on the board (45 of it the panel push alone), and the
+// loop only polled the touch chip between frames -- so a quick tap that went
+// down and up inside one frame was never seen at all. The canvas now samples
+// the chip once more just before each push (touchSampleMidFrame, from
+// TouchCanvas::flush) and parks what it read here; handleTouch() replays those
+// samples, in order, through the same gesture logic before its own read.
+// Ported from vunguyen2712/TamaPoke v3.19, measured on the board there.
+static int16_t rtX[16], rtY[16];
+static bool rtP[16];
+static uint8_t rtHead = 0, rtTail = 0;
+static bool rtDown = false;          // what the chip said last, whoever asked
+static uint32_t rtLast = 0;          // the last time anyone read it
+
+// The console's TAP / DRAG: a gesture played through handleTouch() as if a
+// finger made it, one sample per 20 ms poll. Timing and the real panel are
+// what the emulator cannot see, so the board needs a way to be driven.
+static int16_t fkX[96], fkY[96];
+static bool fkP[96];
+static uint8_t fkN = 0, fkI = 0;
+void fakeGesture(int x0, int y0, int x1, int y1, int samples) {
+  if (samples < 2) samples = 2;
+  if (samples > 94) samples = 94;
+  for (int i = 0; i < samples; i++) {
+    fkX[i] = x0 + (x1 - x0) * i / (samples - 1);
+    fkY[i] = y0 + (y1 - y0) * i / (samples - 1);
+    fkP[i] = true;
+  }
+  fkX[samples] = x1; fkY[samples] = y1; fkP[samples] = false;
+  fkI = 0; fkN = samples + 1;
+}
+
+void touchSampleMidFrame() {
+  if (fkN || millis() - rtLast < 20) return;
+  // Same guard as handleTouch(): never wake a sleeping CST9217 -- that read
+  // used to hang ~1 s and freeze the whole loop.
+  if (!gTouchIrq && !rtDown) return;
+  uint8_t next = (rtHead + 1) & 15;
+  if (next == rtTail) return;        // full: leave it to the loop's own read
+  rtLast = millis();
+  gTouchIrq = false;
+  int16_t x = 0, y = 0;
+  bool p = touch.getPoint(&x, &y, 1) > 0;
+  rtDown = p;
+  rtX[rtHead] = x; rtY[rtHead] = y; rtP[rtHead] = p;
+  rtHead = next;
+}
+
+static void touchStep(bool pressed, int16_t x, int16_t y);
+
 void handleTouch() {
-  static uint32_t lastPoll = 0;
-  if (millis() - lastPoll < 20) return;  // 50 Hz le sobra a un dedo
-  lastPoll = millis();
+  while (rtTail != rtHead) {         // what the canvas caught mid-frame, first
+    uint8_t i = rtTail;
+    rtTail = (rtTail + 1) & 15;
+    touchStep(rtP[i], rtX[i], rtY[i]);
+  }
+  if (millis() - rtLast < 20) return;  // 50 Hz le sobra a un dedo
+  rtLast = millis();
   // solo tocamos el bus si el chip aviso por INT o si el dedo sigue abajo (hay
   // que detectar el levantamiento). Leer el CST9217 dormido se colgaba ~1s y
   // congelaba el loop entero; SensorLib no respeta el timeout de Wire.
-  if (!gTouchIrq && !wasPressed) return;
-  gTouchIrq = false;
-  int16_t x, y;
-  bool pressed = touch.getPoint(&x, &y, 1) > 0;
+  int16_t x = 0, y = 0;
+  bool pressed;
+  if (fkI < fkN) {                   // a scripted gesture from the console
+    x = fkX[fkI]; y = fkY[fkI]; pressed = fkP[fkI];
+    if (++fkI >= fkN) fkN = fkI = 0;
+  } else {
+    if (!gTouchIrq && !wasPressed) return;
+    gTouchIrq = false;
+    pressed = touch.getPoint(&x, &y, 1) > 0;
+    rtDown = pressed;
+  }
+  touchStep(pressed, x, y);
+}
+
+static void touchStep(bool pressed, int16_t x, int16_t y) {
 
   // saco de entrenamiento: cada toque cuenta al instante (aporrear rapido)
   if (sackOpen) {

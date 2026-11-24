@@ -29,7 +29,10 @@ String FakeSerial::readStringUntil(char){
 static bool gRestarted = false;
 void FakeESP::restart(){ gRestarted = true; }   // not exit(): the test continues
 
-void setup(); void render(); void handleSerial();
+void setup(); void render(); void handleSerial(); void handleTouch();
+uint8_t uiCurrentScreen(); int uiTileIndex();
+extern const char *const SCREEN_NAME[];
+extern bool menuOpen;
 extern Pet pet;
 
 static int bad=0;
@@ -183,6 +186,23 @@ int main(){
     runConsole({"TR -5 999 20"});
     ck(pet.trAtk == 0 && pet.trDef == pet.trMaxDef() && pet.trSpe == 20,
        "nonsense arguments clamp instead of wrapping");
+  }
+
+  // ---- TAP / DRAG: a gesture played through the REAL handleTouch() path, the
+  // same one the mid-frame touch samples feed (ported from vunguyen2712 v3.19)
+  {
+    while (pet.hasLearnOffer()) pet.declineLearn();
+    menuOpen = false; render();
+    auto pump = [](){ for (int i = 0; i < 30; i++) { uint32_t t = millis(); while (millis() - t < 25) {} handleTouch(); } };
+    ck(!strcmp(SCREEN_NAME[uiCurrentScreen()], "main"), "starts on the main screen");
+    runConsole({"TAP 233 60"});
+    pump();
+    ck(!strcmp(SCREEN_NAME[uiCurrentScreen()], "menu"), "TAP on the name band opens the menu");
+    menuOpen = false; render();
+    int home = uiTileIndex();
+    runConsole({"DRAG 120 233 360 233 200"});   // a long horizontal drag is a swipe
+    pump();
+    ck(uiTileIndex() == home + 1 || uiTileIndex() == home - 1, "DRAG across the panel moves one stop along the tile axis");
   }
 
   printf("%s\n", bad?"FAILURES":"all good");
