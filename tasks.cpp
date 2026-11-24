@@ -45,7 +45,7 @@ static uint32_t noticeAt = 0;
 static bool noticeSet = false;
 static uint32_t lastTickAt = 0;
 
-#define TASK_SAVE_VER 1
+#define TASK_SAVE_VER 2
 #define TASK_SAVE_LEN (2 + TASK_SLOTS * 2 + 8)
 #define BONUS_BIT (1u << TASK_SLOTS)
 
@@ -59,14 +59,18 @@ static void put32(uint8_t *p, uint32_t v) {
 static uint32_t get32(const uint8_t *p) {
   uint32_t v=0; for(uint8_t i=0;i<4;i++) v|=(uint32_t)p[i]<<(8*i); return v;
 }
-static void save() {
-  if (!opened || !have) return;
+static bool save() {
+  if (!opened || !have) return false;
   uint8_t b[TASK_SAVE_LEN];
   b[0]=TASK_SAVE_VER; b[1]=claimed;
   for(uint8_t i=0;i<TASK_SLOTS;i++) { b[2+i]=rowIdx[i]; b[2+TASK_SLOTS+i]=prog[i]; }
   put32(b+2+TASK_SLOTS*2,curDay);
   put32(b+6+TASK_SLOTS*2,curWeek);
-  prefs.putBytes("tasks",b,sizeof(b));
+  if (prefs.putBytes("tasks",b,sizeof(b)) != sizeof(b)) {
+    Serial.println("tasks: NVS write failed");
+    return false;
+  }
+  return true;
 }
 static void load() {
   have=false; claimed=0; memset(rowIdx,0,sizeof(rowIdx)); memset(prog,0,sizeof(prog));
@@ -119,11 +123,13 @@ static void rollTo(uint32_t day) {
   have=true; save();
 }
 void tasksBegin(Pet &p) {
-  gPet=&p; prefs.begin("tamapoke",false); opened=true;
+  gPet=&p;
+  opened=prefs.begin("tamapoke",false);
+  if (!opened) { Serial.println("tasks: NVS would not open"); return; }
   load(); lastTickAt=millis(); noticeSet=false;
   gameEventSubscribe(tasksOnEvent);
 }
-void tasksRefresh() { if(opened&&gPet) rollTo(gPet->today()); }
+void tasksRefresh() { if(opened&&gPet) rollTo(gPet->lastSeenEpoch / 86400UL); }
 void tasksForget() {
   have=false; opened=false; claimed=0; noticeSet=false;
   memset(prog,0,sizeof(prog)); memset(rowIdx,0,sizeof(rowIdx));
@@ -176,7 +182,10 @@ bool tasksClaim(uint8_t s) {
   if(s>=TASK_SLOTS||!tasksDone(s)||tasksClaimed(s)) return false;
   const TaskDef &d=rowOf(s);
   if(bag.count(d.item)>BAG_STACK_MAX-d.qty) return false;
-  claimed|=(uint8_t)(1u<<s); save(); bag.add(d.item,d.qty); return true;
+  uint8_t bit=(uint8_t)(1u<<s);
+  claimed|=bit;
+  if (!save()) { claimed&=(uint8_t)~bit; return false; }
+  bag.add(d.item,d.qty); return true;
 }
 bool tasksBonusClaimed(){return (claimed&BONUS_BIT)!=0;}
 bool tasksBonusReady(){
@@ -189,7 +198,9 @@ uint8_t tasksBonusQty(){return tasksBonusItem()==IT_GREATBALL?2:1;}
 bool tasksClaimBonus(){
   if(!opened) return false; tasksRefresh();
   if(!tasksBonusReady()||bag.count(tasksBonusItem())>BAG_STACK_MAX-tasksBonusQty()) return false;
-  claimed|=BONUS_BIT; save(); bag.add(tasksBonusItem(),tasksBonusQty()); return true;
+  claimed|=BONUS_BIT;
+  if (!save()) { claimed&=(uint8_t)~BONUS_BIT; return false; }
+  bag.add(tasksBonusItem(),tasksBonusQty()); return true;
 }
 uint8_t tasksClaimable(){
   if(!have) return 0; uint8_t n=0;
