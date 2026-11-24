@@ -124,11 +124,9 @@ uint8_t tasksPage = 0;
 #define MENU_H 326
 #define MENU_ROW_H 36
 #define MENU_ROW_GAP 4
-// 6 rows: STATS / BAG / POKEDEX / SETTINGS / RETIRE / CLOSE. The row height came
-// down from 52 to fit the sixth: the panel spans 70..396, and the round display
-// gives a half-width of 166 there against the 160 a row needs, so the corners
-// stay on glass. Anything taller does not -- at 6 rows of 52 it would reach 413
-// and the bottom corners would fall off the bezel.
+// 7 compact rows: STATS / BAG / POKEDEX / SETTINGS / TASKS / RETIRE / CLOSE.
+// The 36 px row height keeps all seven inside the existing 326 px panel and
+// leaves its rounded corners safely on the circular display.
 #define MENU_ROWS 7
 #define MENU_ROW_Y(i) (MENU_Y + 16 + (i) * (MENU_ROW_H + MENU_ROW_GAP))
 
@@ -268,6 +266,8 @@ void renderBox();
 // and the emulator's generated proto.h would hide that -- see the note above.
 void renderBag();
 void bagTap(int16_t x, int16_t y);
+void renderTasks();
+void tasksTap(int16_t x, int16_t y);
 uint8_t bagPages();
 void renderMart();
 void martTap(int16_t x, int16_t y);
@@ -3032,6 +3032,8 @@ void tasksTap(int16_t x, int16_t y) {
   if (x < 52 || x > 414) return;
   int row = (y - 94) / 64;
   if (y < 94 || row < 0) return;
+  int rowY = 94 + row * 64;
+  if (y < rowY || y > rowY + 54) return;  // ignore the gaps between cards
   bool paid = false;
   if (tasksPage == 0 && row == TASK_DAILY && y >= 280 && y <= 344)
     paid = tasksClaimBonus();
