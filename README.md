@@ -479,23 +479,30 @@ bash tools/flash.sh --monitor
 ### The Game Corner (hidden)
 
 There is a secret behind the arcade. On the training menu, **press and hold
-the ARCADE row** (a normal tap still opens the arcade). After a second and a
-half the row starts to turn over like a card, slowly at first and faster with a
-rising note each half-turn, until it comes to rest on its other face, **GAME
-CORNER**, and glitters. Keep holding and at five seconds you are let in; let go
-any earlier and it turns back to ARCADE. A Team Rocket grunt deals; he laughs
-when you lose and grumbles when you win.
+the ARCADE row** (a normal tap still opens the arcade). For three seconds
+nothing happens. Then the row starts to turn over like a card, slowly at first
+and faster with a rising note each half-turn, until it comes to rest on its
+hidden face: Team Rocket's, black with a red **R**, hazard stripes and **GAME
+CORNER**, glittering. Keep holding and at about six and a half seconds Team
+Rocket's riveted doors appear, shut with the R across them, and slide apart onto
+the lobby. Let go any earlier and the row turns back to ARCADE. A Team Rocket
+grunt deals; he laughs when you lose and grumbles when you win.
+
+It plays like the GBC Game Corner: **you buy coins with your money, and you
+play and buy prizes with coins only** -- prizes never take money.
 
 | | |
 |---|---|
-| Coins | bought at BUY COINS for **$1 each** (packs of 50, 500 and 2500), from the same wallet the Mart uses. The Coin Case holds **9,999**. Coins cannot be sold back. |
-| Bets | 10, 50 or 100 coins (tap the red chip to change) |
+| Coins | bought at BUY COINS at the GBC prices: **50 coins for $1,000** or **500 coins for $10,000**, from the same wallet the Mart uses. The Coin Case holds **9,999**. Coins cannot be sold back. |
+| Bets | the slots take **1, 2 or 3 coins** like the old machines; the tables take 5, 10 or 50 (tap the red chip to change) |
 | **Slots** | one pay line; tap SPIN, then STOP each reel (they also stop on their own). The result is decided when you press SPIN, not by your timing. Pays x bet: **7 7 7** 300, **R R R** 100, **BAR x3** 50, Poke Ball or bolt x3 15, moon or cherry x3 8, cherry-cherry first 4, a cherry first 2. Long-run return 92%. |
 | **High / Low** | guess whether the next card is higher or lower (ace low, king high). A tie loses. Each right guess doubles the pot (up to 9,999); CASH OUT whenever. |
 | **Blackjack** | one deck, reshuffled every hand. Dealer stands on all 17s. Blackjack pays 3:2, a win 1:1, a push returns the bet. DOUBLE on your first two cards takes exactly one more card at twice the bet. |
-| Leaving | swipe down. A blackjack hand in play is stood on and settled; a High/Low pot is cashed out; spinning reels stop and pay. |
+| **Roulette** | a single-zero wheel (0-36, in the real pocket order) with a Poke Ball hub. Bet on RED or BLACK, ODD or EVEN, 1-18 or 19-36 (each pays 1:1), a DOZEN (tap again to change which; pays 2:1) or a single NUMBER (tap its right half to step up, left half to step down; pays 35:1). 0 loses every bet except a straight bet on 0. Every bet returns 36 coins in 37 over the long run. The result is drawn when you press SPIN; the wheel and the ball only travel to it. |
+| Leaving | swipe down. A blackjack hand in play is stood on and settled; a High/Low pot is cashed out; spinning reels and a turning wheel stop and pay. |
 
-**Prizes** -- everything is **9,999 coins**. Tap a prize once to select it and
+**Prizes** -- everything is **9,999 coins** (about $200,000 worth at the
+counter, so winning at the tables is how you get there). Tap a prize once to select it and
 again to buy it; an owned prize is equipped with one tap. Page with a rim drag.
 
 | Kind | What there is |
