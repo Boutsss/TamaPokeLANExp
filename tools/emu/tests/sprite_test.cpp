@@ -15,6 +15,7 @@
 #include "party.h"
 #include "sdmon.h"
 #include <cstdio>
+#include <string>
 #include <cstring>
 uint32_t g_seed=7; FakeSerial Serial; FakeESP ESP; FakeWire Wire;
 volatile int g_touchX=0,g_touchY=0; volatile bool g_touchDown=false;
@@ -57,6 +58,26 @@ int main(){
     printf("      %d sprites loaded, %d missing from the pack\n", loaded, missing);
     ck(loaded > 300, "most of the dex has a sprite to check");
     ck(wrong == 0, "every species that loads is the species that was asked for");
+  }
+
+  // (v3.42) Past 999. The board's loaders kept a literal 999 after the
+  // emulator's was fixed, so PALDEA's last 26 never drew on hardware. Both now
+  // ask sdDexInRange(); this loads one for real and checks the board's source
+  // asks the shared rule too, since sdmon.cpp itself never runs here.
+  {
+    ck(sdDexInRange(DEX_COUNT) && sdDexInRange(1000) && !sdDexInRange(0) && !sdDexInRange(DEX_COUNT + 1),
+       "the shared sprite range runs 1..DEX_COUNT");
+    PmdMon g;
+    ck(g.load(1000, false) && g.dex == 1000, "GHOLDENGO (1000) loads -- a species past 999");
+    g.unload();
+    std::string f = __FILE__;
+    FILE *src = fopen((f.substr(0, f.rfind("/tools/emu/tests/")) + "/sdmon.cpp").c_str(), "r");
+    std::string text; char buf[4096]; size_t n;
+    while (src && (n = fread(buf, 1, sizeof buf, src)) > 0) text.append(buf, n);
+    if (src) fclose(src);
+    size_t uses = 0; for (size_t at = 0; (at = text.find("sdDexInRange(dexNum)", at)) != std::string::npos; at++) uses++;
+    ck(!text.empty() && uses == 2 && text.find("> 999") == std::string::npos,
+       "and the BOARD's two sprite loaders ask that same rule, no literal 999");
   }
 
   // THE assertion that actually bites. m.dex only records what was ASKED for,

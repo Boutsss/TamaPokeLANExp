@@ -59,6 +59,12 @@ struct SdThumbs {
 extern SdThumbs thumbs;
 
 #include "dexinfo.h"
+#include "dex.h"
+// THE range a sprite file may be asked for, for the board's loaders AND the
+// emulator's. The board kept a literal 999 after the emulator was fixed, so
+// PALDEA's last 26 (1000-1025) never drew on hardware while every emulator
+// test passed -- the twin-path trap. sprite_test asserts it at DEX_COUNT.
+static inline bool sdDexInRange(int16_t dex) { return dex >= 1 && dex <= DEX_COUNT; }
 // A species' Pokedex entry from /mons/dexinfo.bin (dexinfo.h). False with no
 // card, no file, or nothing for that species.
 bool sdDexEntry(int16_t dex, uint8_t lang, DexEntryText &out);
