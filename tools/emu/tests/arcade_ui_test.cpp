@@ -481,7 +481,7 @@ int main() {
   }
   ck(!arcadePrizeToday(), "four of six games' S prizes won: not done for today yet");
   // the two newer games' S prizes too (pinball points are score/100, surf as the others)
-  arcStart(4); skipIntro(); arcPts = 100; arcFinish(); arcGame = NONE; arcOver = false;
+  arcStart(4); skipIntro(); arcPts = 150; arcFinish(); arcGame = NONE; arcOver = false;
   ck(arcFirstGot == IT_PROTEIN && (arcFirstS & 0x20), "PINBALL's first S: a PROTEIN, on its own bit (not the all-four bonus's)");
   arcStart(5); skipIntro(); arcPts = 140; arcFinish(); arcGame = NONE; arcOver = false;
   ck(arcFirstGot == IT_CARBOS && (arcFirstS & 0x40), "SURF's first S: a CARBOS");

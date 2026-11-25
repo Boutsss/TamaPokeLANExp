@@ -61,7 +61,14 @@ bool pinStep(uint32_t dt) {
         trnPopup((int)x, (int)y - 26, b, UI_WHITE, 2);
       }
   }
-  if (e & PBE_TARGET) { sfxPlay(SFX_STATUS); trnBurst((int)arcPb.bx, (int)arcPb.by, C565(0xff, 0xd8, 0x30), 10, 3.5f); }
+  if (e & PBE_LANE) { sfxPlay(SFX_STATUS); trnBurst((int)arcPb.bx, (int)arcPb.by, C565(0xff, 0xd8, 0x30), 10, 3.5f); }
+  if (e & PBE_SLING) sfxPlay(SFX_TAP);
+  if (e & PBE_INLANE) trnPopup((int)arcPb.bx, (int)arcPb.by - 20, "+100", C565(0xff, 0xe0, 0x40), 1);
+  if (e & PBE_DROP) { sfxPlay(SFX_HIT); trnBurst((int)arcPb.bx - 10, (int)arcPb.by, C565(0x30, 0xff, 0x90), 8, 3.0f); }
+  if (e & PBE_BANK) { sfxPlay(SFX_SUPER); trnBanner(T(S_PB_BANK), C565(0x30, 0xff, 0x90), 900); }
+  if (e & PBE_ORBIT) { sfxPlay(SFX_LEVEL); trnPopup((int)arcPb.bx, (int)arcPb.by + 24, T(S_PB_ORBIT), C565(0x90, 0xf0, 0xff), 2); }
+  if (e & PBE_CATCH) { sfxPlay(SFX_MEDAL); trnBanner(T(S_PB_CATCH), C565(0xff, 0x40, 0x40), 900); trnJolt(3, 160); }
+  if (e & PBE_EJECT) sfxPlay(SFX_HIT);
   if (e & PBE_BONUS) {
     sfxPlay(SFX_SUPER);
     char b[16]; snprintf(b, sizeof(b), "x%u!", (unsigned)arcPb.mult);
@@ -162,11 +169,57 @@ void renderPinballPlay(uint32_t now, bool intro) {
     for (int k = -1; k <= 1; k++)
       gfx->drawLine((int)x0 + jx, (int)y0 + k + jy, (int)x1 + jx, (int)y1 + k + jy, k ? C565(0x20, 0xa0, 0x40) : C565(0x80, 0xff, 0x90));
   }
-  // the targets: Poke Balls, gold when lit
-  for (uint8_t i = 0; i < PB_TARGETS; i++) {
-    float x, y; pbTarget(i, &x, &y);
-    pinPokeBall((int)x + jx, (int)y + jy, (int)PB_TARGET_R + 1, arcPb.lit[i], now);
+  // every fixed wall: lane posts and the orbit in neon cyan, the slingshots
+  // as glowing triangles that flash when they fire
+  {
+    const PbWall *W; uint8_t n = pbWalls(&W);
+    for (uint8_t i = 0; i < n; i++) {
+      if (W[i].kind == PBW_SLING) continue;
+      if (W[i].y0 >= PB_GUIDE_Y - 1 && W[i].r < 3) continue;   // the guides are drawn above
+      for (int k = -1; k <= 1; k++)
+        gfx->drawLine((int)W[i].x0 + k + jx, (int)W[i].y0 + jy, (int)W[i].x1 + k + jx, (int)W[i].y1 + jy,
+                      k ? C565(0x10, 0x90, 0xc0) : C565(0x90, 0xf0, 0xff));
+    }
+    for (int g = 0; g < 2; g++) {
+      float ax, ay, bx, by, cx, cy; pbSlingshot(g == 1, &ax, &ay, &bx, &by, &cx, &cy);
+      bool hot = arcPb.slingFlash[g] > 0;
+      gfx->fillTriangle((int)ax + jx, (int)ay + jy, (int)bx + jx, (int)by + jy, (int)cx + jx, (int)cy + jy,
+                        hot ? UI_WHITE : C565(0x30, 0x10, 0x60));
+      uint16_t e = hot ? C565(0xff, 0xff, 0x80) : C565(0xff, 0x50, 0xd0);
+      gfx->drawLine((int)ax + jx, (int)ay + jy, (int)cx + jx, (int)cy + jy, e);
+      gfx->drawLine((int)ax + jx + (g ? -1 : 1), (int)ay + jy, (int)cx + jx + (g ? -1 : 1), (int)cy + jy, e);
+      gfx->drawLine((int)ax + jx, (int)ay + jy, (int)bx + jx, (int)by + jy, C565(0x90, 0xf0, 0xff));
+      gfx->drawLine((int)bx + jx, (int)by + jy, (int)cx + jx, (int)cy + jy, C565(0x90, 0xf0, 0xff));
+      float ix, iy; pbInlane(g == 1, &ix, &iy);   // the inlane rollover: a little arrow
+      gfx->fillTriangle((int)ix - 5 + jx, (int)iy - 4 + jy, (int)ix + 5 + jx, (int)iy - 4 + jy, (int)ix + (g ? -2 : 2) + jx, (int)iy + 5 + jy, C565(0xff, 0xe0, 0x40));
+    }
   }
+  // the top lanes: a light under each, lit gold
+  for (uint8_t i = 0; i < PB_LANES; i++) {
+    float x, y; pbLane(i, &x, &y);
+    bool on = arcPb.lit[i];
+    if (on) gfx->fillCircle((int)x + jx, (int)y + jy, 9, C565(0x80, 0x60, 0x00));
+    gfx->fillCircle((int)x + jx, (int)y + jy, 6, on ? C565(0xff, 0xd8, 0x30) : C565(0x40, 0x30, 0x60));
+    gfx->drawCircle((int)x + jx, (int)y + jy, 6, on ? UI_WHITE : C565(0x90, 0x80, 0xc0));
+  }
+  // the orbit's top: an arrow that glows after a ride
+  { float ox, oy; pbOrbitSensor(&ox, &oy);
+    uint16_t c = arcPb.orbits ? pinHue((uint8_t)(now / 6)) : C565(0x60, 0x50, 0x90);
+    gfx->fillTriangle((int)ox - 6 + jx, (int)oy - 6 + jy, (int)ox - 6 + jx, (int)oy + 6 + jy, (int)ox - 14 + jx, (int)oy + jy, c); }
+  // the drop targets: bright when standing, a dim slot when down
+  for (uint8_t i = 0; i < PB_DROPS; i++) {
+    float x0, y0, x1, y1; pbDrop(i, &x0, &y0, &x1, &y1);
+    if (arcPb.dropUp[i]) {
+      gfx->fillRect((int)x0 - 3 + jx, (int)y0 + jy, 7, (int)(y1 - y0), C565(0x30, 0xff, 0x90));
+      gfx->drawRect((int)x0 - 3 + jx, (int)y0 + jy, 7, (int)(y1 - y0), UI_WHITE);
+    } else {
+      gfx->fillRect((int)x0 - 1 + jx, (int)y0 + jy, 3, (int)(y1 - y0), C565(0x20, 0x40, 0x30));
+    }
+  }
+  // the CATCH saucer: a Poke Ball sunk into the table, shut while it holds one
+  { float sx, sy; pbSaucer(&sx, &sy);
+    gfx->fillCircle((int)sx + jx, (int)sy + jy, (int)PB_SAUCER_R + 5, C565(0x08, 0x04, 0x20));
+    pinPokeBall((int)sx + jx, (int)sy + jy, (int)PB_SAUCER_R, arcPb.saucerMs > 0, now); }
   // the bumpers: three types, glowing in their colours, white-hot when struck
   for (uint8_t i = 0; i < PB_BUMPERS; i++) {
     float x, y; pbBumper(i, &x, &y);
@@ -196,15 +249,16 @@ void renderPinballPlay(uint32_t now, bool intro) {
   char b[20];
   snprintf(b, sizeof(b), "%lu", (unsigned long)arcPb.score);
   trnTextO(b, CX, 20, 3, C565(0xff, 0xe0, 0x40));
+  // the balls left and the multiplier sit under the flippers, clear of the top lanes
   for (uint8_t i = 0; i < PB_BALLS; i++) {
     bool have = i < arcPb.balls;
-    gfx->fillCircle(CX - 18 + i * 18, 56, 6, have ? C565(0xd0, 0xd8, 0xe8) : C565(0x30, 0x30, 0x40));
-    if (have) gfx->fillCircle(CX - 20 + i * 18, 54, 2, UI_WHITE);
+    gfx->fillCircle(CX - 18 + i * 18, 438, 6, have ? C565(0xd0, 0xd8, 0xe8) : C565(0x30, 0x30, 0x40));
+    if (have) gfx->fillCircle(CX - 20 + i * 18, 436, 2, UI_WHITE);
   }
   if (arcPb.mult > 1) {
     snprintf(b, sizeof(b), "x%u", (unsigned)arcPb.mult);
-    gfx->fillRoundRect(CX + 40, 47, 34, 18, 9, pinHue((uint8_t)(now / 8)));
-    trnText(b, CX + 57, 52, 1, RGB565_BLACK);
+    gfx->fillRoundRect(CX + 34, 429, 34, 18, 9, pinHue((uint8_t)(now / 8)));
+    trnText(b, CX + 51, 434, 1, RGB565_BLACK);
   }
   pinMultShown = arcPb.mult;
   // between balls: say so

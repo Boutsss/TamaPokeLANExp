@@ -438,6 +438,9 @@ enum StrId : uint16_t {
   S_ARC_SURF,      // the arcade: SURF / PINBALL
   S_ARC_HSURF,     // the arcade: SURF / PINBALL
   S_PB_BALL_FMT,   // the arcade: SURF / PINBALL
+  S_PB_BANK,       // the arcade: PINBALL
+  S_PB_ORBIT,      // the arcade: PINBALL
+  S_PB_CATCH,      // the arcade: PINBALL
   STR_COUNT
 };
 

@@ -469,7 +469,7 @@ static int shotMode(const char *screen, const char *out, int lvl, int iv, int de
       arcStart(4); arcSkipIntro();
       Pinball &p = arcPinball();
       p.step(800);
-      p.score = 12400; p.mult = 3; p.lit[0] = true; p.balls = 2;
+      p.score = 12400; p.mult = 3; p.lit[0] = true; p.balls = 2; p.dropUp[1] = false;
       p.bx = 250; p.by = 200; p.vx = 0; p.vy = 0; p.upR = true; p.step(40);
       p.bx = 252; p.by = 196; p.flash[2] = 150;
       for (int k = 0; k < 6; k++) { p.bx += 4; p.by += 6; pinStep(0); }

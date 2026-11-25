@@ -110,7 +110,7 @@ static const uint16_t ARC_GRADE_AT[ARC_GAMES][3] = {
   { 40, 90, 150 },    // memory
   { 12, 30, 56 },     // echo  (n rounds cleared = n*(n+1): 3, 5, 7 rounds)
   { 20, 40, 65 },     // pop-up
-  { 25, 50, 100 },    // pinball: score / 100 (pinball_test measures who reaches them)
+  { 60, 90, 150 },    // pinball: score / 100 (pinball_test measures who reaches them)
   { 30, 90, 140 },    // surf: combos add up; surf_test measures a human-paced player
 };
 // Rank prizes (v3.21). Each game pays once a day for an A and once more for an

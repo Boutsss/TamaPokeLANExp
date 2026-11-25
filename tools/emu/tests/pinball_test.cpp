@@ -9,7 +9,7 @@
 //  - the rules: bumpers 100 x multiplier, the three targets light and pay a
 //    bonus and a multiplier, three balls a game;
 //  - the arcade GRADES are measured, not guessed: points are score/PB_PTS_DIV,
-//    and the thresholds ui_arcade.ino uses (B 25, A 50, S 100) are checked
+//    and the thresholds ui_arcade.ino uses (B 60, A 90, S 150) are checked
 //    against what a careful player and a careless one actually reach.
 #include "Arduino.h"
 #include "Preferences.h"
@@ -67,27 +67,72 @@ static Result playGame(bool flips, uint32_t frameMs) {
 
 int main(){
   // ---- rules, by hand
+  auto place = [](Pinball &p, float x, float y, float vx, float vy) { p.bx = x; p.by = y; p.vx = vx; p.vy = vy; };
   {
     Pinball p; p.start();
     ck(p.balls == PB_BALLS && p.state == PB_SERVE && p.mult == 1, "a game starts with three balls, waiting to serve");
     p.step(800);
     ck(p.state == PB_ROLL, "the ball serves itself");
     float x, y; pbBumper(0, &x, &y);
-    p.bx = x; p.by = y - PB_BUMPER_R - PB_BALL_R + 2; p.vx = 0; p.vy = 300;
+    place(p, x, y - PB_BUMPER_R - PB_BALL_R + 2, 0, 300);
     p.events = 0; p.step(5);
     ck(p.score == 100 && (p.events & PBE_BUMPER) && p.vy < 0, "a bumper scores 100 and kicks the ball away");
-    for (uint8_t i = 0; i < PB_TARGETS; i++) {
-      pbTarget(i, &x, &y);
-      p.bx = x; p.by = y + PB_TARGET_R + PB_BALL_R - 2; p.vx = 0; p.vy = -300;
-      p.step(5);
+    // the top lanes: roll down each one
+    for (uint8_t i = 0; i < PB_LANES; i++) {
+      pbLane(i, &x, &y);
+      place(p, x, y - 14, 0, 120); p.step(30);
+      place(p, PB_CX, 260, 0, 0); p.step(2);       // out of the lane again
     }
-    ck(p.mult == 2 && !p.lit[0] && p.score >= 100 + 3 * 250 + 1000, "all three targets: the bonus, x2, and they reset");
+    ck(p.mult == 2 && !p.lit[0] && p.score >= 100 + 3 * 250 + 1000, "all three top lanes: the bonus, x2, and they reset");
     pbBumper(1, &x, &y);
     uint32_t before = p.score;
-    p.bx = x; p.by = y - PB_BUMPER_R - PB_BALL_R + 2; p.vx = 0; p.vy = 300;
+    place(p, x, y - PB_BUMPER_R - PB_BALL_R + 2, 0, 300);
     p.step(5);
     ck(p.score - before == 200, "the multiplier doubles a bumper");
-    p.bx = PB_CX; p.by = PB_DRAIN_Y + 1; p.vy = 100; p.vx = 0;
+    // LANE CHANGE: a fresh flipper press shifts the lit lanes right
+    p.lit[0] = true; p.lit[1] = p.lit[2] = false;
+    place(p, PB_CX, 200, 0, 0);
+    p.upL = true; p.step(5); p.upL = false; p.step(5);
+    ck(!p.lit[0] && p.lit[1] && !p.lit[2], "a flipper press moves the lit lane one to the right");
+    p.upL = true; p.step(5); p.step(5); p.step(5);
+    ck(!p.lit[0] && !p.lit[1] && p.lit[2], "a new press moves it again, but holding it does not keep moving them");
+    p.upL = false; p.step(5);
+    // a slingshot's face kicks
+    float ax, ay, bx2, by2, cx2, cy2; pbSlingshot(false, &ax, &ay, &bx2, &by2, &cx2, &cy2);
+    float mx = (ax + cx2) / 2, my = (ay + cy2) / 2;
+    before = p.score; p.events = 0;
+    place(p, mx + 12, my - 4, -150, 60); p.step(10);
+    ck((p.events & PBE_SLING) && p.score - before == 10 && p.vx > 0 && p.vy < -200, "the left slingshot kicks a ball up and in, toward the bumpers");
+    // the drop targets: each drops; all three score the bank and stand back up
+    before = p.score;
+    for (uint8_t i = 0; i < PB_DROPS; i++) {
+      float x0, y0, x1, y1; pbDrop(i, &x0, &y0, &x1, &y1);
+      place(p, x0 + 12, (y0 + y1) / 2, -300, 0); p.step(20);
+      place(p, PB_CX, 260, 0, 0); p.step(1);
+    }
+    ck(!p.dropUp[0] && !p.dropUp[2] && p.banks == 1 && p.score - before >= 3 * 300 + 2500, "three drop targets down: the bank bonus");
+    p.step(1300);
+    ck(p.dropUp[0] && p.dropUp[1] && p.dropUp[2], "and they stand back up");
+    // the CATCH saucer holds the ball, then spits it out
+    pbSaucer(&x, &y);
+    before = p.score; p.events = 0;
+    place(p, x, y - 4, 0, 80); p.step(10);
+    ck(p.saucerMs > 0 && p.catches == 1 && p.score - before == 2000, "the CATCH saucer holds the ball and scores 2000");
+    for (int k = 0; k < 8; k++) p.step(50);
+    ck(p.bx == x && p.by == y, "and keeps holding it");
+    p.events = 0;
+    for (int k = 0; k < 12; k++) { uint16_t e0 = p.events; p.step(50); if (p.events & PBE_EJECT) break; (void)e0; }
+    ck(p.saucerMs == 0 && (p.events & PBE_EJECT) && p.by > y, "then spits it back out into the table");
+    // the orbit and the inlanes
+    float ox, oy; pbOrbitSensor(&ox, &oy);
+    before = p.score;
+    place(p, ox + 10, oy + 10, -300, -200); p.step(40);
+    ck(p.orbits == 1 && p.score - before >= 500, "riding the orbit to the top scores it");
+    float ix, iy; pbInlane(true, &ix, &iy);
+    before = p.score; p.events = 0;
+    place(p, ix + 14, iy - 6, -200, 60); p.step(40);
+    ck((p.events & PBE_INLANE) && p.score - before >= 100, "an inlane rollover scores");
+    place(p, PB_CX, PB_DRAIN_Y + 1, 0, 100);
     p.step(5);
     ck(p.balls == 2 && p.state == PB_SERVE, "a drained ball takes one away and serves the next");
   }
@@ -126,16 +171,16 @@ int main(){
     auto share = [](const std::vector<uint32_t> &v, uint32_t pts) {
       int n = 0; for (auto sc : v) if (sc / PB_PTS_DIV >= pts) n++; return 100.0 * n / v.size(); };
     printf("      %u ms frames -- careful: median %u, top 10%% %u; B %.0f%%  A %.0f%%  S %.0f%%\n",
-           frame, good[good.size() / 2], good[good.size() * 9 / 10], share(good, 25), share(good, 50), share(good, 100));
-    printf("      %u ms frames -- never flips: median %u; B %.0f%%\n", frame, idle[idle.size() / 2], share(idle, 25));
+           frame, good[good.size() / 2], good[good.size() * 9 / 10], share(good, 60), share(good, 90), share(good, 150));
+    printf("      %u ms frames -- never flips: median %u; B %.0f%%\n", frame, idle[idle.size() / 2], share(idle, 60));
     printf("      careful deciles:");
     for (int q = 1; q < 10; q++) printf(" %u", good[good.size() * q / 10]);
     printf("\n");
     ck(!escaped, "no ball ever leaves the table except down the drain");
     ck(!hung, "no ball hangs forever");
     ck(good[good.size() / 2] > 2 * idle[idle.size() / 2], "flipping matters: a careful player scores well over twice a careless one");
-    ck(share(idle, 25) < 10, "a player who never flips almost never makes even a B");
-    ck(share(good, 25) > 55 && share(good, 100) > 3 && share(good, 100) < 30,
+    ck(share(idle, 60) < 10, "a player who never flips almost never makes even a B");
+    ck(share(good, 60) > 55 && share(good, 150) > 3 && share(good, 150) < 30,
        "a careful player usually makes a B, and an S is a real but rare achievement");
   }
 
