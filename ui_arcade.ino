@@ -1,6 +1,7 @@
 // ---------- the ARCADE (v3.18) ----------
-// Four short games played for fun, joy and the bond -- unlike the three
-// training games (ui_train.ino) they train no stat. Ported from vunguyen2712's
+// Six short games played for fun, joy and the bond -- unlike the three
+// training games (ui_train.ino) they train no stat. PINBALL and SURF (v3.33)
+// live in ui_arcade_games.ino. Ported from vunguyen2712's
 // TamaPoke (v3.18-v3.21); reached from the TRAIN panel's 4th row, as there.
 // README "Arcade" has the player-facing numbers.
 //
@@ -91,8 +92,11 @@ uint16_t fxTypeCol(uint8_t type, uint8_t k);
 // ---- strings: ES EN FR DE IT PT, ASCII only
 
 // ---- the four games and their tables
-#define ARC_GAMES 4
-enum : uint8_t { ARC_CATCH = 0, ARC_MEMORY, ARC_ECHO, ARC_POP };
+#define ARC_GAMES 6
+// APPEND-ONLY: a game's index is where its best and its prizes are stored.
+enum : uint8_t { ARC_CATCH = 0, ARC_MEMORY, ARC_ECHO, ARC_POP, ARC_PINBALL, ARC_SURF };
+#define ARC_OLD_GAMES 4          // what arcHi/arcRw held before v3.33
+#define SURF_MS 45000UL          // a SURF session (ui_arcade_games.ino)
 #define ARC_NONE 0xFF            // arcGame on the picker
 #define ARC_INTRO_MS 1800UL      // trnDrawIntro's 3-2-1 (600 ms a number)
 #define ARC_HEADER_Y 60          // a tap above this leaves a game (banking)
@@ -106,22 +110,29 @@ static const uint16_t ARC_GRADE_AT[ARC_GAMES][3] = {
   { 40, 90, 150 },    // memory
   { 12, 30, 56 },     // echo  (n rounds cleared = n*(n+1): 3, 5, 7 rounds)
   { 20, 40, 65 },     // pop-up
+  { 25, 50, 100 },    // pinball: score / 100 (pinball_test measures who reaches them)
+  { 30, 90, 140 },    // surf: combos add up; surf_test measures a human-paced player
 };
 // Rank prizes (v3.21). Each game pays once a day for an A and once more for an
 // S -- an S first pays the S prize, and an A after it pays nothing more that
 // day. The FIRST S ever in a game adds a held item, and S-ranking all four
 // adds ULTRA BALLs, once each. Existing items only.
-static const uint8_t ARC_PRIZE_A[ARC_GAMES] = { IT_ORAN_BERRY, IT_POKEBALL, IT_POKEBALL, IT_ORAN_BERRY };
-static const uint8_t ARC_PRIZE_S[ARC_GAMES] = { IT_SITRUS_BERRY, IT_GREATBALL, IT_GREATBALL, IT_SITRUS_BERRY };
-static const uint8_t ARC_FIRST_S[ARC_GAMES] = { IT_LEFTOVERS, IT_QUICK_CLAW, IT_FOCUS_SASH, IT_LUM_BERRY };
+static const uint8_t ARC_PRIZE_A[ARC_GAMES] = { IT_ORAN_BERRY, IT_POKEBALL, IT_POKEBALL, IT_ORAN_BERRY, IT_POTION, IT_ORAN_BERRY };
+static const uint8_t ARC_PRIZE_S[ARC_GAMES] = { IT_SITRUS_BERRY, IT_GREATBALL, IT_GREATBALL, IT_SITRUS_BERRY, IT_SUPERPOTION, IT_SITRUS_BERRY };
+static const uint8_t ARC_FIRST_S[ARC_GAMES] = { IT_LEFTOVERS, IT_QUICK_CLAW, IT_FOCUS_SASH, IT_LUM_BERRY, IT_PROTEIN, IT_CARBOS };
 #define ARC_ALLS_ITEM IT_ULTRABALL
 #define ARC_ALLS_N 3
 #define ARC_ALLS_BIT 0x10        // arcFirstS: the all-four bonus has been paid
-static const uint16_t ARC_GAME_COL[ARC_GAMES] = { C565(0xd8, 0x3c, 0x4a), C565(0x2a, 0x7a, 0xd0), C565(0x9a, 0x4a, 0xd8), C565(0x9a, 0x6a, 0x3a) };
+// arcFirstS's bit for game g. The first four keep bits 0-3 and bit 4 stays the
+// all-four bonus (both already on players' boards), so later games skip it.
+static uint8_t arcFirstBit(uint8_t g) { return (uint8_t)(g < 4 ? 1u << g : 1u << (g + 1)); }
+static const uint16_t ARC_GAME_COL[ARC_GAMES] = { C565(0xd8, 0x3c, 0x4a), C565(0x2a, 0x7a, 0xd0), C565(0x9a, 0x4a, 0xd8), C565(0x9a, 0x6a, 0x3a),
+                                                  C565(0xe0, 0x2a, 0xa0), C565(0x10, 0x9a, 0xe0) };
 
 static StrId arcName(uint8_t g) {
   switch (g) { case ARC_CATCH: return S_ARC_CATCH; case ARC_MEMORY: return S_ARC_MEMORY;
-               case ARC_ECHO: return S_ARC_ECHO; default: return S_ARC_POP; }
+               case ARC_ECHO: return S_ARC_ECHO; case ARC_PINBALL: return S_ARC_PINBALL;
+               case ARC_SURF: return S_ARC_SURF; default: return S_ARC_POP; }
 }
 
 // ---- session state (non-static: arcade_ui_test reads it)
@@ -143,27 +154,34 @@ uint16_t arcSessions = 0;        // sessions banked since boot (tests)
 static uint32_t arcLastFrame = 0;
 static uint8_t arcStarsShown = 0;
 
-// ---- persistence: "arcHi" 4 x uint16 bests, "arcDay" the prize day (+1),
-// "arcRw" what today's prizes and the one-time bonuses have paid (5 B)
+// ---- persistence: "arcHi" ARC_GAMES x uint16 bests, "arcDay" the prize day
+// (+1), "arcRw" what today's prizes and the one-time bonuses have paid:
+// [paid 0..3][firstS][paid 4..]. Both were sized for FOUR games before v3.33,
+// so both are read by PREFIX -- a four-game record fills the first four and
+// leaves the new games at zero, and the firstS byte stays where it was.
 static Preferences arcPrefs;
 static bool arcPrefsOpen = false;
 void arcLoad() {
   if (!arcPrefsOpen) { arcPrefs.begin("tamapoke", false); arcPrefsOpen = true; }
   memset(arcBest, 0, sizeof(arcBest));
-  if (arcPrefs.getBytesLength("arcHi") == sizeof(arcBest)) arcPrefs.getBytes("arcHi", arcBest, sizeof(arcBest));
+  size_t hn = arcPrefs.getBytesLength("arcHi");
+  if (hn && hn <= sizeof(arcBest) && hn % 2 == 0) arcPrefs.getBytes("arcHi", arcBest, hn);
   arcPrizeDay = arcPrefs.getUInt("arcDay", 0);
   uint8_t rw[ARC_GAMES + 1] = { 0 };
-  if (arcPrefs.getBytesLength("arcRw") == sizeof(rw)) arcPrefs.getBytes("arcRw", rw, sizeof(rw));
-  memcpy(arcPaid, rw, ARC_GAMES);
-  arcFirstS = rw[ARC_GAMES];
+  size_t rn = arcPrefs.getBytesLength("arcRw");
+  if (rn && rn <= sizeof(rw)) arcPrefs.getBytes("arcRw", rw, rn);
+  memcpy(arcPaid, rw, ARC_OLD_GAMES);
+  arcFirstS = rw[ARC_OLD_GAMES];
+  memcpy(arcPaid + ARC_OLD_GAMES, rw + ARC_OLD_GAMES + 1, ARC_GAMES - ARC_OLD_GAMES);
 }
 static void arcSave() {
   if (!arcPrefsOpen) { arcPrefs.begin("tamapoke", false); arcPrefsOpen = true; }
   arcPrefs.putBytes("arcHi", arcBest, sizeof(arcBest));
   arcPrefs.putUInt("arcDay", arcPrizeDay);
   uint8_t rw[ARC_GAMES + 1];
-  memcpy(rw, arcPaid, ARC_GAMES);
-  rw[ARC_GAMES] = arcFirstS;
+  memcpy(rw, arcPaid, ARC_OLD_GAMES);
+  rw[ARC_OLD_GAMES] = arcFirstS;
+  memcpy(rw + ARC_OLD_GAMES + 1, arcPaid + ARC_OLD_GAMES, ARC_GAMES - ARC_OLD_GAMES);
   arcPrefs.putBytes("arcRw", rw, sizeof(rw));
 }
 
@@ -214,9 +232,9 @@ void arcFinish() {
       if (bag.add(it)) { arcPrizeGot = it; arcPaid[arcGame] = arcGrade; }
     }
     // the one-time bonuses: this game's first S, then all four
-    if (arcGrade == 3 && !(arcFirstS & (1 << arcGame)) && bag.add(ARC_FIRST_S[arcGame])) {
+    if (arcGrade == 3 && !(arcFirstS & arcFirstBit(arcGame)) && bag.add(ARC_FIRST_S[arcGame])) {
       arcFirstGot = ARC_FIRST_S[arcGame];
-      arcFirstS |= (uint8_t)(1 << arcGame);
+      arcFirstS |= arcFirstBit(arcGame);
     }
     if ((arcFirstS & 0x0F) == 0x0F && !(arcFirstS & ARC_ALLS_BIT) && bag.add(ARC_ALLS_ITEM, ARC_ALLS_N)) {
       arcAllSGot = true;
@@ -229,6 +247,9 @@ void arcFinish() {
   sfxPlay((arcNewHi && arcPts) || arcFirstGot || arcAllSGot ? SFX_MEDAL : SFX_LEVEL);
   if (arcGrade >= 2) trnBurst(CX, 140, UI_BAR_WARN, 16, 7.0f);
 }
+
+// Tests and screenshots step past the 3-2-1 with this.
+void arcSkipIntro() { trnGoAt = millis() - 1500; arcLastFrame = millis(); if (arcGame == ARC_SURF) arcUntil = trnGoAt + SURF_MS; }
 
 // Leave the game for the picker, banking what was earned.
 void arcLeave() {
@@ -1061,22 +1082,29 @@ void arcStart(uint8_t g) {
     case ARC_CATCH: arcUntil = trnGoAt + CAT_MS; startCatch(); break;
     case ARC_MEMORY: arcUntil = trnGoAt + MEM_MS; startMemory(); break;
     case ARC_ECHO: arcUntil = trnGoAt + ECHO_MS; startEcho(); break;
+    case ARC_PINBALL: arcUntil = trnGoAt + 20UL * 60 * 1000; pinStart(); break;   // three balls, not a clock
+    case ARC_SURF: arcUntil = trnGoAt + SURF_MS; surfStart(); break;
     default: arcUntil = trnGoAt + POP_MS; startPop(); break;
   }
   sfxPlay(SFX_TAP);
 }
 
-// ---- the picker: one tall row per game with its icon and its best
-#define ARC_ROW_X 66
-#define ARC_ROW_W 334
-#define ARC_ROW_H 58
-#define ARC_ROW_Y(i) (88 + (i) * 66)
-
+// ---- the picker: a 2 x 3 grid of tiles, each with its icon, name and best.
+// Six rows do not fit the round panel; three rows of two do. arcTile() is THE
+// geometry: the renderer, the taps and the tests ask it.
+#define ARC_TILE_W 164
+#define ARC_TILE_H 84
+#define ARC_TILE_GAP 6
+#define ARC_TILE_Y0 74
+void arcTile(uint8_t i, int *x, int *y, int *w, int *h) {
+  *w = ARC_TILE_W; *h = ARC_TILE_H;
+  *x = (i % 2) ? CX + ARC_TILE_GAP / 2 : CX - ARC_TILE_GAP / 2 - ARC_TILE_W;
+  *y = ARC_TILE_Y0 + (i / 2) * (ARC_TILE_H + ARC_TILE_GAP);
+}
 int arcRowAt(int16_t x, int16_t y) {
-  if (x < ARC_ROW_X - 6 || x > ARC_ROW_X + ARC_ROW_W + 6) return -1;
   for (uint8_t i = 0; i < ARC_GAMES; i++) {
-    int ry = ARC_ROW_Y(i);
-    if (y >= ry - 4 && y <= ry + ARC_ROW_H + 4) return i;
+    int tx, ty, tw, th; arcTile(i, &tx, &ty, &tw, &th);
+    if (x >= tx && x < tx + tw && y >= ty && y < ty + th) return i;
   }
   return -1;
 }
@@ -1101,6 +1129,17 @@ static void arcIcon(uint8_t g, int cx, int cy, uint32_t now) {
       }
       gfx->fillCircle(cx, cy, 5, UI_INK);
       break;
+    case ARC_PINBALL:   // a ball between two flippers
+      gfx->fillTriangle(cx - 20, cy + 6, cx - 18, cy + 12, cx - 4, cy + 14, C565(0xff, 0x8a, 0x20));
+      gfx->fillTriangle(cx + 20, cy + 6, cx + 18, cy + 12, cx + 4, cy + 14, C565(0xff, 0x40, 0xb0));
+      gfx->fillCircle(cx, cy - 6 - (int)((now / 120) % 6), 7, C565(0xb0, 0xb8, 0xc8));
+      gfx->fillCircle(cx - 2, cy - 8 - (int)((now / 120) % 6), 2, UI_WHITE);
+      break;
+    case ARC_SURF:      // a wave and a board
+      gfx->fillCircle(cx, cy + 8, 14, C565(0x10, 0x9a, 0xe0));
+      gfx->fillCircle(cx + 8, cy + 2, 8, C565(0x9a, 0xf0, 0xff));
+      arcEllipse(cx - 4, cy - 2, 16, 4, C565(0xff, 0x3c, 0x8c));
+      break;
     default:
       arcEllipse(cx, cy + 14, 20, 6, C565(0x1e, 0x12, 0x0a));
       gfx->fillRoundRect(cx - 13, cy - 14, 26, 28, 12, C565(0x8a, 0x5a, 0x34));
@@ -1115,35 +1154,39 @@ static void renderArcadePicker(uint32_t now) {
   featBegin(T(S_ARC_TITLE));
   bool ok = arcadeAllowed();
   for (uint8_t i = 0; i < ARC_GAMES; i++) {
-    int y = ARC_ROW_Y(i);
-    gfx->fillRoundRect(ARC_ROW_X, y, ARC_ROW_W, ARC_ROW_H, 14, ok ? UI_WHITE : UI_TRACK);
-    gfx->drawRoundRect(ARC_ROW_X, y, ARC_ROW_W, ARC_ROW_H, 14, UI_INK);
-    gfx->drawRoundRect(ARC_ROW_X + 1, y + 1, ARC_ROW_W - 2, ARC_ROW_H - 2, 13, UI_INK);
-    // the coloured tab with the game's icon
-    gfx->fillRoundRect(ARC_ROW_X + 6, y + 6, 50, ARC_ROW_H - 12, 10, ok ? ARC_GAME_COL[i] : 0x8410);
-    gfx->fillCircle(ARC_ROW_X + 31, y + ARC_ROW_H / 2, 20, UI_WHITE);
-    arcIcon(i, ARC_ROW_X + 31, y + ARC_ROW_H / 2, now);
+    int x, y, w, h; arcTile(i, &x, &y, &w, &h);
+    gfx->fillRoundRect(x, y, w, h, 14, ok ? UI_WHITE : UI_TRACK);
+    gfx->drawRoundRect(x, y, w, h, 14, UI_INK);
+    gfx->drawRoundRect(x + 1, y + 1, w - 2, h - 2, 13, UI_INK);
+    // the coloured tab with the game's icon, top left
+    gfx->fillRoundRect(x + 6, y + 6, 46, 46, 10, ok ? ARC_GAME_COL[i] : 0x8410);
+    gfx->fillCircle(x + 29, y + 29, 19, UI_WHITE);
+    arcIcon(i, x + 29, y + 29, now);
+    // the name, beside it; long names drop a size
+    const char *nm = T(arcName(i));
+    int sz = (int)strlen(nm) * 12 <= w - 62 ? 2 : 1;
     gfx->setTextColor(ok ? UI_INK : 0x8410);
-    gfx->setTextSize(2);
-    gfx->setCursor(ARC_ROW_X + 68, y + 10);
-    gfx->print(T(arcName(i)));
+    gfx->setTextSize(sz);
+    gfx->setCursor(x + 58, y + (sz == 2 ? 14 : 18));
+    gfx->print(nm);
     char b[24];
     snprintf(b, sizeof(b), T(S_ARC_BEST), arcBest[i]);
+    gfx->setTextSize(1);
     gfx->setTextColor(0x8410);
-    gfx->setCursor(ARC_ROW_X + 68, y + 32);
+    gfx->setCursor(x + 58, y + 38);
     gfx->print(b);
     if (arcBest[i] && arcGradeOf(i, arcBest[i]) == 3)       // a game you have S-ranked wears a star
-      trnStar(ARC_ROW_X + ARC_ROW_W - 26, y + ARC_ROW_H / 2, 13, UI_BAR_WARN);
+      trnStar(x + w - 16, y + h - 16, 10, UI_BAR_WARN);
     uint8_t paid = arcPaidToday(i);                         // which of today's prizes it has paid
     if (paid) {
       const char *t = paid == 3 ? T(S_ARC_TODAY_S) : T(S_ARC_TODAY_A);
       gfx->setTextSize(1);
       gfx->setTextColor(paid == 3 ? C565(0x1a, 0x8a, 0x3a) : 0x8410);
-      gfx->setCursor(ARC_ROW_X + ARC_ROW_W - 48 - (int)strlen(t) * 6, y + ARC_ROW_H - 14);
+      gfx->setCursor(x + 10, y + h - 16);
       gfx->print(t);
     }
   }
-  featLine(358, arcadePrizeToday() ? T(S_ARC_PRIZE_DONE) : T(S_ARC_PRIZE_READY), arcadePrizeToday() ? 0x8410 : C565(0xc0, 0x80, 0x10));
+  featLine(360, arcadePrizeToday() ? T(S_ARC_PRIZE_DONE) : T(S_ARC_PRIZE_READY), arcadePrizeToday() ? 0x8410 : C565(0xc0, 0x80, 0x10));
   featBackPill();
   gfx->flush();
 }
@@ -1210,13 +1253,18 @@ void renderArcade() {
     case ARC_ECHO:
       renderEchoPlay(now, intro);
       break;
+    case ARC_PINBALL:
+      if (!intro && !arcOver && pinStep(dt)) arcFinish();
+      renderPinballPlay(now, intro);
+      break;
+    case ARC_SURF: renderSurfPlay(now, intro, dt); break;
     default: renderPopPlay(now, intro); break;
   }
   if (arcOver) renderArcResults(now);
   trnDrawFx(now);
   if (!arcOver) {
-    static const StrId HINT[ARC_GAMES] = { S_ARC_HCATCH, S_ARC_HMEMORY, S_ARC_HECHO, S_ARC_HPOP };
-    trnDrawIntro(now, T(HINT[arcGame & 3]));
+    static const StrId HINT[ARC_GAMES] = { S_ARC_HCATCH, S_ARC_HMEMORY, S_ARC_HECHO, S_ARC_HPOP, S_PB_HOW, S_ARC_HSURF };
+    trnDrawIntro(now, T(HINT[arcGame < ARC_GAMES ? arcGame : 0]));
   }
   gfx->flush();
 }
@@ -1233,6 +1281,9 @@ void arcadeTap(int16_t x, int16_t y) {
     if (now - arcOverAt >= ARC_RESULT_TAP_MS) { arcGame = ARC_NONE; arcOver = false; sfxPlay(SFX_TAP); }
     return;
   }
+  // Pinball's flippers are HELD anywhere on a half, top included: no tap on
+  // its table means anything, the header strip either.
+  if (arcGame == ARC_PINBALL) return;
   // the header strip leaves, banking; no game puts a target up there
   if (y < ARC_HEADER_Y) { arcLeave(); return; }
   if (trnInIntro(now)) return;
@@ -1240,6 +1291,7 @@ void arcadeTap(int16_t x, int16_t y) {
     case ARC_CATCH: catTap(x, y); break;
     case ARC_MEMORY: memTap(x, y); break;
     case ARC_ECHO: echoTap(x, y); break;
+    case ARC_SURF: surfTap(x, y); break;
     default: popTap(x, y); break;
   }
 }
@@ -1248,7 +1300,11 @@ void arcadeTap(int16_t x, int16_t y) {
 // from handleTouch for every poll; it only reads, so the gesture resolver
 // still sees the press (a vertical swipe leaves, as everywhere).
 void arcadeTouchPeek(bool pressed, int16_t x, int16_t y) {
-  if (!pressed || !arcPlaying() || arcGame != ARC_CATCH || y < ARC_HEADER_Y) return;
+  // pinball needs the RELEASE too: a flipper drops when the finger lifts
+  if (arcadeOpen && arcGame == ARC_PINBALL) { pinPeek(pressed && arcPlaying() && !trnInIntro(millis()), x); return; }
+  if (!pressed || !arcPlaying()) return;
+  if (arcGame == ARC_SURF) { surfPeek(pressed, y); return; }
+  if (arcGame != ARC_CATCH || y < ARC_HEADER_Y) return;
   catGoal = catClampX(x);
 }
 
@@ -1259,6 +1315,7 @@ void arcadeSwipe(int dir) {
   if (arcGame == ARC_NONE) { arcadeBack(); return; }
   if (arcOver) { arcGame = ARC_NONE; arcOver = false; return; }
   if (arcGame == ARC_CATCH) return;
+  if (arcGame == ARC_PINBALL && pinBallLive()) return;   // a slid flipper press is not a goodbye
   arcLeave();
 }
 // Vertical: one level back -- a game (banked) to the list, the list to the
@@ -1268,6 +1325,10 @@ bool arcadeSwipeV(int dir) {
   (void)dir;
   if (arcGame == ARC_NONE) return false;
   if (arcOver) { arcGame = ARC_NONE; arcOver = false; return true; }
+  // SURF is steered by dragging up and down, and a pinball flipper press can
+  // slide: in neither is a vertical swipe a request to leave.
+  if (arcGame == ARC_SURF) return true;
+  if (arcGame == ARC_PINBALL && pinBallLive()) return true;
   arcLeave();
   return true;
 }

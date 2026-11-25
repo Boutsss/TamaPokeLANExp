@@ -713,7 +713,6 @@ uint8_t casinoView();
 void renderCasino();
 void casinoTap(int16_t x, int16_t y);
 void casinoSwipeDown();
-bool casinoPinballLive();
 void casinoOpenNow();
 void casinoClose();
 void casinoTouchPeek(bool pressed, int16_t x, int16_t y, bool onArcadeRow);
@@ -1384,7 +1383,7 @@ void loop() {
   // 85 ms en juego/saco: margen seguro para que el redibujado no pise el envio
   // DMA del frame anterior (a 40-65 ms solapaba y causaba flashes negros; con
   // sprites grandes el dibujo tarda mas, asi que se deja colchon)
-  if (now - lastRender >= (uint32_t)((gameOpen || sackOpen || spdOpen || arcadeOpen || casinoPinballLive()) ? 85 : 100)) {
+  if (now - lastRender >= (uint32_t)((gameOpen || sackOpen || spdOpen || arcadeOpen) ? 85 : 100)) {
     lastRender = now;
     render();
   }

@@ -432,13 +432,12 @@ enum StrId : uint16_t {
   S_MS_NATURE,        // the STATS page (ui_monstats.ino)
   S_MS_BOND,        // the STATS page (ui_monstats.ino)
   S_MS_TR,        // the STATS page (ui_monstats.ino)
-  S_CAS_PINBALL,   // Game Corner pinball
-  S_PB_PLAY,       // Game Corner pinball
-  S_PB_HOW,        // Game Corner pinball
-  S_PB_SCORE,      // Game Corner pinball
-  S_PB_BEST,       // Game Corner pinball
-  S_PB_PAID,       // Game Corner pinball
-  S_PB_TABLE,      // Game Corner pinball
+  S_ARC_PINBALL,   // the arcade: PINBALL
+  S_PB_HOW,        // the arcade: PINBALL
+  S_PB_SCORE,      // the arcade: PINBALL
+  S_ARC_SURF,      // the arcade: SURF / PINBALL
+  S_ARC_HSURF,     // the arcade: SURF / PINBALL
+  S_PB_BALL_FMT,   // the arcade: SURF / PINBALL
   STR_COUNT
 };
 

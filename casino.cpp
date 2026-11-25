@@ -298,7 +298,7 @@ void casinoEquip(uint8_t kind, uint8_t i) {
 #define CASINO_VER 1
 #define CASINO_KEY "casino"
 
-static size_t pack(uint8_t *b) {   // <= 96 bytes: 2+4+8+16+2+2+2+4+4 = 44
+static size_t pack(uint8_t *b) {   // <= 96 bytes: 2+4+8+16+2+2+2+4 = 40
   size_t n = 2;
   memcpy(b + n, &casino.backs, 4); n += 4;
   memcpy(b + n, casino.bgs, sizeof(casino.bgs)); n += sizeof(casino.bgs);
@@ -308,7 +308,6 @@ static size_t pack(uint8_t *b) {   // <= 96 bytes: 2+4+8+16+2+2+2+4+4 = 44
   memcpy(b + n, &casino.hlBest, 2); n += 2;
   memcpy(b + n, &casino.bjWins, 2); n += 2;
   memcpy(b + n, &casino.slotBest, 4); n += 4;
-  memcpy(b + n, &casino.pinBest, 4); n += 4;
   b[0] = CASINO_VER;
   b[1] = (uint8_t)n;
   return n;
@@ -336,7 +335,6 @@ void casinoBegin() {
     memcpy(&casino.hlBest, cur + at, 2); at += 2;
     memcpy(&casino.bjWins, cur + at, 2); at += 2;
     memcpy(&casino.slotBest, cur + at, 4); at += 4;
-    memcpy(&casino.pinBest, cur + at, 4); at += 4;
   }
   casino.backs |= 1;                          // the defaults are always owned
   casino.bgs[0] |= 1;

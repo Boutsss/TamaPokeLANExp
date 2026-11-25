@@ -203,17 +203,3 @@ void Pinball::step(uint32_t ms) {
     }
   }
 }
-
-// Coins for a finished game, against PB_PRICE paid to start it. Tiers rather
-// than a rate, so a game is a clear goal. Set from what pinball_test MEASURES:
-// a player who reacts to three balls in four gets back about 0.9 of the price
-// on average (scores 5000 a game, one in ten past 10000), and one who never
-// flips gets nothing. The house keeps its edge; skill is what beats it.
-uint16_t pinballPayout(uint32_t score) {
-  if (score >= 25000) return 100;
-  if (score >= 15000) return 50;
-  if (score >= 9000) return 25;
-  if (score >= 5000) return 10;
-  if (score >= 2500) return 4;
-  return 0;
-}

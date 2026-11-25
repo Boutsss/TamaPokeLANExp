@@ -38,8 +38,9 @@ void arcadeClose(); void uiTileGo(int i); int uiTrainRowCenterY(int i);
 extern uint32_t trnGoAt; extern uint16_t trnCombo, trnBestCombo;
 // arcade
 extern uint8_t arcGame; extern bool arcOver; extern uint32_t arcUntil, arcOverAt;
-extern uint16_t arcPts, arcBest[4], arcSessions; extern uint8_t arcGrade, arcJoyGot, arcBondGot, arcPrizeGot;
-extern uint32_t arcPrizeDay; extern bool arcNewHi, arcAllSGot; extern uint8_t arcFirstGot, arcFirstS, arcPaid[4];
+extern uint16_t arcPts, arcBest[6], arcSessions; extern uint8_t arcGrade, arcJoyGot, arcBondGot, arcPrizeGot;
+extern uint32_t arcPrizeDay; extern bool arcNewHi, arcAllSGot; extern uint8_t arcFirstGot, arcFirstS, arcPaid[6];
+void arcTile(uint8_t i, int *x, int *y, int *w, int *h);
 uint8_t arcPaidToday(uint8_t g); bool arcadePrizeToday();
 void arcStart(uint8_t); void arcFinish(); void arcLeave(); void arcLoad(); void renderArcade();
 void arcadeTap(int16_t, int16_t); void arcadeTouchPeek(bool, int16_t, int16_t);
@@ -139,7 +140,11 @@ int main() {
   onTap(233, uiTrainRowCenterY(3));      // the fourth row, asked of the firmware
   ck(arcadeOpen && !trainOpen && onScreen("arcade"), "TRAIN's fourth row (ARCADE) opens the arcade");
   ck(arcGame == NONE && flushes(), "it opens on the picker, which flushes");
-  ck(arcRowAt(233, 88 + 20) == 0 && arcRowAt(233, 88 + 3 * 66 + 20) == 3 && arcRowAt(233, 30) == -1, "picker rows map to the four games");
+  {
+    bool own = true;
+    for (uint8_t i = 0; i < 6; i++) { int x, y, w, h; arcTile(i, &x, &y, &w, &h); if (arcRowAt(x + w / 2, y + h / 2) != i) own = false; }
+    ck(own && arcRowAt(233, 30) == -1, "every picker tile maps to its own game, all six");
+  }
   onSwipe(1);
   ck(!arcadeOpen && trainOpen, "a horizontal swipe on the picker goes back to the training menu");
   onTap(233, uiTrainRowCenterY(3));
@@ -176,7 +181,7 @@ int main() {
 
   // the hint and countdown
   uint32_t t0 = millis();
-  onTap(233, 88 + 20);                    // picker row 0 = BERRY CATCH
+  { int x, y, w, h; arcTile(0, &x, &y, &w, &h); onTap(x + w / 2, y + h / 2); }   // picker tile 0 = BERRY CATCH
   ck(arcGame == G_CATCH && trnGoAt >= t0 + 1700 && trnGoAt <= t0 + 1900, "a picker row starts its game on a 1.8 s countdown");
   ck(arcUntil == trnGoAt + 45000, "BERRY CATCH: the 45 s clock starts after it");
   bool allFlush = flushes();
@@ -423,7 +428,7 @@ int main() {
   arcStart(G_CATCH); arcLeave();
   ck(pet.joy == joyB && pet.bond == bondB && pet.energy == eneB && evPlay == 0, "a 0-point session pays nothing and emits nothing");
   // an S: joy, bond, energy, EV_PLAY, today's S prize and the game's first-S item
-  arcPrizeDay = 0; arcFirstS = 0; memset(arcPaid, 0, 4);
+  arcPrizeDay = 0; arcFirstS = 0; memset(arcPaid, 0, 6);
   bag.clear();
   joyB = pet.joy; bondB = pet.bond;
   arcStart(G_POP); skipIntro(); arcPts = 70; arcFinish();
@@ -474,7 +479,13 @@ int main() {
     }
     ck(pet.bond - b0 == got && got <= 20 && arcBondGot == 0, "twenty S sessions: the bond stops at the daily cap of 20");
   }
-  ck(arcadePrizeToday(), "all four S prizes won: the list says so");
+  ck(!arcadePrizeToday(), "four of six games' S prizes won: not done for today yet");
+  // the two newer games' S prizes too (pinball points are score/100, surf as the others)
+  arcStart(4); skipIntro(); arcPts = 100; arcFinish(); arcGame = NONE; arcOver = false;
+  ck(arcFirstGot == IT_PROTEIN && (arcFirstS & 0x20), "PINBALL's first S: a PROTEIN, on its own bit (not the all-four bonus's)");
+  arcStart(5); skipIntro(); arcPts = 140; arcFinish(); arcGame = NONE; arcOver = false;
+  ck(arcFirstGot == IT_CARBOS && (arcFirstS & 0x40), "SURF's first S: a CARBOS");
+  ck(arcadePrizeToday(), "all six S prizes won: the list says so");
   // next day: the prizes again, but not the one-time bonuses
   pet.dbgSetSeen(1700000000UL + 86400UL);
   ck(arcPaidToday(G_ECHO) == 0 && !arcadePrizeToday(), "a new day clears today's prizes");
@@ -491,17 +502,31 @@ int main() {
 
   // =================================================================== PERSIST
   printf("-- persistence\n");
-  uint16_t want[4]; memcpy(want, arcBest, sizeof(want)); uint32_t wantDay = arcPrizeDay;
-  uint8_t wantPaid[4]; memcpy(wantPaid, arcPaid, 4); uint8_t wantFirst = arcFirstS;
-  memset(arcBest, 0, sizeof(arcBest)); arcPrizeDay = 0; memset(arcPaid, 0, 4); arcFirstS = 0;
+  uint16_t want[6]; memcpy(want, arcBest, sizeof(want)); uint32_t wantDay = arcPrizeDay;
+  uint8_t wantPaid[6]; memcpy(wantPaid, arcPaid, 6); uint8_t wantFirst = arcFirstS;
+  memset(arcBest, 0, sizeof(arcBest)); arcPrizeDay = 0; memset(arcPaid, 0, 6); arcFirstS = 0;
   arcLoad();
   ck(!memcmp(want, arcBest, sizeof(want)) && arcPrizeDay == wantDay && want[G_POP] >= 70 && want[G_MEMORY] >= 200,
      "bests and the prize day come back from NVS");
-  ck(!memcmp(wantPaid, arcPaid, 4) && arcFirstS == wantFirst && wantFirst == 0x1F, "today's paid ranks and the one-time bonuses come back too");
+  ck(!memcmp(wantPaid, arcPaid, 6) && arcFirstS == wantFirst && wantFirst == 0x7F, "today's paid ranks and the one-time bonuses come back too");
   {
     Preferences p; p.begin("tamapoke", true);
-    ck(p.isKey("arcHi") && p.getBytesLength("arcHi") == 8 && p.isKey("arcDay") && p.getBytesLength("arcRw") == 5,
-       "stored under arcHi (8 B), arcDay and arcRw (5 B)");
+    ck(p.isKey("arcHi") && p.getBytesLength("arcHi") == 12 && p.isKey("arcDay") && p.getBytesLength("arcRw") == 7,
+       "stored under arcHi (12 B), arcDay and arcRw (7 B)");
+  }
+  // A FOUR-game record (before v3.33) still loads: its bests, its paid ranks
+  // and its one-time bonuses land where they were, the new games at zero.
+  {
+    uint16_t hi4[4] = { 11, 22, 33, 44 };
+    uint8_t rw5[5] = { 2, 3, 0, 2, 0x13 };
+    { Preferences w; w.begin("tamapoke", false); w.putBytes("arcHi", hi4, 8); w.putBytes("arcRw", rw5, 5); w.end(); }
+    arcLoad();
+    ck(arcBest[0] == 11 && arcBest[3] == 44 && arcBest[4] == 0 && arcBest[5] == 0, "a four-game arcHi keeps its four bests");
+    ck(arcPaid[1] == 3 && arcPaid[3] == 2 && arcPaid[4] == 0 && arcFirstS == 0x13, "and a four-game arcRw its paid ranks and its bonuses (the all-four bit included)");
+    // put the real record back for what follows
+    { Preferences w; w.begin("tamapoke", false); w.putBytes("arcHi", want, 12); w.end(); }
+    memcpy(arcPaid, wantPaid, 6); arcFirstS = wantFirst;
+    arcLoad(); memcpy(arcPaid, wantPaid, 6); arcFirstS = wantFirst;
   }
   // reopening the screen re-reads NVS (a WIPE or IMPORT would not leave stale bests)
   arcBest[G_CATCH] = 9999;

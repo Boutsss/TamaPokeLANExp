@@ -8,8 +8,9 @@
 //    ball back up into the bumpers;
 //  - the rules: bumpers 100 x multiplier, the three targets light and pay a
 //    bonus and a multiplier, three balls a game;
-//  - the PAYOUT is measured, not guessed: a game costs PB_PRICE coins and the
-//    house keeps an edge against a careless player, while a careful one can win.
+//  - the arcade GRADES are measured, not guessed: points are score/PB_PTS_DIV,
+//    and the thresholds ui_arcade.ino uses (B 25, A 50, S 100) are checked
+//    against what a careful player and a careless one actually reach.
 #include "Arduino.h"
 #include "Preferences.h"
 #include "pinball.h"
@@ -122,21 +123,20 @@ int main(){
       Result b = playGame(false, frame); idle.push_back(b.score); escaped |= b.escaped; hung |= b.hung;
     }
     std::sort(good.begin(), good.end()); std::sort(idle.begin(), idle.end());
-    double payGood = 0, payIdle = 0;
-    for (auto s : good) payGood += pinballPayout(s);
-    for (auto s : idle) payIdle += pinballPayout(s);
-    payGood /= good.size(); payIdle /= idle.size();
-    printf("      %u ms frames -- careful: median %u, top 10%% %u, pays %.1f / %u coins\n",
-           frame, good[good.size() / 2], good[good.size() * 9 / 10], payGood, PB_PRICE);
-    printf("      %u ms frames -- never flips: median %u, pays %.1f / %u coins\n", frame, idle[idle.size() / 2], payIdle, PB_PRICE);
+    auto share = [](const std::vector<uint32_t> &v, uint32_t pts) {
+      int n = 0; for (auto sc : v) if (sc / PB_PTS_DIV >= pts) n++; return 100.0 * n / v.size(); };
+    printf("      %u ms frames -- careful: median %u, top 10%% %u; B %.0f%%  A %.0f%%  S %.0f%%\n",
+           frame, good[good.size() / 2], good[good.size() * 9 / 10], share(good, 25), share(good, 50), share(good, 100));
+    printf("      %u ms frames -- never flips: median %u; B %.0f%%\n", frame, idle[idle.size() / 2], share(idle, 25));
     printf("      careful deciles:");
     for (int q = 1; q < 10; q++) printf(" %u", good[good.size() * q / 10]);
     printf("\n");
     ck(!escaped, "no ball ever leaves the table except down the drain");
     ck(!hung, "no ball hangs forever");
     ck(good[good.size() / 2] > 2 * idle[idle.size() / 2], "flipping matters: a careful player scores well over twice a careless one");
-    ck(payIdle < PB_PRICE * 0.5, "the house keeps a big edge over a player who does not play");
-    ck(payGood > PB_PRICE * 0.7 && payGood < PB_PRICE * 1.6, "a careful player roughly breaks even: a game worth playing, not a coin printer");
+    ck(share(idle, 25) < 10, "a player who never flips almost never makes even a B");
+    ck(share(good, 25) > 55 && share(good, 100) > 3 && share(good, 100) < 30,
+       "a careful player usually makes a B, and an S is a real but rare achievement");
   }
 
   printf("%s\n", bad?"FAILURES":"all good");

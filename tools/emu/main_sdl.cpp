@@ -208,9 +208,8 @@ extern uint8_t playerPage;
 extern bool gymHard, pickOpen;
 extern uint8_t partyDetail;
 extern uint8_t monStats;
-void casinoOpenNow(); void casinoDbgSkipDoor(); void casinoTap(int16_t,int16_t);
-void casLobbyBtn(uint8_t i, int *x, int *y, int *w, int *h); void casPinballPlayBtn(int *x, int *y, int *w, int *h);
-struct Pinball; Pinball &casPinballMut();
+void arcadeOpenFromTrain(); void arcStart(uint8_t); void arcSkipIntro();
+Pinball &arcPinball(); bool pinStep(uint32_t); uint8_t surfStep(uint32_t); void surfPeek(bool, int16_t);
 enum : uint8_t { MS_NONE_ = 0, MS_LIVE_, MS_PARTY_, MS_BOX_ };
 extern bool boxOpen; extern uint8_t boxSwapFrom;
 extern bool btlNewBadge; extern uint32_t btlWinUntil;
@@ -463,18 +462,21 @@ static int shotMode(const char *screen, const char *out, int lvl, int iv, int de
     pet.lastLearnLevel = 0;
     pet.checkLearnGates();
   }
-  else if (!strcmp(screen, "pinball") || !strcmp(screen, "pinballplay")) {
-    // the Game Corner's pinball: the table before a game, or mid-ball
-    pet.coins = 120;
-    casinoOpenNow(); casinoDbgSkipDoor();
-    int x, y, w, h; casLobbyBtn(6, &x, &y, &w, &h); casinoTap(x + w / 2, y + h / 2);
-    if (!strcmp(screen, "pinballplay")) {
-      casPinballPlayBtn(&x, &y, &w, &h); casinoTap(x + w / 2, y + h / 2);
-      Pinball &p = casPinballMut();
-      p.step(800);                       // served
+  else if (!strcmp(screen, "pinball") || !strcmp(screen, "surf") || !strcmp(screen, "arcade")) {
+    // the arcade: its list, or a game mid-play (past the 3-2-1)
+    arcadeOpenFromTrain();
+    if (!strcmp(screen, "pinball")) {
+      arcStart(4); arcSkipIntro();
+      Pinball &p = arcPinball();
+      p.step(800);
       p.score = 12400; p.mult = 3; p.lit[0] = true; p.balls = 2;
       p.bx = 250; p.by = 200; p.vx = 0; p.vy = 0; p.upR = true; p.step(40);
       p.bx = 252; p.by = 196; p.flash[2] = 150;
+      for (int k = 0; k < 6; k++) { p.bx += 4; p.by += 6; pinStep(0); }
+    } else if (!strcmp(screen, "surf")) {
+      arcStart(5); arcSkipIntro();
+      for (int k = 0; k < 120; k++) surfStep(50);
+      surfPeek(true, 300); for (int k = 0; k < 10; k++) surfStep(50);
     }
   }
   else if (!strcmp(screen, "party") || !strcmp(screen, "partyfull") ||

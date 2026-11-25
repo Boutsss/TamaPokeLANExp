@@ -7,10 +7,11 @@
 // the circle itself; two inlane guides run from the wall down to the flipper
 // pivots, and a ball that falls between the flippers is lost.
 //
-// Rules: 3 balls a game. Pop bumpers score 100, the three ROCKET targets 250
-// each; lighting all three scores a 1000 bonus times the multiplier and raises
-// the multiplier (to x5), which also multiplies the bumpers. The score is paid
-// out in coins at the end (pinballPayout()).
+// Rules: 3 balls a game. Pop bumpers score 100, the three Poke Ball targets
+// 250 each; lighting all three scores a 1000 bonus times the multiplier and
+// raises the multiplier (to x5), which also multiplies the bumpers. It is an
+// ARCADE game (ui_arcade.ino): its points are score / PB_PTS_DIV, graded like
+// the others.
 #pragma once
 #include <stdint.h>
 
@@ -33,7 +34,7 @@
 #define PB_TARGET_R 9.0f
 #define PB_BALLS 3
 #define PB_MULT_MAX 5
-#define PB_PRICE 10           // coins for a game of three balls
+#define PB_PTS_DIV 100        // arcade points = score / this
 
 enum PbState : uint8_t { PB_IDLE = 0, PB_SERVE, PB_ROLL, PB_OVER };
 // One-frame events for sound and flashes, OR'd into Pinball::events.
@@ -62,4 +63,3 @@ struct Pinball {
 void pbBumper(uint8_t i, float *x, float *y);
 void pbTarget(uint8_t i, float *x, float *y);
 void pbGuide(bool right, float *x0, float *y0, float *x1, float *y1);
-uint16_t pinballPayout(uint32_t score);    // coins for a finished game

@@ -133,7 +133,6 @@ struct CasinoState {
   uint16_t hlBest = 0;                   // best High/Low streak
   uint16_t bjWins = 0;
   uint32_t slotBest = 0;                 // biggest single slot payout
-  uint32_t pinBest = 0;                  // best pinball score (appended: older records read 0)
 };
 extern CasinoState casino;
 
