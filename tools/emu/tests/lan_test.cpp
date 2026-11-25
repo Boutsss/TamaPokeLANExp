@@ -35,6 +35,7 @@ extern bool pickOpen, lanWantHost;
 extern uint8_t pickTrainer, pickPage;
 extern bool pickHard;
 void startLinkBattle();
+uint8_t btlSwitchList(uint8_t *out); void btlSwitchCellPos(uint8_t pos, int *x, int *y);
 void pickTap(int16_t x, int16_t y);
 void pickDefault(uint8_t cap);
 uint8_t squadCap(uint8_t, bool);
@@ -103,7 +104,12 @@ int main(){
   btlMenu = 2;                       // the POKEMON list
   uint8_t was = btlSquadAt;
   sent = 0;
-  battleTap(69 + 168 + 10, 286 + 10);   // cell 1 of the switch grid
+  {   // the switch list entry for squad slot 1, asked of the firmware
+    uint8_t list[6]; uint8_t n = btlSwitchList(list); int pos = -1;
+    for (uint8_t k = 0; k < n; k++) if (list[k] == 1) pos = k;
+    int x, y; btlSwitchCellPos(pos < 0 ? 0 : pos, &x, &y);
+    battleTap(x + 10, y + 10);
+  }
   ck(btlSquadAt==was, "the guest does not switch locally");
   ck(sent==1 && lastPkt[0]==LM_ACT, "it sends the request instead");
   ck(LINK_ACT_IS_SWITCH(lastPkt[3]) && LINK_ACT_SLOT(lastPkt[3])==1,

@@ -84,6 +84,7 @@ static void fire() {
 }
 
 // One press/release at (x,y), driven exactly as the SDL event loop drives it.
+uint8_t btlSwitchList(uint8_t *out); void btlSwitchCellPos(uint8_t pos, int *x, int *y);
 static void click(int x, int y) {
   g_touchX = x; g_touchY = y; g_touchDown = true;
   fire();
@@ -514,12 +515,15 @@ int main(int argc, char **argv) {
 
   uint8_t was = btlSquadAt;
   uint16_t swFoeHp0 = btlFoe.hp;
-  click(69 + 40, 286 + 22);             // slot 0 = the one already out: inert
-  if (btlSquadAt != was) { printf("FAIL: switching to the active creature was allowed\n"); return 1; }
-  printf("PASS: you cannot switch to the one already out\n");
+  {
+    uint8_t list[6]; uint8_t n = btlSwitchList(list);
+    bool active = false; for (uint8_t k = 0; k < n; k++) if (list[k] == was) active = true;
+    if (active) { printf("FAIL: the active creature is offered as a switch\n"); return 1; }
+    printf("PASS: the one already out is not offered\n");
+  }
 
   btlMenu = 2;
-  click(69 + 168 + 40, 286 + 22);       // slot 1
+  { int x, y; btlSwitchCellPos(0, &x, &y); click(x + 40, y + 22); }   // the first one offered
   if (btlSquadAt == was) { printf("FAIL: the switch did not happen\n"); return 1; }
   printf("PASS: switching brings on another creature (slot %u -> %u)\n", was, btlSquadAt);
   bool costTurn = (btlYou.hp < btlYou.maxHp) || (btlFoe.hp == swFoeHp0);

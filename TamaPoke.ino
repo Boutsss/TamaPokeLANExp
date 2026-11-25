@@ -53,6 +53,19 @@
 #include "ghost.h"
 #include "card.h"
 #include "box_filter.h"
+
+// A page variable is one byte on most screens and two on the pickers that can
+// list the whole PC box (6 + 1200 creatures, 4 a page, is past 255 pages) --
+// CLAUDE.md trap 2 again. RimPage reads and writes either.
+// Declared up here, by the includes: arduino-cli generates a prototype for
+// uiRimTarget() above the first function, and it returns one of these.
+struct RimPage {
+  uint8_t *p8 = nullptr;
+  uint16_t *p16 = nullptr;
+  bool ok() const { return p8 || p16; }
+  uint16_t get() const { return p16 ? *p16 : (p8 ? *p8 : 0); }
+  void set(uint16_t v) { if (p16) *p16 = v; else if (p8) *p8 = (uint8_t)v; }
+};
 #include "noart.h"   // speciesHasArt(): the friends visit draws a number when no art
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
@@ -836,6 +849,17 @@ uint8_t btlMsgCount = 0;   // queued lines; a tap shows the next
 #define BTL_BACK_H UI_TAP_MIN
 #define BTL_BACK_X (233 - BTL_BACK_W / 2)
 #define BTL_BACK_Y 396
+// The SWITCH list: every OTHER member of the squad -- up to five -- in a panel
+// over the lower half of the fight, three rows of two. It used to reuse the
+// move grid's four cells and drew squad slots 0..3 only, the active one among
+// them, so with a team of six at most three choices showed and the last two
+// members could never be sent in. btlSwitchList()/btlSwitchCellAt() are the
+// one answer for the renderer, the taps and the tests.
+#define BSW_W 156
+#define BSW_H 60
+#define BSW_X0 (233 - BSW_W - 4)
+#define BSW_Y0 178
+#define BSW_PANEL_Y 142
 #define BTL_HIT_X0(i) (BTL_CELL_X(i) - BTL_HIT_PAD)
 // The far edges stop one pixel short so the four boxes TILE: the gap between
 // two cells is split down the middle with no pixel left over and none shared.
@@ -3158,16 +3182,6 @@ void uiTileGo(int i) {
 // there are. Three separate switches over the same list -- one to draw the
 // scrollbar, one to page, one for the test -- is precisely the shape CLAUDE.md
 // warns about, so draw, input and test all come through here.
-// A page variable is one byte on most screens and two on the pickers that can
-// list the whole PC box (6 + 1200 creatures, 4 a page, is past 255 pages) --
-// CLAUDE.md trap 2 again. RimPage reads and writes either.
-struct RimPage {
-  uint8_t *p8 = nullptr;
-  uint16_t *p16 = nullptr;
-  bool ok() const { return p8 || p16; }
-  uint16_t get() const { return p16 ? *p16 : (p8 ? *p8 : 0); }
-  void set(uint16_t v) { if (p16) *p16 = v; else if (p8) *p8 = (uint8_t)v; }
-};
 static RimPage uiRimTarget(uint16_t *pages) {
   uint16_t n = 1;
   uint8_t *p = nullptr;
@@ -5402,23 +5416,35 @@ void renderBattle() {
       gfx->print(T(S_BAG_EMPTY));
     }
   } else if (btlMenu == 2) {
+    // who to bring on instead: all the others, the fainted ones greyed
+    gfx->fillRoundRect(48, BSW_PANEL_Y, 370, BTL_BACK_Y - BSW_PANEL_Y - 6, 18, UI_WHITE);
+    gfx->drawRoundRect(48, BSW_PANEL_Y, 370, BTL_BACK_Y - BSW_PANEL_Y - 6, 18, UI_INK);
+    gfx->setTextColor(UI_INK);
+    gfx->setTextSize(2);
+    gfx->setCursor(CX - (int)strlen(T(S_BTL_SWITCH)) * 6, BSW_PANEL_Y + 10);
+    gfx->print(T(S_BTL_SWITCH));
     drawBtlBack();
-    // who to bring on instead; the current one and anything fainted is inert
-    for (uint8_t i = 0; i < btlSquadN && i < 4; i++) {
-      int x = BTL_CELL_X(i), y = BTL_CELL_Y(i);
-      const Combatant &m = (i == btlSquadAt) ? btlYou : btlSquad[i];
-      bool usable = (i != btlSquadAt) && !m.fainted();
-      gfx->fillRoundRect(x, y, BTL_CELL_W, BTL_CELL_H, 10, usable ? UI_BG_DAY : UI_TRACK);
-      gfx->drawRoundRect(x, y, BTL_CELL_W, BTL_CELL_H, 10, usable ? UI_INK : 0x8410);
+    uint8_t list[TRAINER_TEAM_MAX];
+    uint8_t n = btlSwitchList(list);
+    for (uint8_t pos = 0; pos < n; pos++) {
+      const Combatant &m = btlSquad[list[pos]];
+      bool usable = !m.fainted();
+      int x, y; btlSwitchCellPos(pos, &x, &y);
+      gfx->fillRoundRect(x, y, BSW_W, BSW_H, 10, usable ? UI_BG_DAY : UI_TRACK);
+      gfx->drawRoundRect(x, y, BSW_W, BSW_H, 10, usable ? UI_INK : 0x8410);
       gfx->setTextColor(usable ? UI_INK : 0x8410);
       gfx->setTextSize(strlen(m.name) <= 11 ? 2 : 1);
-      gfx->setCursor(x + 10, y + 8);
+      gfx->setCursor(x + 8, y + 7);
       gfx->print(m.name);
+      char l[24];
+      snprintf(l, sizeof(l), "Lv%u  %u/%u", (unsigned)m.level, (unsigned)m.hp, (unsigned)m.maxHp);
       gfx->setTextSize(1);
-      char hp[20];
-      snprintf(hp, sizeof(hp), "%u/%u", m.hp, m.maxHp);
-      gfx->setCursor(x + 10, y + 28);
-      gfx->print(hp);
+      gfx->setCursor(x + 8, y + 28);
+      gfx->print(l);
+      int bw = BSW_W - 16, fw = m.maxHp ? (int)((long)bw * m.hp / m.maxHp) : 0;
+      gfx->fillRoundRect(x + 8, y + 44, bw, 7, 3, UI_TRACK);
+      if (fw > 0) gfx->fillRoundRect(x + 8, y + 44, fw, 7, 3,
+                                     m.hp * 5 <= m.maxHp ? UI_BAR_BAD : m.hp * 2 <= m.maxHp ? UI_BAR_WARN : UI_BAR_OK);
     }
   } else {
     drawBtlBack();
@@ -5509,6 +5535,26 @@ int btlCellIndexAt(int16_t x, int16_t y) {
 
 // The way out of the move and switch screens. Without it the only exits were
 // choosing something or leaving the fight entirely.
+// Squad indices that can be chosen in the switch list, in squad order: every
+// member but the one already out (a fainted one is listed, greyed).
+uint8_t btlSwitchList(uint8_t *out) {
+  uint8_t n = 0;
+  for (uint8_t i = 0; i < btlSquadN && i < TRAINER_TEAM_MAX; i++)
+    if (i != btlSquadAt) out[n++] = i;
+  return n;
+}
+void btlSwitchCellPos(uint8_t pos, int *x, int *y) {
+  if (x) *x = BSW_X0 + (pos % 2) * (BSW_W + 8);
+  if (y) *y = BSW_Y0 + (pos / 2) * (BSW_H + 6);
+}
+int btlSwitchCellAt(int16_t x, int16_t y) {
+  for (uint8_t pos = 0; pos < TRAINER_TEAM_MAX - 1; pos++) {
+    int cx, cy; btlSwitchCellPos(pos, &cx, &cy);
+    if (x >= cx && x < cx + BSW_W && y >= cy - 3 && y < cy + BSW_H + 3) return pos;
+  }
+  return -1;
+}
+
 static void drawBtlBack() {
   gfx->fillRoundRect(BTL_BACK_X, BTL_BACK_Y, BTL_BACK_W, BTL_BACK_H, 11, UI_TRACK);
   gfx->drawRoundRect(BTL_BACK_X, BTL_BACK_Y, BTL_BACK_W, BTL_BACK_H, 11, UI_INK);
@@ -5684,10 +5730,13 @@ void battleTap(int16_t x, int16_t y) {
   }
   if (btlMenu == 2) {
     if (btlBackTap(x, y)) return;
-    for (uint8_t i = 0; i < btlSquadN && i < 4; i++) {
-      if (!btlCellHit(i, x, y)) continue;
-      const Combatant &m = (i == btlSquadAt) ? btlYou : btlSquad[i];
-      if (i == btlSquadAt || m.fainted()) { sfxPlay(SFX_DENY); return; }
+    uint8_t list[TRAINER_TEAM_MAX];
+    uint8_t n = btlSwitchList(list);
+    int pos = btlSwitchCellAt(x, y);
+    if (pos >= 0 && pos < n) {
+      uint8_t i = list[pos];
+      const Combatant &m = btlSquad[i];
+      if (m.fainted()) { sfxPlay(SFX_DENY); return; }
       sfxPlay(SFX_TAP);
       if (btlLink && !btlLinkHost) {
         // The guest asks; it never switches on its own. A switch rides the same
