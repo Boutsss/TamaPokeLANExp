@@ -3,7 +3,7 @@
 [![Flash in browser](https://img.shields.io/badge/flash-in%20browser-FF6B00?logo=googlechrome&logoColor=white)](https://reallyjustsomeguy.github.io/TamaPokeLANExp/web/)
 [![MakerWorld](https://img.shields.io/badge/MakerWorld-3D%20case-00AE42?logo=bambulab&logoColor=white)](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)
 ![Board](https://img.shields.io/badge/board-ESP32--S3%20round%20AMOLED-E7352C?logo=espressif&logoColor=white)
-![Firmware](https://img.shields.io/badge/firmware-v3.33-8A2BE2)
+![Firmware](https://img.shields.io/badge/firmware-v3.34-8A2BE2)
 ![Code](https://img.shields.io/badge/code-MIT-blue)
 ![Languages](https://img.shields.io/badge/languages-6-FFCB05)
 [![Stars](https://img.shields.io/github/stars/DylanPDao/TamaPoke?style=flat&logo=github&color=yellow)](https://github.com/DylanPDao/TamaPoke/stargazers)
@@ -779,8 +779,19 @@ creature moves to a free party slot, or to the PC box. Nothing is lost.)
 
 **Every creature has a STATS page.** Tap any party or box creature and press
 **STATS** on its sheet (or tap party slot 1): all six battle stats with a bar,
-each stat's IV, its training against its cap, the IV total out of 124, the item
-it holds, its personality, bond and medals. Any tap, or a swipe down, goes back.
+each stat's IV, its **TRAIN** (training) points against their cap, the IV total
+out of 124, the item it holds, its personality (boon in blue, bane in red),
+bond and medals. Any tap, or a swipe down, goes back.
+
+**TRAIN** is this game's version of EVs: the points the punching bag (ATK), the
+reaction game (SPD) and good care over time (DEF) add on top of the species'
+base stat, capped by the IV (`70 + 30 x IV / 31`). There are **no separate
+special IVs or special training**: SP.A uses the ATK IV and ATK training,
+SP.D the DEF ones, so training ATK raises both. What makes SP.A differ from
+ATK is the species' own base stats (an Alakazam's SP.A is far above its ATK).
+HP has a fixed 10 and no TRAIN column. That design is why upgrading an old save
+needs no migration: special stats are computed from data every creature
+already has.
 
 **Farewell and release bank the creature** into your party (5 banked slots) instead
 of ending the relationship — species, nickname, shiny status, IVs, training,
@@ -940,15 +951,23 @@ keeps it for life — banked, revived or raised again. It is on the stats card
 with what it loves. Its favourite care shows a heart and is worth more; a few
 traits also nudge its **awake** needs by about ¼ point a minute.
 
-| Trait | Loves | Extra | Awake nudge |
-|---|---|---|---|
-| Glutton | food (berries, candy) | +6 joy | food −¼/min |
-| Sleepy | being put to bed | +8 joy; asleep, energy refills +8/min instead of +6 | energy −¼/min |
-| Playful | the ball game, play | its joy **doubled** | joy −¼/min |
-| Tidy | a bath | +10 joy, +2 bond | joy −1/min while poop is out |
-| Cuddly | being petted | +5 joy, +1 bond | — |
-| Energetic | training | +8 joy, +1 bond | food −¼/min, energy +¼/min |
-| Picky | its favourite berry | +10 joy, +2 bond; any other berry fills 5 less | — |
+| Trait | Loves | Extra | Awake nudge | Boon (+10%) | Bane (−10%) |
+|---|---|---|---|---|---|
+| Glutton | food (berries, candy) | +6 joy | food −¼/min | DEF | SPD |
+| Sleepy | being put to bed | +8 joy; asleep, energy refills +8/min instead of +6 | energy −¼/min | SP.D | SPD |
+| Playful | the ball game, play | its joy **doubled** | joy −¼/min | SPD | DEF |
+| Tidy | a bath | +10 joy, +2 bond | joy −1/min while poop is out | SP.A | ATK |
+| Cuddly | being petted | +5 joy, +1 bond | — | DEF | SP.A |
+| Energetic | training | +8 joy, +1 bond | food −¼/min, energy +¼/min | ATK | SP.D |
+| Picky | its favourite berry | +10 joy, +2 bond; any other berry fills 5 less | — | SP.A | DEF |
+
+**Boon and bane (v3.33).** Like the main series' natures, each trait raises one
+battle stat by **10%** and lowers another by **10%**; HP is never touched. On
+the STATS page and the card the boosted stat is written in **blue** and the
+lowered one in **red**, and the personality line spells it out ("ENERGETIC
++ATK -SP.D"), so there is nothing to memorise. It applies in every fight. A
+creature that already had a trait simply gains its effect on updating; one
+banked before personalities existed has no trait and stays neutral.
 
 **Nights are never harder.** Asleep — screen off at night, or the board switched
 off — no trait changes food, joy or hygiene at all; the only thing a trait does

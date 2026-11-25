@@ -50,9 +50,28 @@ bool monStatsSubject(PartyMon *out) {
   return false;
 }
 
+// A stat's short name, as its row is labelled.
+const char *msStatShort(uint8_t ps) {
+  switch (ps) {
+    case PS_ATK: return T(S_STAT_ATK);
+    case PS_DEF: return T(S_STAT_DEF);
+    case PS_SPA: return T(S_MS_SPA);
+    case PS_SPD: return T(S_MS_SPD);
+    default: return T(S_STAT_SPE);
+  }
+}
+
 // One row: label, a bar, the stat, its IV, and its training against the cap.
-static void msRow(int y, const char *label, uint16_t val, uint16_t color, uint8_t iv, int tr) {
-  gfx->setTextColor(UI_INK);
+// The personality's boon in blue, its bane in red: the stat names say what the
+// trait does, so nobody has to remember it.
+#define MS_BOON_COL 0x235F   // a clear blue on the cream panel
+#define MS_BANE_COL 0xD8A3   // red
+uint16_t personaLabelCol(uint8_t trait, uint8_t ps) {
+  return ps == personaBoon(trait) ? MS_BOON_COL : ps == personaBane(trait) ? MS_BANE_COL : UI_INK;
+}
+static uint8_t msTrait = 0;   // the creature on the page, for msRow's label colour
+static void msRow(int y, const char *label, uint16_t val, uint16_t color, uint8_t iv, int tr, uint8_t ps) {
+  gfx->setTextColor(ps == PS_NONE ? UI_INK : personaLabelCol(msTrait, ps));
   gfx->setTextSize(2);
   gfx->setCursor(66, y);
   gfx->print(label);
@@ -111,12 +130,13 @@ void renderMonStats() {
     if (d.type2 != T_NONE) drawTypeChip(x, 56, d.type2);
   }
 
-  msRow(86,  T(S_STAT_VIT), party.vitOf(m), UI_BAR_OK,   m.ivHp,  -1);
-  msRow(114, T(S_STAT_ATK), party.atkOf(m), UI_BAR_BAD,  m.ivAtk, m.trAtk);
-  msRow(142, T(S_STAT_DEF), party.defOf(m), 0x4C98,      m.ivDef, m.trDef);
-  msRow(170, T(S_MS_SPA),   party.spaOf(m), 0xD31B,      m.ivAtk, m.trAtk);
-  msRow(198, T(S_MS_SPD),   party.spdOf(m), 0x2D7F,      m.ivDef, m.trDef);
-  msRow(226, T(S_STAT_SPE), party.speOf(m), UI_BAR_WARN, m.ivSpe, m.trSpe);
+  msTrait = m.persona;
+  msRow(86,  T(S_STAT_VIT), party.vitOf(m), UI_BAR_OK,   m.ivHp,  -1, PS_NONE);   // HP: no personality touches it
+  msRow(114, T(S_STAT_ATK), party.atkOf(m), UI_BAR_BAD,  m.ivAtk, m.trAtk, PS_ATK);
+  msRow(142, T(S_STAT_DEF), party.defOf(m), 0x4C98,      m.ivDef, m.trDef, PS_DEF);
+  msRow(170, T(S_MS_SPA),   party.spaOf(m), 0xD31B,      m.ivAtk, m.trAtk, PS_SPA);
+  msRow(198, T(S_MS_SPD),   party.spdOf(m), 0x2D7F,      m.ivDef, m.trDef, PS_SPD);
+  msRow(226, T(S_STAT_SPE), party.speOf(m), UI_BAR_WARN, m.ivSpe, m.trSpe, PS_SPE);
 
   char b[48];
   unsigned ivt = (unsigned)m.ivHp + m.ivAtk + m.ivDef + m.ivSpe;
@@ -124,9 +144,19 @@ void renderMonStats() {
   msLine(258, b, ivt >= 100 ? UI_BAR_WARN : UI_INK);
   snprintf(b, sizeof(b), T(S_MS_HELD), m.held ? itemEntry(m.held).name : "-");
   msLine(276, b, UI_INK);
-  const char *pn = personaName(m.persona);
-  snprintf(b, sizeof(b), T(S_MS_NATURE), (pn && pn[0]) ? pn : "-");
-  msLine(294, b, UI_INK);
+  // the personality, then what it does: +boon in blue, -bane in red
+  {
+    const char *pn = personaName(m.persona);
+    snprintf(b, sizeof(b), T(S_MS_NATURE), (pn && pn[0]) ? pn : "-");
+    char up[12] = "", dn[12] = "";
+    uint8_t bo = personaBoon(m.persona), ba = personaBane(m.persona);
+    if (bo != PS_NONE) { snprintf(up, sizeof(up), " +%s", msStatShort(bo)); snprintf(dn, sizeof(dn), " -%s", msStatShort(ba)); }
+    int w = (int)(strlen(b) + strlen(up) + strlen(dn)) * 6, x = CX - w / 2;
+    gfx->setTextSize(1);
+    gfx->setTextColor(UI_INK); gfx->setCursor(x, 294); gfx->print(b); x += (int)strlen(b) * 6;
+    gfx->setTextColor(MS_BOON_COL); gfx->setCursor(x, 294); gfx->print(up); x += (int)strlen(up) * 6;
+    gfx->setTextColor(MS_BANE_COL); gfx->setCursor(x, 294); gfx->print(dn);
+  }
   if (m.hasCareState() || monStats == MS_LIVE) {
     snprintf(b, sizeof(b), T(S_MS_BOND), (unsigned)m.bond, (unsigned)m.medals);
     msLine(312, b, UI_INK_SOFT);
@@ -134,6 +164,9 @@ void renderMonStats() {
   // the sprite, small, so the page says who it is at a glance
   const uint8_t *th = thumbs.get(m.dex);
   if (th) drawThumb(th, CX - GAL_CELL / 2, 316, 1, false);
-  msLine(410, T(S_BACK), UI_INK_SOFT);
+  // There are no separate special IVs or training: SP.A grows with ATK's, SP.D
+  // with DEF's (the species' own base stats are what make them differ).
+  msLine(394, T(S_MS_SPNOTE), UI_INK_SOFT);
+  msLine(412, T(S_BACK), UI_INK_SOFT);
   gfx->flush();
 }

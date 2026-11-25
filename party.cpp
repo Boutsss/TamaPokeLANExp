@@ -1,4 +1,5 @@
 #include "party.h"
+#include "persona.h"
 #include <stdlib.h>
 #include <string.h>
 #include "dex.h"
@@ -347,23 +348,23 @@ static uint16_t calcStat(uint8_t base, uint8_t iv, uint16_t lvl, uint8_t tr) {
 }
 
 uint16_t Party::atkOf(const PartyMon &m) const {
-  return m.empty() ? 0 : calcStat(DEX_TBL[m.dex].bAtk, m.ivAtk, m.level, m.trAtk);
+  return m.empty() ? 0 : personaStat(m.persona, PS_ATK, calcStat(DEX_TBL[m.dex].bAtk, m.ivAtk, m.level, m.trAtk));
 }
 uint16_t Party::defOf(const PartyMon &m) const {
-  return m.empty() ? 0 : calcStat(DEX_TBL[m.dex].bDef, m.ivDef, m.level, m.trDef);
+  return m.empty() ? 0 : personaStat(m.persona, PS_DEF, calcStat(DEX_TBL[m.dex].bDef, m.ivDef, m.level, m.trDef));
 }
 uint16_t Party::speOf(const PartyMon &m) const {
-  return m.empty() ? 0 : calcStat(DEX_TBL[m.dex].bSpe, m.ivSpe, m.level, m.trSpe);
+  return m.empty() ? 0 : personaStat(m.persona, PS_SPE, calcStat(DEX_TBL[m.dex].bSpe, m.ivSpe, m.level, m.trSpe));
 }
 uint16_t Party::vitOf(const PartyMon &m) const {
   return m.empty() ? 0 : calcStat(DEX_TBL[m.dex].bHp, m.ivHp, m.level, 10);
 }
 // Special reuses the physical IV and training, same rule as Pet::spaStat().
 uint16_t Party::spaOf(const PartyMon &m) const {
-  return m.empty() ? 0 : calcStat(DEX_TBL[m.dex].bSpA, m.ivAtk, m.level, m.trAtk);
+  return m.empty() ? 0 : personaStat(m.persona, PS_SPA, calcStat(DEX_TBL[m.dex].bSpA, m.ivAtk, m.level, m.trAtk));
 }
 uint16_t Party::spdOf(const PartyMon &m) const {
-  return m.empty() ? 0 : calcStat(DEX_TBL[m.dex].bSpD, m.ivDef, m.level, m.trDef);
+  return m.empty() ? 0 : personaStat(m.persona, PS_SPD, calcStat(DEX_TBL[m.dex].bSpD, m.ivDef, m.level, m.trDef));
 }
 
 // ---- box names

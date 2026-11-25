@@ -505,7 +505,7 @@ static int shotMode(const char *screen, const char *out, int lvl, int iv, int de
     if (!strcmp(screen, "partyfull")) partyPick = true;
     if (!strcmp(screen, "partysheet") || !strcmp(screen, "monstats")) {
       party.slots[0].held = IT_LEFTOVERS; party.slots[0].ivAtk = 31; party.slots[0].trAtk = 60;
-      party.slots[0].persona = 1; party.slots[0].stateVersion = 1; party.slots[0].bond = 64;
+      party.slots[0].persona = 6; party.slots[0].stateVersion = 1; party.slots[0].bond = 64;   // ENERGETIC: +ATK -SP.D
       partyDetail = 1;
     }
     if (!strcmp(screen, "monstats")) monStats = MS_PARTY_;

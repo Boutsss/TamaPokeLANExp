@@ -445,6 +445,7 @@ enum StrId : uint16_t {
   S_BOX_MOVE_FMT,  // the PC box: move, overview, search
   S_BOX_RENAME_FMT, // the PC box: move, overview, search
   S_BF_SEARCH,     // the PC box: move, overview, search
+  S_MS_SPNOTE,     // the STATS page: special stats share training
   STR_COUNT
 };
 

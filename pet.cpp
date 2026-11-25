@@ -1,4 +1,5 @@
 #include "pet.h"
+#include "persona.h"
 #include "game_events.h"
 #include "held_items.h"
 #include "breed.h"
@@ -1316,13 +1317,13 @@ static uint16_t calcStat(uint8_t base, uint8_t iv, uint8_t lvl, uint8_t tr) {
 }
 
 uint16_t Pet::atkStat() const {
-  return isEgg() ? 0 : calcStat(DEX_TBL[speciesId].bAtk, ivAtk, level(), trAtk);
+  return isEgg() ? 0 : personaStat(persona, PS_ATK, calcStat(DEX_TBL[speciesId].bAtk, ivAtk, level(), trAtk));
 }
 uint16_t Pet::defStat() const {
-  return isEgg() ? 0 : calcStat(DEX_TBL[speciesId].bDef, ivDef, level(), trDef);
+  return isEgg() ? 0 : personaStat(persona, PS_DEF, calcStat(DEX_TBL[speciesId].bDef, ivDef, level(), trDef));
 }
 uint16_t Pet::speStat() const {
-  return isEgg() ? 0 : calcStat(DEX_TBL[speciesId].bSpe, ivSpe, level(), trSpe);
+  return isEgg() ? 0 : personaStat(persona, PS_SPE, calcStat(DEX_TBL[speciesId].bSpe, ivSpe, level(), trSpe));
 }
 // la vitalidad no se entrena (no hay nada que la suba), asi que lleva un +10
 // fijo en lugar del entrenamiento, igual que el +Nivel+10 del HP en los juegos
@@ -1333,10 +1334,10 @@ uint16_t Pet::vitStat() const {
 // stat, which is what keeps Alakazam (50 Atk / 135 SpA) a real attacker without
 // adding IVs or migrating saves.
 uint16_t Pet::spaStat() const {
-  return isEgg() ? 0 : calcStat(DEX_TBL[speciesId].bSpA, ivAtk, level(), trAtk);
+  return isEgg() ? 0 : personaStat(persona, PS_SPA, calcStat(DEX_TBL[speciesId].bSpA, ivAtk, level(), trAtk));
 }
 uint16_t Pet::spdStat() const {
-  return isEgg() ? 0 : calcStat(DEX_TBL[speciesId].bSpD, ivDef, level(), trDef);
+  return isEgg() ? 0 : personaStat(persona, PS_SPD, calcStat(DEX_TBL[speciesId].bSpD, ivDef, level(), trDef));
 }
 
 // ---------- moves ----------

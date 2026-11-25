@@ -29,6 +29,20 @@ const char *personaLoves(uint8_t t) {
   return personaValid(t) ? T((StrId)(S_PTL_GLUTTON + (t - 1))) : "";
 }
 
+// Boon and bane per trait, chosen to fit it: GLUTTON is solid and slow, SLEEPY
+// shrugs things off and is slow, PLAYFUL quick and careless, TIDY clever but no
+// brawler, CUDDLY soft but sturdy, ENERGETIC strong but rash, PICKY sharp and
+// thin-skinned.
+static const uint8_t BOON[PT_COUNT] = { PS_NONE, PS_DEF, PS_SPD, PS_SPE, PS_SPA, PS_DEF, PS_ATK, PS_SPA };
+static const uint8_t BANE[PT_COUNT] = { PS_NONE, PS_SPE, PS_SPE, PS_DEF, PS_ATK, PS_SPA, PS_SPD, PS_DEF };
+uint8_t personaBoon(uint8_t t) { return personaValid(t) ? BOON[t] : PS_NONE; }
+uint8_t personaBane(uint8_t t) { return personaValid(t) ? BANE[t] : PS_NONE; }
+uint16_t personaStat(uint8_t t, uint8_t stat, uint16_t v) {
+  if (stat == personaBoon(t)) return (uint16_t)((uint32_t)v * 110 / 100);
+  if (stat == personaBane(t)) return (uint16_t)((uint32_t)v * 90 / 100);
+  return v;
+}
+
 PersonaEffect personaCare(uint8_t trait, uint8_t care, uint8_t baseJoy) {
   PersonaEffect e;
   switch (trait) {

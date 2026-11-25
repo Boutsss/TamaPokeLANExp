@@ -77,3 +77,13 @@ bool personaValid(uint8_t trait);        // 1..PT_COUNT-1
 uint8_t personaRoll();                   // a fresh trait, uniform over the seven
 const char *personaName(uint8_t trait);  // in the current language ("" for none)
 const char *personaLoves(uint8_t trait); // what it loves, short ("" for none)
+
+// Each personality also raises one battle stat by 10% and lowers another by
+// 10% (v3.33), like the main series' natures; HP is never touched. THE rule:
+// Pet's and Party's stat accessors both apply personaStat(), so the STATS
+// page, the card and every battle agree. A creature with no trait (an egg, or
+// one banked before personalities) is neutral.
+enum : uint8_t { PS_ATK = 0, PS_DEF, PS_SPA, PS_SPD, PS_SPE, PS_COUNT, PS_NONE = 0xFF };
+uint8_t personaBoon(uint8_t trait);      // PS_*, PS_NONE for no trait
+uint8_t personaBane(uint8_t trait);
+uint16_t personaStat(uint8_t trait, uint8_t stat, uint16_t value);   // the value after the trait

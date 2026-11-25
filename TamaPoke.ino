@@ -50,6 +50,7 @@
 #include "friends.h"
 #include "casino.h"
 #include "pinball.h"
+#include "persona.h"
 #include "casino_art.h"
 #include "ghost.h"
 #include "card.h"
@@ -71,7 +72,7 @@ struct RimPage {
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
-#define FW_VERSION "3.33"
+#define FW_VERSION "3.34"
 
 Arduino_DataBus *bus = new Arduino_ESP32QSPI(
   LCD_CS, LCD_SCLK, LCD_SDIO0, LCD_SDIO1, LCD_SDIO2, LCD_SDIO3);
@@ -3958,9 +3959,12 @@ void drawGameScene();  // prototipo (definida mas abajo)
 // (sin argumento por defecto: el generador de prototipos de Arduino los
 // descarta y las llamadas que lo omitan no compilarian)
 #define IV_NONE 0xFF
+uint16_t personaLabelCol(uint8_t trait, uint8_t ps);   // ui_monstats.ino: boon blue, bane red
+static uint16_t cardLabelCol = UI_INK;   // set by the caller for one row: the personality's colour
 void drawCardStat(int y, const char *label, uint16_t val, uint16_t maxBar,
                   uint16_t color, uint8_t iv) {
-  gfx->setTextColor(UI_INK);
+  gfx->setTextColor(cardLabelCol);
+  cardLabelCol = UI_INK;
   gfx->setTextSize(2);
   gfx->setCursor(70, y);
   gfx->print(label);
@@ -4334,8 +4338,12 @@ void renderCardStats() {
 
   // 360 de tope de barra: a nivel 73 (fin de ciclo) el stat mas alto de toda
   // la dex es la vitalidad de CHANSEY (355). El 260 anterior ya se desbordaba.
+  // boon in blue, bane in red (persona.h)
+  cardLabelCol = personaLabelCol(pet.persona, PS_ATK);
   drawCardStat(104, T(S_STAT_ATK), pet.atkStat(), 360, UI_BAR_BAD, pet.ivAtk);
+  cardLabelCol = personaLabelCol(pet.persona, PS_DEF);
   drawCardStat(144, T(S_STAT_DEF), pet.defStat(), 360, 0x4C98, pet.ivDef);
+  cardLabelCol = personaLabelCol(pet.persona, PS_SPE);
   drawCardStat(184, T(S_STAT_SPE), pet.speStat(), 360, UI_BAR_WARN, pet.ivSpe);
   drawCardStat(224, T(S_STAT_VIT), pet.vitStat(), 360, UI_BAR_OK, pet.ivHp);
   drawCardStat(264, T(S_STAT_WGT), pet.weight, 100, 0xB3C8, IV_NONE);
