@@ -540,6 +540,8 @@ enum StrId : uint16_t {
   S_BN_BLOWN_AWAY,
   S_BN_DRAGGED,
   S_BN_WENT_BACK,
+  S_DEX_SWIPE,
+  S_DEX_NOENTRY,
   STR_COUNT
 };
 

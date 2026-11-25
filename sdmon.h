@@ -58,6 +58,10 @@ struct SdThumbs {
 };
 extern SdThumbs thumbs;
 
+#include "dexinfo.h"
+// A species' Pokedex entry from /mons/dexinfo.bin (dexinfo.h). False with no
+// card, no file, or nothing for that species.
+bool sdDexEntry(int16_t dex, uint8_t lang, DexEntryText &out);
 bool sdBegin();                 // monta la SD (SDMMC 1-bit), true si hay tarjeta
 // Narrows gRegionArt to the packs actually present. `verbose` logs one line per
 // region, which is what the boot report wants; the runtime rescan passes false so

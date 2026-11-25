@@ -24,6 +24,19 @@ bool sdArtDirty = false;
 void sdScanRegionArt(bool) {}
 SdThumbs thumbs;
 
+static uint32_t fileRead(void *ctx, uint32_t off, void *dst, uint32_t n) {
+  FILE *f = (FILE *)ctx;
+  if (fseek(f, (long)off, SEEK_SET)) return 0;
+  return (uint32_t)fread(dst, 1, n, f);
+}
+bool sdDexEntry(int16_t dex, uint8_t lang, DexEntryText &out) {
+  FILE *f = fopen((g_spriteDir + "/dexinfo.bin").c_str(), "rb");
+  if (!f) { out = DexEntryText(); return false; }
+  bool ok = dexInfoRead(fileRead, f, dex, lang, out);
+  fclose(f);
+  return ok;
+}
+
 static uint8_t *slurp(const std::string &path, uint32_t *size) {
   FILE *f = fopen(path.c_str(), "rb");
   if (!f) return nullptr;

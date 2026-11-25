@@ -92,6 +92,19 @@ void PmdMon::unload() {
   loaded = false;
 }
 
+static uint32_t sdRead(void *ctx, uint32_t off, void *dst, uint32_t n) {
+  File &f = *(File *)ctx;
+  if (!f.seek(off)) return 0;
+  return (uint32_t)f.read((uint8_t *)dst, n);
+}
+bool sdDexEntry(int16_t dex, uint8_t lang, DexEntryText &out) {
+  File f = SD_MMC.open("/mons/dexinfo.bin", FILE_READ);
+  if (!f) { out = DexEntryText(); return false; }
+  bool ok = dexInfoRead(sdRead, &f, dex, lang, out);
+  f.close();
+  return ok;
+}
+
 bool SdThumbs::load() {
   if (!sdReady) return false;
   File f = SD_MMC.open("/mons/thumbs.bin", FILE_READ);

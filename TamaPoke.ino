@@ -51,6 +51,7 @@
 #include "casino.h"
 #include "pinball.h"
 #include "persona.h"
+#include "weights.h"
 #include "casino_art.h"
 #include "ghost.h"
 #include "card.h"
@@ -72,7 +73,7 @@ struct RimPage {
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
-#define FW_VERSION "3.41"
+#define FW_VERSION "3.42"
 
 Arduino_DataBus *bus = new Arduino_ESP32QSPI(
   LCD_CS, LCD_SCLK, LCD_SDIO0, LCD_SDIO1, LCD_SDIO2, LCD_SDIO3);
@@ -141,6 +142,7 @@ bool gymPick = false;
 uint8_t rpickPage = 0;      // the region chooser is paged; shared by all 3 modes
 uint8_t galleryPage = 0;    // GAL_PAGES paginas de GAL_PER_PAGE
 int16_t galleryDetail = 0;  // dex en vista detalle, 0 = rejilla
+bool galleryEntry = false;   // v3.42: its Pokedex entry, one level deeper (swipe up)
 
 bool screenOff = false;       // pulsacion corta del boton PWR
 bool cardOpen = false;        // ficha del bicho (deslizar vertical)
@@ -2101,7 +2103,10 @@ void onSwipeV(int dir) {
   }
   if (galleryOpen) {
     if (galleryDetail) {
-      if (back) { galleryDetail = 0; galleryPmd.unload(); galleryDirty = true; }
+      // up = deeper (the entry), down = back one level: the gesture map
+      if (!back) { if (pet.isRegistered(galleryDetail)) galleryEntry = true; return; }
+      if (galleryEntry) { galleryEntry = false; return; }
+      galleryDetail = 0; galleryPmd.unload(); galleryDirty = true;
       return;
     }
     if (galleryPick) { if (back) uiTileGo(TILE_PET); return; }
@@ -9057,6 +9062,8 @@ void drawThumb(const uint8_t *b, int x, int y, int s, bool sil) {
 }
 
 void renderGallery() {
+  if (!galleryDetail) galleryEntry = false;   // every way out of the detail closes the entry too
+  if (galleryDetail && galleryEntry) { renderDexEntry(galleryDetail); return; }
   if (galleryDetail) {  // vista detalle: se redibuja siempre (animada)
     gfx->fillScreen(RGB565_BLACK);
     gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
@@ -9082,6 +9089,12 @@ void renderGallery() {
     gfx->setTextSize(2);
     gfx->setCursor(CX - strlen(T(S_DETAIL_BACK)) * 6, 408);
     gfx->print(T(S_DETAIL_BACK));
+    if (reg) {                 // the entry is one level deeper
+      gfx->setTextColor(UI_INK_SOFT);
+      gfx->setTextSize(1);
+      gfx->setCursor(CX - (int)strlen(T(S_DEX_SWIPE)) * 3, 390);
+      gfx->print(T(S_DEX_SWIPE));
+    }
     uiChrome();
     gfx->flush();
     return;
@@ -9140,7 +9153,90 @@ void renderGallery() {
   gfx->flush();
 }
 
+// The Pokedex entry page (v3.42): category, typing, height and weight, and the
+// description, word-wrapped to the round panel row by row. Read from the card
+// once per species and language, not every frame.
+static DexEntryText galEntry;
+static int16_t galEntryDex = -1;
+static uint8_t galEntryLang = 0xFF;
+static bool galEntryOk = false;
+void renderDexEntry(int16_t dex) {
+  if (dex != galEntryDex || (uint8_t)gLang != galEntryLang) {
+    galEntryOk = sdDexEntry(dex, (uint8_t)gLang, galEntry);
+    galEntryDex = dex; galEntryLang = (uint8_t)gLang;
+  }
+  const DexEntry &d = DEX_TBL[dex];
+  gfx->fillScreen(RGB565_BLACK);
+  gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
+  char line[48];
+  snprintf(line, sizeof(line), "N.%03d %s", dex, d.name);
+  gfx->setTextColor(d.accent);
+  gfx->setTextSize(strlen(line) <= 15 ? 3 : 2);
+  gfx->setCursor(CX - (int)strlen(line) * (strlen(line) <= 15 ? 9 : 6), 50);
+  gfx->print(line);
+  gfx->setTextColor(UI_INK);
+  gfx->setTextSize(2);
+  if (galEntryOk) { gfx->setCursor(CX - (int)strlen(galEntry.genus) * 6, 92); gfx->print(galEntry.genus); }
+  if (d.type2 == T_NONE) snprintf(line, sizeof(line), "%s", typeName(d.type1));
+  else snprintf(line, sizeof(line), "%s / %s", typeName(d.type1), typeName(d.type2));
+  gfx->setTextColor(UI_INK_SOFT);
+  gfx->setCursor(CX - (int)strlen(line) * 6, 120);
+  gfx->print(line);
+  uint16_t w = (dex >= 1 && dex <= DEX_COUNT) ? DEX_WEIGHT[dex] : 0;
+  if (galEntryOk) snprintf(line, sizeof(line), "%u.%u m   %u.%u kg", galEntry.heightDm / 10, galEntry.heightDm % 10, w / 10, w % 10);
+  else snprintf(line, sizeof(line), "%u.%u kg", w / 10, w % 10);
+  gfx->setCursor(CX - (int)strlen(line) * 6, 146);
+  gfx->print(line);
+  gfx->setTextColor(UI_INK);
+  if (!galEntryOk) {
+    gfx->setTextSize(2);
+    gfx->setCursor(CX - (int)strlen(T(S_DEX_NOENTRY)) * 6, 240);
+    gfx->print(T(S_DEX_NOENTRY));
+  } else {
+    // word wrap: size 2 if it fits the rows down to the BACK label, else size 1
+    for (int sz = 2; sz >= 1; sz--) {
+      int cw = 6 * sz, lh = 10 * sz + 4, y = 180, rows = 0;
+      const char *p = galEntry.text;
+      bool fits = true;
+      while (*p) {
+        int half = uiSafeHalfWidthFor(y, y + lh) - 24;
+        int cap = half * 2 / cw;
+        if (cap < 8) { fits = false; break; }
+        int n = (int)strlen(p), take = n <= cap ? n : cap;
+        if (take < n) { int k = take; while (k > 0 && p[k] != ' ') k--; if (k > 0) take = k; }
+        if (y + lh > 392) { fits = false; break; }
+        y += lh; rows++;
+        p += take; while (*p == ' ') p++;
+      }
+      if (!fits && sz == 2) continue;
+      // draw it for real
+      gfx->setTextSize(sz);
+      y = 180; p = galEntry.text;
+      while (*p && y + lh <= 400) {
+        int half = uiSafeHalfWidthFor(y, y + lh) - 24;
+        int cap = half * 2 / cw;
+        int n = (int)strlen(p), take = n <= cap ? n : cap;
+        if (take < n) { int k = take; while (k > 0 && p[k] != ' ') k--; if (k > 0) take = k; }
+        char buf[DEXINFO_TEXT];
+        memcpy(buf, p, take); buf[take] = 0;
+        gfx->setCursor(CX - take * cw / 2, y);
+        gfx->print(buf);
+        y += lh;
+        p += take; while (*p == ' ') p++;
+      }
+      break;
+    }
+  }
+  gfx->setTextColor(UI_INK_SOFT);
+  gfx->setTextSize(2);
+  gfx->setCursor(CX - (int)strlen(T(S_DETAIL_BACK)) * 6, 408);
+  gfx->print(T(S_DETAIL_BACK));
+  uiChrome();
+  gfx->flush();
+}
+
 void galleryTap(int16_t x, int16_t y) {
+  if (galleryDetail && galleryEntry) { galleryEntry = false; return; }   // back to the creature
   if (galleryDetail) {  // volver a la rejilla
     galleryDetail = 0;
     galleryPmd.unload();
