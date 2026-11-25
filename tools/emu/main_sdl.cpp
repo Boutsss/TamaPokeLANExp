@@ -6,6 +6,7 @@
 #include "Preferences.h"
 #include "pet.h"
 #include "items.h"
+#include "pinball.h"
 #include "party.h"
 #include "battle.h"
 #include "box_store.h"
@@ -207,6 +208,9 @@ extern uint8_t playerPage;
 extern bool gymHard, pickOpen;
 extern uint8_t partyDetail;
 extern uint8_t monStats;
+void casinoOpenNow(); void casinoDbgSkipDoor(); void casinoTap(int16_t,int16_t);
+void casLobbyBtn(uint8_t i, int *x, int *y, int *w, int *h); void casPinballPlayBtn(int *x, int *y, int *w, int *h);
+struct Pinball; Pinball &casPinballMut();
 enum : uint8_t { MS_NONE_ = 0, MS_LIVE_, MS_PARTY_, MS_BOX_ };
 extern bool boxOpen; extern uint8_t boxSwapFrom;
 extern bool btlNewBadge; extern uint32_t btlWinUntil;
@@ -458,6 +462,20 @@ static int shotMode(const char *screen, const char *out, int lvl, int iv, int de
     pet.relearnFromLevel();
     pet.lastLearnLevel = 0;
     pet.checkLearnGates();
+  }
+  else if (!strcmp(screen, "pinball") || !strcmp(screen, "pinballplay")) {
+    // the Game Corner's pinball: the table before a game, or mid-ball
+    pet.coins = 120;
+    casinoOpenNow(); casinoDbgSkipDoor();
+    int x, y, w, h; casLobbyBtn(6, &x, &y, &w, &h); casinoTap(x + w / 2, y + h / 2);
+    if (!strcmp(screen, "pinballplay")) {
+      casPinballPlayBtn(&x, &y, &w, &h); casinoTap(x + w / 2, y + h / 2);
+      Pinball &p = casPinballMut();
+      p.step(800);                       // served
+      p.score = 12400; p.mult = 3; p.lit[0] = true; p.balls = 2;
+      p.bx = 250; p.by = 200; p.vx = 0; p.vy = 0; p.upR = true; p.step(40);
+      p.bx = 252; p.by = 196; p.flash[2] = 150;
+    }
   }
   else if (!strcmp(screen, "party") || !strcmp(screen, "partyfull") ||
            !strcmp(screen, "partysheet") || !strcmp(screen, "monstats")) {

@@ -17,7 +17,7 @@
 // ---------------------------------------------------------------- state
 bool casinoOpen = false;
 // APPEND-ONLY: casinoView() == CV_SHOP (5) is how the sketch tells the shop apart.
-enum : uint8_t { CV_LOBBY = 0, CV_SLOTS, CV_HL, CV_BJ, CV_COINS, CV_SHOP, CV_ROULETTE };
+enum : uint8_t { CV_LOBBY = 0, CV_SLOTS, CV_HL, CV_BJ, CV_COINS, CV_SHOP, CV_ROULETTE, CV_PINBALL };
 static uint8_t casView = CV_LOBBY;
 uint8_t casShopKind = PK_BACK;
 uint8_t casShopPage = 0;
@@ -61,9 +61,11 @@ static bool casTakeBet(uint16_t n) {
 
 // ---------------------------------------------------------------- geometry
 #define CAS_BTN_H 58
-// The lobby: six buttons, two columns of three under the dealer.
-#define CAS_LOBBY_BTNS 6
+// The lobby: two columns of three under the dealer, and PINBALL alone in the
+// middle below them, where the panel narrows.
+#define CAS_LOBBY_BTNS 7
 void casLobbyBtn(uint8_t i, int *x, int *y, int *w, int *h) {
+  if (i == 6) { *w = 160; *h = 50; *x = CX - 80; *y = 372; return; }
   *h = 56; *w = 150;
   *x = (i % 2) ? CX + 6 : CX - 156;
   *y = 176 + (i / 2) * 66;
@@ -437,10 +439,10 @@ static void casBanner(const char *t, uint16_t col) {
 static void renderCasLobby() {
   casTable(T(S_CAS_TITLE));
   casDrawDealer(CX - 32, 82, 4);
-  const char *lab[CAS_LOBBY_BTNS] = { T(S_CAS_SLOTS), T(S_CAS_HL), T(S_CAS_BJ), T(S_CAS_ROULETTE), T(S_CAS_BUY), T(S_CAS_PRIZES) };
+  const char *lab[CAS_LOBBY_BTNS] = { T(S_CAS_SLOTS), T(S_CAS_HL), T(S_CAS_BJ), T(S_CAS_ROULETTE), T(S_CAS_BUY), T(S_CAS_PRIZES), T(S_CAS_PINBALL) };
   for (uint8_t i = 0; i < CAS_LOBBY_BTNS; i++) {
     int x, y, w, h; casLobbyBtn(i, &x, &y, &w, &h);
-    casButton(x, y, w, h, lab[i], i == 5 ? CAS_GOLD : UI_BG_DAY, false);
+    casButton(x, y, w, h, lab[i], i == 5 ? CAS_GOLD : i == 6 ? CAS_RED : UI_BG_DAY, false);
   }
 }
 
@@ -871,6 +873,157 @@ static void casRouletteTap(int16_t px, int16_t py) {
   sfxPlay(SFX_TAP);
 }
 
+// ---------------------------------------------------------------- pinball
+// The table's rules and physics are pinball.cpp (headless, pinball_test plays
+// thousands of balls through them). This is the screen: the table, the HUD,
+// and PLAY. Hold the LEFT half of the panel for the left flipper and the
+// RIGHT half for the right one -- casinoTouchPeek() feeds them every touch
+// sample, so a held finger keeps a flipper up. A game costs PB_PRICE coins and
+// pays pinballPayout(score) at the end.
+
+
+static Pinball casPb;
+static uint32_t pbLastMs = 0;
+static uint16_t pbPaid = 0;            // what the last finished game paid
+static bool pbSettled = true;          // the finished game has been paid
+
+// A ball is in play or about to be: the screen redraws faster, a swipe down
+// does not leave, and leaving the Game Corner settles it.
+bool casinoPinballLive() { return casinoOpen && casView == CV_PINBALL && (casPb.state == PB_ROLL || casPb.state == PB_SERVE); }
+
+// Pays a finished (or abandoned) game once, and keeps the best score.
+static void casPinballSettle() {
+  if (pbSettled) return;
+  pbSettled = true;
+  pbPaid = pinballPayout(casPb.score);
+  casPay(pbPaid);
+  if (casPb.score > casino.pinBest) casino.pinBest = casPb.score;
+  casinoSave();
+  casSetMood(pbPaid > PB_PRICE ? DM_GRUMBLE : DM_LAUGH);
+  sfxPlay(pbPaid ? SFX_MEDAL : SFX_DENY);
+}
+static void casPinballAuto() {
+  uint32_t now = millis();
+  uint32_t dt = pbLastMs ? now - pbLastMs : 0;
+  pbLastMs = now;
+  if (casView != CV_PINBALL) return;
+  casPb.step(dt);
+  uint8_t e = casPb.events;
+  casPb.events = 0;
+  if (e & PBE_BONUS) sfxPlay(SFX_SUPER);
+  else if (e & PBE_DRAIN) sfxPlay(SFX_FAINT);
+  else if (e & PBE_TARGET) sfxPlay(SFX_STATUS);
+  else if (e & PBE_BUMPER) sfxPlay(SFX_HIT);
+  if (casPb.state == PB_OVER) casPinballSettle();
+}
+void casPinballPlayBtn(int *x, int *y, int *w, int *h) { *w = 200; *h = 56; *x = CX - 100; *y = 300; }
+
+static void pbFlipper(bool right) {
+  float px, py, tx, ty;
+  casPb.flipperEnds(right, &px, &py, &tx, &ty);
+  float dx = tx - px, dy = ty - py, l = sqrtf(dx * dx + dy * dy);
+  float nx = -dy / l * PB_FLIP_W, ny = dx / l * PB_FLIP_W;
+  // a tapered bar: full width at the pivot, narrower at the tip
+  int ax = (int)(px + nx), ay = (int)(py + ny), bx = (int)(px - nx), by = (int)(py - ny);
+  int cx2 = (int)(tx + nx * 0.6f), cy2 = (int)(ty + ny * 0.6f), dx2 = (int)(tx - nx * 0.6f), dy2 = (int)(ty - ny * 0.6f);
+  gfx->fillTriangle(ax, ay, bx, by, cx2, cy2, CAS_RED);
+  gfx->fillTriangle(bx, by, cx2, cy2, dx2, dy2, CAS_RED);
+  gfx->fillCircle((int)px, (int)py, (int)PB_FLIP_W, CAS_RED);
+  gfx->fillCircle((int)tx, (int)ty, (int)(PB_FLIP_W * 0.6f), CAS_RED);
+  gfx->fillCircle((int)px, (int)py, 2, UI_WHITE);
+}
+
+static void renderCasPinball() {
+  // the table: dark, a gold rim, the R faint in the playfield
+  gfx->fillScreen(RGB565_BLACK);
+  gfx->fillCircle(CX, CY, 231, 0x0841);
+  gfx->fillCircle(CX, CY, (int)PB_WALL_R, 0x18E3);
+  casMotif(CM_ROCKET, CX, CY - 10, 150, 0x2104, 0x2104);
+  gfx->drawCircle(CX, CY, (int)PB_WALL_R, CAS_GOLD);
+  gfx->drawCircle(CX, CY, (int)PB_WALL_R + 1, CAS_GOLD);
+  // below the guides is not playfield: shade it
+  for (int g = 0; g < 2; g++) {
+    float x0, y0, x1, y1; pbGuide(g == 1, &x0, &y0, &x1, &y1);
+    float ex = g ? CX + 233 : CX - 233;
+    gfx->fillTriangle((int)x0, (int)y0, (int)x1, (int)y1, (int)ex, (int)(y1 + 80), 0x0841);
+    gfx->fillTriangle((int)x0, (int)y0, (int)ex, (int)y0, (int)ex, (int)(y1 + 80), 0x0841);
+    gfx->drawLine((int)x0, (int)y0, (int)x1, (int)y1, CAS_GOLD);
+    gfx->drawLine((int)x0, (int)y0 + 1, (int)x1, (int)y1 + 1, CAS_GOLD);
+  }
+  // the targets: Poke Balls that light gold
+  for (uint8_t i = 0; i < PB_TARGETS; i++) {
+    float x, y; pbTarget(i, &x, &y);
+    if (casPb.lit[i]) gfx->fillCircle((int)x, (int)y, (int)PB_TARGET_R + 3, 0x5280);
+    casMotif(CM_BALL, (int)x, (int)y, (int)(PB_TARGET_R * 2), casPb.lit[i] ? CAS_GOLD : 0x8410, UI_INK);
+  }
+  // the bumpers: Team Rocket's R, flashing when struck
+  for (uint8_t i = 0; i < PB_BUMPERS; i++) {
+    float x, y; pbBumper(i, &x, &y);
+    bool hot = casPb.flash[i] > 0;
+    gfx->fillCircle((int)x, (int)y, (int)PB_BUMPER_R + 3, hot ? CAS_GOLD : 0x5000);
+    gfx->fillCircle((int)x, (int)y, (int)PB_BUMPER_R, hot ? UI_WHITE : UI_INK);
+    casMotif(CM_ROCKET, (int)x, (int)y, (int)(PB_BUMPER_R * 1.5f), CAS_RED, CAS_RED);
+  }
+  pbFlipper(false);
+  pbFlipper(true);
+  // the ball
+  if (casPb.state == PB_ROLL) {
+    gfx->fillCircle((int)casPb.bx, (int)casPb.by, (int)PB_BALL_R, 0xC618);
+    gfx->fillCircle((int)casPb.bx - 2, (int)casPb.by - 2, 2, UI_WHITE);
+  }
+  // the HUD, across the top
+  char b[40];
+  snprintf(b, sizeof(b), T(S_PB_SCORE), (unsigned long)casPb.score);
+  casText(CX, 30, b, CAS_GOLD, 2);
+  if (casPb.state == PB_ROLL || casPb.state == PB_SERVE) {
+    for (uint8_t i = 0; i < PB_BALLS; i++)
+      gfx->fillCircle(CX - 16 + i * 16, 58, 5, i < casPb.balls ? 0xC618 : 0x4208);
+    if (casPb.mult > 1) {
+      snprintf(b, sizeof(b), "x%u", (unsigned)casPb.mult);
+      casText(CX + 44, 54, b, CAS_RED, 1);
+    }
+    return;
+  }
+  // between games: the result, the best, the pay table, and PLAY
+  gfx->fillRoundRect(CX - 170, 120, 340, 170, 18, 0x0841);
+  gfx->drawRoundRect(CX - 170, 120, 340, 170, 18, CAS_GOLD);
+  casText(CX, 132, T(S_CAS_PINBALL), CAS_GOLD, 3);
+  if (casPb.state == PB_OVER) {
+    snprintf(b, sizeof(b), T(S_PB_PAID), (unsigned)pbPaid);
+    casText(CX, 168, b, pbPaid ? CAS_GOLD : 0x8410, 2);
+  } else {
+    casText(CX, 172, T(S_PB_HOW), UI_WHITE, 1);
+  }
+  snprintf(b, sizeof(b), T(S_PB_BEST), (unsigned long)casino.pinBest);
+  casText(CX, 200, b, UI_WHITE, 1);
+  snprintf(b, sizeof(b), T(S_CAS_COINS_FMT), (unsigned)pet.coins);
+  casText(CX, 218, b, UI_WHITE, 1);
+  casText(CX, 250, T(S_PB_TABLE), 0xC618, 1);
+  int x, y, w, h; casPinballPlayBtn(&x, &y, &w, &h);
+  snprintf(b, sizeof(b), T(S_PB_PLAY), (unsigned)PB_PRICE);
+  casButton(x, y, w, h, b, CAS_GOLD, pet.coins < PB_PRICE);
+}
+static void casPinballTap(int16_t px, int16_t py) {
+  if (casPb.state == PB_ROLL || casPb.state == PB_SERVE) return;   // the flippers are held, not tapped
+  int x, y, w, h; casPinballPlayBtn(&x, &y, &w, &h);
+  if (!inBox(px, py, x, y, w, h)) return;
+  if (!casTakeBet(PB_PRICE)) return;
+  casPb.start();
+  pbSettled = false;
+  pbPaid = 0;
+  pbLastMs = millis();
+  casSetMood(DM_DEAL);
+  sfxPlay(SFX_TAP);
+}
+// The flippers, from every touch sample. Left half, left flipper.
+static void casPinballPeek(bool pressed, int16_t x) {
+  casPb.upL = pressed && x < CX;
+  casPb.upR = pressed && x >= CX;
+}
+// For tests: the table, read-only, and a way to drive it.
+const Pinball &casPinball() { return casPb; }
+Pinball &casPinballMut() { return casPb; }
+
 // ---------------------------------------------------------------- the prize shop
 static void casDrawBgSwatch(int x, int y, int w, int h, uint8_t bg);
 static void renderCasShop() {
@@ -1182,6 +1335,7 @@ bool casinoSpinning() { return casinoHeldMs() > CASINO_SPIN_START_MS; }
 bool casinoSpinShowsCorner() { return cosf(casinoSpinAngle(casinoHeldMs())) < 0; }
 
 void casinoTouchPeek(bool pressed, int16_t x, int16_t y, bool onArcadeRow) {
+  if (casinoOpen && casView == CV_PINBALL) { casPinballPeek(pressed, x); return; }
   if (!pressed || !onArcadeRow) { casHoldArmed = false; casSpinHalf = -1; return; }
   if (!casHoldArmed) { casHoldArmed = true; casHoldAt = millis(); casSpinHalf = -1; return; }
   uint32_t held = millis() - casHoldAt;
@@ -1272,6 +1426,8 @@ void casinoClose() {
   if (casHl.state == HL_GUESS) { casPay(casHl.cashOut()); }
   casBj.state = BJ_IDLE;
   casRouletteSettleNow();
+  // a pinball game cut short is paid for what it scored
+  if (casPb.state == PB_ROLL || casPb.state == PB_SERVE) { casPb.state = PB_OVER; casPinballSettle(); }
 }
 
 // The way in: Team Rocket's hideout doors, shut with the R across them for a
@@ -1306,10 +1462,13 @@ static void casDrawDoors() {
   }
 }
 
+
 void renderCasino() {
   casSlotsAuto();
   casRouletteAuto();
+  casPinballAuto();
   switch (casView) {
+    case CV_PINBALL: renderCasPinball(); break;
     case CV_ROULETTE: renderCasRoulette(); break;
     case CV_SLOTS: renderCasSlots(); break;
     case CV_HL: renderCasHl(); break;
@@ -1327,6 +1486,7 @@ void casinoTap(int16_t x, int16_t y) {
   if (casinoDoorsShowing()) return;          // still coming through the door
   switch (casView) {
     case CV_ROULETTE: casRouletteTap(x, y); return;
+    case CV_PINBALL: casPinballTap(x, y); return;
     case CV_SLOTS: casSlotsTap(x, y); return;
     case CV_HL: casHlTap(x, y); return;
     case CV_BJ: casBjTap(x, y); return;
@@ -1337,7 +1497,7 @@ void casinoTap(int16_t x, int16_t y) {
   for (uint8_t i = 0; i < CAS_LOBBY_BTNS; i++) {
     int bx, by, bw, bh; casLobbyBtn(i, &bx, &by, &bw, &bh);
     if (!inBox(x, y, bx, by, bw, bh)) continue;
-    static const uint8_t V[CAS_LOBBY_BTNS] = { CV_SLOTS, CV_HL, CV_BJ, CV_ROULETTE, CV_COINS, CV_SHOP };
+    static const uint8_t V[CAS_LOBBY_BTNS] = { CV_SLOTS, CV_HL, CV_BJ, CV_ROULETTE, CV_COINS, CV_SHOP, CV_PINBALL };
     casView = V[i];
     casArmed = -1;
     casLastWin = 0;
@@ -1354,6 +1514,13 @@ void casinoSwipeDown() {
   if (casView == CV_SLOTS && slShown < 3) { slShown = 3; casSlotsSettle(); }
   if (casView == CV_BJ && casBj.state == BJ_PLAYER) { casBj.stand(); casBjFinish(); }
   if (casView == CV_ROULETTE) casRouletteSettleNow();
+  // Pinball: a ball in play is not left by a swipe -- a flipper press that
+  // slides is too easy to read as one. Between balls it is: the score so far
+  // is paid as if the game had ended.
+  if (casView == CV_PINBALL) {
+    if (casPb.state == PB_ROLL) return;
+    if (casPb.state == PB_SERVE) { casPb.state = PB_OVER; casPinballSettle(); }
+  }
   casView = CV_LOBBY;
   casArmed = -1;
 }
