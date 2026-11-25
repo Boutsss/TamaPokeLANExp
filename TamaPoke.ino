@@ -72,7 +72,7 @@ struct RimPage {
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
-#define FW_VERSION "3.39"
+#define FW_VERSION "3.40"
 
 Arduino_DataBus *bus = new Arduino_ESP32QSPI(
   LCD_CS, LCD_SCLK, LCD_SDIO0, LCD_SDIO1, LCD_SDIO2, LCD_SDIO3);
@@ -547,7 +547,9 @@ uint8_t btlGhostIdx = 0;
 // THE one answer to "is the foe a stored squad (switching through
 // btlFoeSquad), not a trainer list rebuilt from species?" -- asked by the faint
 // check and by the swap, which used to test btlLink each on their own.
-static bool btlFoeIsSquad() { return btlLink || btlGhost; }
+// Any opponent team held as live Combatants: LAN, a practice ghost, and (v3.40)
+// every trainer, so a creature ROAR drags out keeps its damage for later.
+static bool btlFoeIsSquad() { return btlFoeSquadN > 0; }
 bool btlLinkHost = false;
 
 // "Waiting for the rival" has no upper bound of its own -- the idle heartbeat
@@ -844,6 +846,7 @@ uint8_t btlMenu = 0;
 #define BTL_MSG_MAX 12    // a v3.37 turn can say a lot: hazards, weather, a substitute...
 char btlMsg[BTL_MSG_MAX][40];
 uint8_t btlMsgCount = 0;   // queued lines; a tap shows the next
+bool btlPickOut = false;   // v3.40: the player must choose who comes in (U-TURN, BATON PASS)
 #define BTL_CELL_W 160
 #define BTL_CELL_H 54
 #define BTL_GRID_X 69
@@ -4612,6 +4615,7 @@ static void btlNarrate(const Combatant &actor, const Combatant &target, const Tu
 // The field starts empty every fight, and both creatures take their sides.
 static void btlFieldStart() {
   battleFieldReset();
+  btlPickOut = false;
   TurnLog t;
   battleOnEntry(btlYou, 0, t);
   battleOnEntry(btlFoe, 1, t);
@@ -4871,7 +4875,9 @@ static void btlOpenTeam(const TrainerMon *team, uint8_t n, uint8_t iv, bool smar
   btlLink = false;
   btlGhost = false;
   btlFoeAt = 0;
-  foeFromSpecies(btlFoe, btlTeam[0].dex, btlTeam[0].level, btlTeamIv);
+  btlFoeSquadN = 0;
+  for (uint8_t k = 0; k < n; k++) foeFromSpecies(btlFoeSquad[btlFoeSquadN++], btlTeam[k].dex, btlTeam[k].level, btlTeamIv);
+  btlFoe = btlFoeSquad[0];
   btlMsgCount = 0;
   btlOver = false;
   btlWon = false;
@@ -4905,6 +4911,7 @@ void startBattle(int16_t dex, uint8_t lvl) {
   foe.ageMinutes = (uint32_t)(lvl ? lvl - 1 : 0) * MINUTES_PER_LEVEL;
   foe.relearnFromLevel();
   combatantFromPet(btlFoe, foe);
+  btlFoeSquadN = 0;   // a lone foe, no team
   btlWild = false;
   btlMsgCount = 0;
   btlOver = false;
@@ -5125,6 +5132,86 @@ static void btlUseItem(ItemKey k) {
 }
 
 // One exchange: both sides act in speed order, then burn/poison chip.
+// ---- v3.40: the turn in steps, and the switches moves ask for ----
+struct BtlTurn {
+  bool youFirst = true, firstDone = false, secondDone = false;
+  uint16_t ma = 0, mb = 0, yourMove = 0, foeMove = 0, hp0You = 0, hp0Foe = 0;
+};
+static BtlTurn btlTurn;
+static bool btlPickBaton = false;
+static Combatant btlBatonFrom;
+static void btlTurnStep();
+static void btlTurnFinish();
+
+static Combatant *btlSide(uint8_t side) { return side ? btlFoeSquad : btlSquad; }
+static uint8_t btlSideN(uint8_t side) { return side ? btlFoeSquadN : btlSquadN; }
+static uint8_t btlSideAt(uint8_t side) { return side ? btlFoeAt : btlSquadAt; }
+// The next teammate still standing after the one out, wrapping round; -1 if
+// none. THE rule for every replacement, faint or switch.
+int btlNextHealthy(uint8_t side) {
+  uint8_t n = btlSideN(side), at = btlSideAt(side);
+  if (side && !btlFoeIsSquad()) return -1;
+  const Combatant *sq = btlSide(side);
+  for (uint8_t k = 1; k < n; k++) {
+    uint8_t i = (uint8_t)((at + k) % n);
+    if (!sq[i].fainted()) return i;
+  }
+  return -1;
+}
+static int btlRandomHealthy(uint8_t side) {
+  uint8_t n = btlSideN(side), at = btlSideAt(side), opts[TRAINER_TEAM_MAX], c = 0;
+  if (side && !btlFoeIsSquad()) return -1;
+  const Combatant *sq = btlSide(side);
+  for (uint8_t i = 0; i < n; i++) if (i != at && !sq[i].fainted()) opts[c++] = i;
+  return c ? opts[random(c)] : -1;
+}
+// Brings teammate idx on for `side`, mid-turn. `from` is the creature as it
+// left, for BATON PASS.
+static void btlBringIn(uint8_t side, uint8_t idx, bool baton, const Combatant *from) {
+  Combatant &cur = side ? btlFoe : btlYou;
+  Combatant *sq = btlSide(side);
+  battleOnSwitchOut(cur);
+  sq[btlSideAt(side)] = cur;
+  if (side) btlFoeAt = idx; else btlSquadAt = idx;
+  cur = sq[idx];
+  if (baton && from) battleBatonPass(*from, cur);
+  btlHpShown[side] = cur.hp;
+  btlSyncSprite(side, cur);
+  btlLungeUntil[side] = btlHitUntil[side] = btlFaintUntil[side] = 0;
+  btlEnterUntil[side] = millis() + BTL_ENTER_MS;
+  if (side) btlSay(T(S_BTL_SENDS), btlLink ? lan.peerName : btlFoeName, cur.name);
+  else btlSay(T(S_BTL_GO), cur.name);
+  btlArrive(side);
+}
+// After an action: perform the switch it asked for. True = stop the turn here
+// (the player is choosing, or a wild battle was blown away).
+static bool btlOutEffects(Combatant &actor, const TurnLog &lg) {
+  uint8_t aSide = (&actor == &btlYou) ? 0 : 1, tSide = 1 - aSide;
+  if (lg.forceOut) {
+    if (btlWild) {                    // ROAR in the wild: the fight is simply over
+      btlOver = true; btlWon = false;
+      audioMusic(MUS_NONE);
+      btlSay(T(S_BN_BLOWN_AWAY), tSide ? btlFoe.name : btlYou.name);
+      return true;
+    }
+    int k = btlRandomHealthy(tSide);
+    if (k < 0) btlSay("%s", T(S_BN_FAILED));
+    else { btlSay(T(S_BN_DRAGGED), tSide ? btlFoe.name : btlYou.name); btlBringIn(tSide, (uint8_t)k, false, nullptr); }
+  }
+  if (lg.selfOut && !actor.fainted()) {
+    if (btlNextHealthy(aSide) < 0) return false;          // nobody to switch to: it stays
+    if (aSide == 0) {
+      btlPickOut = true; btlPickBaton = lg.baton; btlBatonFrom = btlYou;
+      btlMenu = 2;                                        // the switch screen, and no way back
+      return true;
+    }
+    Combatant from = btlFoe;
+    btlSay(T(S_BN_WENT_BACK), btlFoe.name);
+    btlBringIn(1, (uint8_t)btlNextHealthy(1), lg.baton, &from);
+  }
+  return false;
+}
+
 static void btlResolve(uint16_t yourMove) {
   TurnLog lg;
   // Against another device the opponent's move comes off the wire, never from
@@ -5179,21 +5266,48 @@ static void btlResolve(uint16_t yourMove) {
     const Combatant &clawUser = clawSide == 1 ? btlYou : btlFoe;
     btlSay(T(S_BTL_USED), clawUser.name, itemEntry(IT_QUICK_CLAW).name);
   }
-  Combatant *a = youFirst ? &btlYou : &btlFoe;
-  Combatant *b = youFirst ? &btlFoe : &btlYou;
-  uint16_t ma = youFirst ? yourMove : foeMove;
-  uint16_t mb = youFirst ? foeMove : yourMove;
+  btlTurn = BtlTurn();
+  btlTurn.youFirst = youFirst;
+  btlTurn.ma = youFirst ? yourMove : foeMove;
+  btlTurn.mb = youFirst ? foeMove : yourMove;
+  btlTurn.yourMove = yourMove; btlTurn.foeMove = foeMove;
+  btlTurn.hp0You = btlYou.hp; btlTurn.hp0Foe = btlFoe.hp;
+  btlTurnStep();
+}
 
-  uint16_t hp0You = btlYou.hp, hp0Foe = btlFoe.hp;
-  battleAct(*a, *b, ma, lg);
-  btlNarrate(*a, *b, lg);
-  if (lg.damage && !lg.hurtSelf) btlLungeUntil[a == &btlYou ? 0 : 1] = now + BTL_LUNGE_MS;
-  if (!b->fainted()) {
-    battleAct(*b, *a, mb, lg);
-    btlNarrate(*b, *a, lg);
-    if (lg.damage && !lg.hurtSelf)
-      btlLungeUntil[b == &btlYou ? 0 : 1] = now + BTL_LUNGE_MS + BTL_LUNGE_MS;
+// The rest of a turn, resumable. The two creatures are always "whoever is OUT
+// on that side now", so after a U-TURN the replacement is the one that takes
+// the second hit -- as in the games.
+static void btlTurnStep() {
+  TurnLog lg;
+  uint32_t now = millis();
+  Combatant *a = btlTurn.youFirst ? &btlYou : &btlFoe;
+  Combatant *b = btlTurn.youFirst ? &btlFoe : &btlYou;
+  if (!btlTurn.firstDone) {
+    btlTurn.firstDone = true;
+    battleAct(*a, *b, btlTurn.ma, lg);
+    btlNarrate(*a, *b, lg);
+    if (lg.damage && !lg.hurtSelf) btlLungeUntil[a == &btlYou ? 0 : 1] = now + BTL_LUNGE_MS;
+    if (btlOutEffects(*a, lg)) return;       // paused for the player's pick, or a wild fight blown away
   }
+  if (!btlTurn.secondDone) {
+    btlTurn.secondDone = true;
+    if (!b->fainted() && !a->fainted()) {
+      battleAct(*b, *a, btlTurn.mb, lg);
+      btlNarrate(*b, *a, lg);
+      if (lg.damage && !lg.hurtSelf)
+        btlLungeUntil[b == &btlYou ? 0 : 1] = now + BTL_LUNGE_MS + BTL_LUNGE_MS;
+      if (btlOutEffects(*b, lg)) return;
+    }
+  }
+  btlTurnFinish();
+}
+
+static void btlTurnFinish() {
+  TurnLog lg;
+  uint32_t now = millis();
+  uint16_t yourMove = btlTurn.yourMove, foeMove = btlTurn.foeMove;
+  uint16_t hp0You = btlTurn.hp0You, hp0Foe = btlTurn.hp0Foe;
   // whoever actually lost health flinches, whichever side dealt it
   if (btlYou.hp < hp0You) btlHitUntil[0] = now + BTL_HIT_MS;
   if (btlFoe.hp < hp0Foe) btlHitUntil[1] = now + BTL_HIT_MS;
@@ -5209,17 +5323,14 @@ static void btlResolve(uint16_t yourMove) {
   // Someone went down. The replacement is NOT swapped in here -- that made the
   // change instant and read as a jump cut. Flag it, let the sprite drop out of
   // frame, and swap when the player dismisses the message.
-  if (btlFoe.fainted() && btlFoeIsSquad() && btlFoeAt + 1 < btlFoeSquadN) {
+  // "Anyone left standing", not "anyone after this one": with switching, the
+  // creature out last need not be the last in the team.
+  if (btlFoe.fainted() && btlNextHealthy(1) >= 0) {
     btlFaintUntil[1] = millis() + BTL_FAINT_MS;
     btlSwapWho = 1;
     return;
   }
-  if (btlFoe.fainted() && btlTrainer >= 0 && btlFoeAt + 1 < btlTeamN) {
-    btlFaintUntil[1] = millis() + BTL_FAINT_MS;
-    btlSwapWho = 1;
-    return;
-  }
-  if (btlYou.fainted() && btlSquadAt + 1 < btlSquadN) {
+  if (btlYou.fainted() && btlNextHealthy(0) >= 0) {
     btlFaintUntil[0] = millis() + BTL_FAINT_MS;
     btlSwapWho = 0;
     return;
@@ -5636,7 +5747,7 @@ void renderBattle() {
     gfx->setTextSize(2);
     gfx->setCursor(CX - (int)strlen(T(S_BTL_SWITCH)) * 6, BSW_PANEL_Y + 10);
     gfx->print(T(S_BTL_SWITCH));
-    drawBtlBack();
+    if (!btlPickOut) drawBtlBack();
     uint8_t list[TRAINER_TEAM_MAX];
     uint8_t n = btlSwitchList(list);
     for (uint8_t pos = 0; pos < n; pos++) {
@@ -5693,11 +5804,10 @@ static void btlDoSwap() {
   if (btlSwapWho == 1 && btlFoeIsSquad()) {
     battleOnSwitchOut(btlFoe);
     btlFoeSquad[btlFoeAt] = btlFoe;
-    // the next one still standing, not simply the next index
-    uint8_t nxt = btlFoeAt;
-    while (++nxt < btlFoeSquadN && btlFoeSquad[nxt].fainted()) {}
-    if (nxt >= btlFoeSquadN) { btlSwapWho = -1; return; }
-    btlFoeAt = nxt;
+    // the next one still standing, anywhere in the team
+    int nxt = btlNextHealthy(1);
+    if (nxt < 0) { btlSwapWho = -1; return; }
+    btlFoeAt = (uint8_t)nxt;
     btlFoe = btlFoeSquad[btlFoeAt];
     btlHpShown[1] = btlFoe.hp;
     btlSyncSprite(1, btlFoe);
@@ -5717,7 +5827,9 @@ static void btlDoSwap() {
   } else if (btlSwapWho == 0) {
     battleOnSwitchOut(btlYou);
     btlSquad[btlSquadAt] = btlYou;     // remember how battered it was
-    btlSquadAt++;
+    int nxt = btlNextHealthy(0);
+    if (nxt < 0) { btlSwapWho = -1; return; }
+    btlSquadAt = (uint8_t)nxt;
     btlYou = btlSquad[btlSquadAt];
     btlHpShown[0] = btlYou.hp;
     btlSyncSprite(0, btlYou);
@@ -5786,6 +5898,9 @@ static void drawBtlBack() {
   gfx->print(T(S_BACK));
 }
 
+// The battle's BACK button centre, so a test taps the real button rather than
+// re-typing its rectangle.
+void btlBackCenter(int *x, int *y) { *x = BTL_BACK_X + BTL_BACK_W / 2; *y = BTL_BACK_Y + BTL_BACK_H / 2; }
 static bool btlBackTap(int16_t x, int16_t y) {
   if (x < BTL_BACK_X || x > BTL_BACK_X + BTL_BACK_W ||
       y < BTL_BACK_Y || y > BTL_BACK_Y + BTL_BACK_H) return false;
@@ -5951,7 +6066,8 @@ void battleTap(int16_t x, int16_t y) {
     return;
   }
   if (btlMenu == 2) {
-    if (btlBackTap(x, y)) return;
+    // a U-TURN's pick cannot be backed out of: the turn is waiting on it
+    if (!btlPickOut && btlBackTap(x, y)) return;
     uint8_t list[TRAINER_TEAM_MAX];
     uint8_t n = btlSwitchList(list);
     int pos = btlSwitchCellAt(x, y);
@@ -5960,6 +6076,14 @@ void battleTap(int16_t x, int16_t y) {
       const Combatant &m = btlSquad[i];
       if (m.fainted()) { sfxPlay(SFX_DENY); return; }
       sfxPlay(SFX_TAP);
+      if (btlPickOut) {           // mid-turn: bring it in for free, then let the turn go on
+        btlPickOut = false;
+        btlMenu = 0;
+        btlSay(T(S_BN_WENT_BACK), btlYou.name);
+        btlBringIn(0, i, btlPickBaton, &btlBatonFrom);
+        btlTurnStep();
+        return;
+      }
       if (btlLink && !btlLinkHost) {
         // The guest asks; it never switches on its own. A switch rides the same
         // message as a move, so the host spends the turn on it exactly as it
@@ -5977,7 +6101,7 @@ void battleTap(int16_t x, int16_t y) {
       btlSwitchTo(i);
       return;
     }
-    btlMenu = 0;      // anywhere else backs out
+    if (!btlPickOut) btlMenu = 0;      // anywhere else backs out -- except when it must choose
     return;
   }
   if (btlBackTap(x, y)) return;

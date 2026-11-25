@@ -485,8 +485,8 @@ static void actCore(Combatant &atk, Combatant &def, uint16_t mv, TurnLog &log) {
   // FUTURE SIGHT is aimed now and lands later, through PROTECT and all
   if (futureSight(atk, def, mv, log)) return;
 
-  // PROTECT, before anything can land
-  if (def.protecting && aimsAtFoe(m)) {
+  // PROTECT, before anything can land. ROAR and WHIRLWIND go straight through it.
+  if (def.protecting && aimsAtFoe(m) && !(m.effect == EF_FORCESWITCH && m.cat == MC_STATUS)) {
     log.add(BN_PROTECTED, 1);
     atk.lastFailed = true;
     if (m.effect == EF_SELFKO) { atk.hp = 0; log.userFainted = true; }
@@ -587,6 +587,8 @@ static void actCore(Combatant &atk, Combatant &def, uint16_t mv, TurnLog &log) {
     atk.seeded = false; atk.bindTurns = 0;
   }
   if (m.effect == EF_CLEARSMOG && !subHit && !def.fainted()) { clearStages(def); log.add(BN_STAGES_RESET, 1); }
+  if (m.effect == EF_FORCESWITCH && !subHit && !def.fainted() && !def.ingrained) log.forceOut = true;   // DRAGON TAIL
+  if (m.effect == EF_UTURN && !atk.fainted()) log.selfOut = true;                                      // U-TURN, VOLT SWITCH
   if (m.effect == EF_BIND && !subHit && !def.fainted() && !def.bindTurns) {
     def.bindTurns = (uint8_t)(4 + random(2));
     log.add(BN_BOUND, 1);
@@ -627,7 +629,8 @@ static void endLockIn(Combatant &atk, TurnLog &log) {
 static void statusMove(Combatant &atk, Combatant &def, uint16_t mv, const MoveEntry &m, TurnLog &log) {
   BattleSide &mine = sideOf(atk), &theirs = sideOf(def);
   // a substitute blocks what is aimed at the creature behind it
-  if (def.subHp && aimsAtFoe(m) && m.effect != EF_DEFOG && m.effect != EF_PERISH) { fail(atk, log); return; }
+  if (def.subHp && aimsAtFoe(m) && m.effect != EF_DEFOG && m.effect != EF_PERISH &&
+      m.effect != EF_FORCESWITCH) { fail(atk, log); return; }
   // A STATUS move that inflicts an ailment (THUNDER WAVE, SLEEP POWDER,
   // HYPNOSIS, TOXIC, WILL-O-WISP, CONFUSE RAY). As in the games, a status
   // move ignores the type chart -- CONFUSE RAY works on a Normal type --
@@ -851,6 +854,15 @@ static void statusMove(Combatant &atk, Combatant &def, uint16_t mv, const MoveEn
       atk.hp = 0; log.userFainted = true; log.add(BN_SELF_FAINT, 0);
       break;
     case EF_SPLASH: log.add(BN_NOTHING, 0); break;
+    case EF_FORCESWITCH:
+      if (def.ingrained) { fail(atk, log); break; }
+      log.forceOut = true;          // the screen picks the teammate, or ends a wild fight
+      break;
+    case EF_UTURN:                  // PARTING SHOT: the drop, then out
+      if (m.statMask) { applyStages(def, m.statMask, m.stages, true); log.stageMask = m.statMask; log.stageDelta = m.stages; }
+      log.selfOut = true;
+      break;
+    case EF_BATONPASS: log.selfOut = true; log.baton = true; break;
     case EF_FUTURE: break;   // damaging; never reaches here
     default: break;
   }
@@ -928,6 +940,18 @@ void battleOnSwitchOut(Combatant &c) {
   c.charging = 0; c.recharge = false;
   c.protecting = c.enduring = false; c.protectChain = 0;
   c.turnsOut = 0;
+}
+
+void battleBatonPass(const Combatant &from, Combatant &to) {
+  for (int i = 0; i < SI_COUNT; i++) to.stage[i] = from.stage[i];
+  to.accStage = from.accStage; to.evaStage = from.evaStage;
+  to.subHp = from.subHp;
+  to.confuseTurns = from.confuseTurns;
+  to.critStage = from.critStage;
+  to.seeded = from.seeded;
+  to.aquaRing = from.aquaRing; to.ingrained = from.ingrained;
+  to.cursed = from.cursed;
+  to.perish = from.perish;
 }
 
 bool battleCanSwitch(const Combatant &c) {
@@ -1115,6 +1139,9 @@ static int32_t statusScore(const Combatant &self, const Combatant &foe, const Mo
     case EF_TRAP: return foe.trapped ? -60 : 2;
     case EF_SLEEPTALK: return self.ailment == AIL_SLEEP ? 60 : -100;
     case EF_SPLASH: return -100;
+    case EF_FORCESWITCH: return stagesUp(foe) >= 2 || foe.subHp ? 30 : 2;   // undo the foe's set-up
+    case EF_BATONPASS: return stagesUp(self) >= 2 ? 30 : -40;               // only worth it with boosts to pass
+    case EF_UTURN: return 8;                                                // PARTING SHOT
     case EF_DEFOG: return (mine.rocks || mine.spikes || mine.tspikes || mine.web) ? 26 : -20;
     default: break;
   }

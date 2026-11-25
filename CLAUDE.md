@@ -1863,9 +1863,17 @@ how a move plays, never which move an ID is). `MOVE_COUNT` is 500.
   out of every AUTOMATIC moveset (hatchlings, gym leaders, wild creatures).
 - Crits are x1.5 now (Gen 6 on), not x2.
 - `mechanics_test` drives each rule through the engine; seven were broken on
-  purpose and each failed it. Left for a later batch: anything that forces or
-  passes a switch (ROAR, U-TURN, BATON PASS) -- it needs the switch screen to
-  open on the engine's say-so, and a LAN guest to be asked.
+  purpose and each failed it.
+- **Switching moves (v3.40).** The engine only ASKS (`TurnLog::forceOut`,
+  `selfOut`, `baton`); the screen performs it, because only the screen knows
+  the teams. `btlResolve()` is split into `btlTurnStep()` / `btlTurnFinish()`
+  so a U-TURN can pause the turn (`btlPickOut`, no BACK) for the player's pick
+  and resume with the replacement taking the second hit. Every opponent TEAM is
+  now held as live Combatants (`btlFoeSquad`, trainers included) so a dragged-
+  out creature keeps its damage, and `btlNextHealthy()` is THE replacement rule
+  (any teammate still standing, not only later ones -- the old forward-only
+  search lost a fight with healthy creatures left). On LAN the host picks the
+  guest's U-TURN replacement. `switchmove_ui_test`, five rules negative-checked.
 
 ### The party is the live pet + FIVE banked (v3.31)
 

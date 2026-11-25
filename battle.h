@@ -114,6 +114,12 @@ struct TurnLog {
   bool healed = false;
   bool targetFainted = false;
   bool userFainted = false;  // EXPLOSION, DESTINY BOND, recoil
+  // v3.40: a switch the engine asks for and the battle screen performs, since
+  // only the screen knows the teams. forceOut: the TARGET is dragged out for a
+  // random healthy teammate (ROAR, DRAGON TAIL; a wild battle simply ends).
+  // selfOut: the USER leaves after acting (U-TURN, VOLT SWITCH, PARTING SHOT),
+  // the player choosing who comes in. baton: BATON PASS, see battleBatonPass().
+  bool forceOut = false, selfOut = false, baton = false;
   uint8_t atkItem = ITEM_NONE, defItem = ITEM_NONE;
   // v3.37: everything else that happened, in order, for the narration. Each is
   // a BN_ code and who it is about (0 = the one acting, 1 = its target).
@@ -171,6 +177,10 @@ void battleOnEntry(Combatant &c, uint8_t side, TurnLog &log);
 void battleOnSwitchOut(Combatant &c);
 // MEAN LOOK, BLOCK, a bind or INGRAIN: false = it may not switch out.
 bool battleCanSwitch(const Combatant &c);
+// BATON PASS: what `to` (just sent in, after battleOnSwitchOut(from)) takes
+// over from `from` (as it was before leaving): stat stages, the substitute,
+// confusion, FOCUS ENERGY, LEECH SEED, AQUA RING / INGRAIN, CURSE, PERISH SONG.
+void battleBatonPass(const Combatant &from, Combatant &to);
 // The type a move hits with in THIS situation (HIDDEN POWER, WEATHER BALL).
 uint8_t battleMoveType(const Combatant &atk, uint16_t mv);
 

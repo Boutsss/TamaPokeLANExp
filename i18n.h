@@ -537,6 +537,9 @@ enum StrId : uint16_t {
   S_BN_CURED,
   S_BN_STAGE_UP,
   S_BN_TRAPPED_NOSWITCH,
+  S_BN_BLOWN_AWAY,
+  S_BN_DRAGGED,
+  S_BN_WENT_BACK,
   STR_COUNT
 };
 

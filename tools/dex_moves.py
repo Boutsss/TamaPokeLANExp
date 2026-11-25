@@ -120,6 +120,9 @@ EF_WAKEUP = 68        # double power on that ailment (param), then cures it
 EF_ESCALATE = 69      # doubles each consecutive use, up to param doublings
 EF_LOCKIN = 70        # locked in for 2-3 turns, then confused
 EF_FUTURE = 71        # lands two turns later
+EF_FORCESWITCH = 72   # the target is dragged out for a random teammate; ends a wild battle
+EF_UTURN = 73         # the user switches out after it acts (statMask/stages: PARTING SHOT's drop first)
+EF_BATONPASS = 74     # the user switches out, and its replacement inherits stages and the like
 
 # EF_VARPOW kinds
 VP = ('NONE FACADE RETURN FRUSTRATION PAYBACK ASSURANCE REVENGE HEX VENOSHOCK BRINE ACROBATICS '

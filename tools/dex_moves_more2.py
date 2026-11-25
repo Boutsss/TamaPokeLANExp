@@ -249,6 +249,14 @@ MORE2_MOVES = [
     ('STEAMERUPTN', 'steam-eruption', 'water', MC_SPEC, 110, 95, EF_NONE, 0, 0, 0, TG_FOE, AIL_BURN, 30),
     ('TROP KICK', 'trop-kick', 'grass', MC_PHYS, 70, 100, EF_STAGE, 100, ST_ATK, -1, TG_FOE, AIL_NONE, 0),
     ('V-CREATE', 'v-create', 'fire', MC_PHYS, 180, 95, EF_STAGE, 100, ST_DEF|ST_SPD|ST_SPE, -1, TG_SELF, AIL_NONE, 0),
+    ('ROAR', 'roar', 'normal', MC_STATUS, 0, 0, EF_FORCESWITCH, 0, 0, 0, TG_FOE, AIL_NONE, 0),
+    ('U-TURN', 'u-turn', 'bug', MC_PHYS, 70, 100, EF_UTURN, 0, 0, 0, TG_FOE, AIL_NONE, 0),
+    ('BATON PASS', 'baton-pass', 'normal', MC_STATUS, 0, 0, EF_BATONPASS, 0, 0, 0, TG_SELF, AIL_NONE, 0),
+    ('DRAGON TAIL', 'dragon-tail', 'dragon', MC_PHYS, 60, 90, EF_FORCESWITCH, 0, 0, 0, TG_FOE, AIL_NONE, 0),
+    ('VOLT SWITCH', 'volt-switch', 'electric', MC_SPEC, 70, 100, EF_UTURN, 0, 0, 0, TG_FOE, AIL_NONE, 0),
+    ('WHIRLWIND', 'whirlwind', 'normal', MC_STATUS, 0, 0, EF_FORCESWITCH, 0, 0, 0, TG_FOE, AIL_NONE, 0),
+    ('PARTING SHOT', 'parting-shot', 'dark', MC_STATUS, 0, 100, EF_UTURN, 0, ST_ATK|ST_SPA, -1, TG_FOE, AIL_NONE, 0),
+    ('CIRCLE THROW', 'circle-throw', 'fighting', MC_PHYS, 60, 90, EF_FORCESWITCH, 0, 0, 0, TG_FOE, AIL_NONE, 0),
 ]
 
 MORE2_NAMES = {
@@ -497,4 +505,12 @@ MORE2_NAMES = {
     'steam-eruption': ('CHORRO DE VAPOR', 'STEAMERUPTN', 'JET DE VAPEUR', 'DAMPFSCHWALL', 'VAPORSCOPPIO', 'STEAMERUPTN'),
     'trop-kick': ('PATADA TROPICAL', 'TROP KICK', 'BOTTE SUCRETTE', 'TROPENKICK', 'TROPICALCIO', 'TROP KICK'),
     'v-create': ('V DE FUEGO', 'V-CREATE', 'COUP VICTOIRE', 'V-GENERATOR', 'GENERATORE V', 'V-CREATE'),
+    'roar': ('RUGIDO', 'ROAR', 'HURLEMENT', 'BRULLER', 'BOATO', 'ROAR'),
+    'u-turn': ('IDA Y VUELTA', 'U-TURN', 'DEMI-TOUR', 'KEHRTWENDE', 'RETROMARCIA', 'U-TURN'),
+    'baton-pass': ('RELEVO', 'BATON PASS', 'RELAIS', 'STAFETTE', 'STAFFETTA', 'BATON PASS'),
+    'dragon-tail': ('COLA DRAGON', 'DRAGON TAIL', 'DRACO-QUEUE', 'DRACHENRUTE', 'CODADRAGO', 'DRAGON TAIL'),
+    'volt-switch': ('VOLTIOCAMBIO', 'VOLT SWITCH', 'CHANGE ECLAIR', 'VOLTWECHSEL', 'INVERTIVOLT', 'VOLT SWITCH'),
+    'whirlwind': ('REMOLINO', 'WHIRLWIND', 'CYCLONE', 'WIRBELWIND', 'TURBINE', 'WHIRLWIND'),
+    'parting-shot': ('ULTIMA PALABRA', 'PARTING SHOT', 'DERNIER MOT', 'ABGANGSTIRADE', 'MONITO', 'PARTING SHOT'),
+    'circle-throw': ('LLAVE GIRO', 'CIRCLE THROW', 'PROJECTION', 'UBERKOPFWURF', 'RIBALTIRO', 'CIRCLE THROW'),
 }

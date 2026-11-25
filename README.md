@@ -3,7 +3,7 @@
 [![Flash in browser](https://img.shields.io/badge/flash-in%20browser-FF6B00?logo=googlechrome&logoColor=white)](https://boutsss.github.io/TamaPokeLANExp/web/)
 [![MakerWorld](https://img.shields.io/badge/MakerWorld-3D%20case-00AE42?logo=bambulab&logoColor=white)](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)
 ![Board](https://img.shields.io/badge/board-ESP32--S3%20round%20AMOLED-E7352C?logo=espressif&logoColor=white)
-![Firmware](https://img.shields.io/badge/firmware-v3.39-8A2BE2)
+![Firmware](https://img.shields.io/badge/firmware-v3.40-8A2BE2)
 ![Code](https://img.shields.io/badge/code-MIT-blue)
 ![Languages](https://img.shields.io/badge/languages-6-FFCB05)
 [![Stars](https://img.shields.io/github/stars/DylanPDao/TamaPoke?style=flat&logo=github&color=yellow)](https://github.com/DylanPDao/TamaPoke/stargazers)
@@ -278,15 +278,18 @@ While **awake**, per minute:
   sprite pack is on the card, so evolving can never hand you a creature the
   device cannot draw.
 
-Each creature also knows up to **4 moves**, from a pool of **499**: the original
+Each creature also knows up to **4 moves**, from a pool of **507**: the original
 hand-picked set, (v3.33) the 159 Gen 1-7 moves the engine could already play,
 and (v3.37) 245 more that needed new battle rules -- PROTECT, SUBSTITUTE, the
 weathers, STEALTH ROCK and SPIKES, REFLECT and LIGHT SCREEN, FAKE OUT and every
 flinch, LOW KICK, FOUL PLAY, REST and SLEEP TALK... and the legendaries' signature
 moves (AEROBLAST, PSYSTRIKE, SACRED SWORD, ROAR OF TIME). See "Battle rules"
-below. Still left out, rather than played wrongly: moves that need abilities,
-double battles, held-item tricks, or that force or pass a switch (ROAR, U-TURN,
-BATON PASS -- a later update). Who learns what, and at
+below. Since v3.40 the switching moves are in too: U-TURN, VOLT SWITCH and PARTING
+SHOT (you pick who comes in, and the newcomer takes the foe's attack), ROAR,
+WHIRLWIND, DRAGON TAIL and CIRCLE THROW (a random teammate is dragged in; in the
+wild the fight just ends), and BATON PASS (the boosts go with it). Still left
+out, rather than played wrongly: moves that need abilities, double battles or
+held-item tricks. Who learns what, and at
 which level, is the real games' data. A creature's existing moves never change
 on updating: new moves only ever join the list it can choose from. Two kinds:
 

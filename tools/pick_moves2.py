@@ -137,6 +137,11 @@ sp('sucker-punch', eff='EF_SUCKER')
 sp('fake-out', eff='EF_FAKEOUT', param=0)
 sp('first-impression', eff='EF_FAKEOUT', param=1)
 sp('explosion self-destruct', eff='EF_SELFKO')
+# switching (v3.40): the battle screen performs the switch the engine asks for
+sp('roar whirlwind dragon-tail circle-throw', eff='EF_FORCESWITCH')
+sp('u-turn volt-switch', eff='EF_UTURN')
+sp('parting-shot', eff='EF_UTURN', mask='ST_ATK|ST_SPA', stages=-1)
+sp('baton-pass', eff='EF_BATONPASS', target='TG_SELF')
 # plain damage whose one special rule is a flag (FLAGS below) or the crit column
 sp('brick-break psychic-fangs sacred-sword chip-away darkest-lariat psyshock psystrike secret-sword '
    'foul-play freeze-dry storm-throw frost-breath smart-strike', eff='EF_NONE')
@@ -339,7 +344,29 @@ def main():
                   f['eff'], f['param'], f['ail'][4:], f['ach'], f['target'][3:], len(L), short(m)[:60]))
         return
     out = os.path.join(HERE, 'dex_moves_more2.py')
-    if os.path.exists(out) and '--force' not in sys.argv:
+    if '--append' in sys.argv and os.path.exists(out):
+        # The file is in saves: its rows never move. New moves go on the end,
+        # in this run's order, and nothing already there is touched.
+        import dex_moves_more2 as M2
+        old = {slug for _n, slug, *_ in M2.MORE2_MOVES}
+        new = [t for t in ok if t[0]['name'] not in old]
+        txt = open(out).read()
+        rows = ''.join('    (%r, %r, %r, %s, %d, %d, %s, %d, %s, %d, %s, %s, %d),\n' % (
+            nm, m['name'], m['type']['name'], f['cat'], f['power'], f['acc'], f['eff'], f['param'],
+            f['mask'], f['stages'], f['target'], f['ail'], f['ach']) for m, f, L, nm in new)
+        names = ''
+        for m, f, L, nm in new:
+            n = {x['language']['name']: x['name'] for x in m['names']}
+            row = [fold(n.get('es', nm))[:23], nm, fold(n.get('fr', nm))[:23], fold(n.get('de', nm))[:23],
+                   fold(n.get('it', nm))[:23], nm]
+            names += '    %r: %r,\n' % (m['name'], tuple(row))
+        a = txt.index('\n]\n\nMORE2_NAMES')
+        txt = txt[:a + 1] + rows + txt[a + 1:]
+        b = txt.rindex('\n}')
+        txt = txt[:b + 1] + names + txt[b + 1:]
+        open(out, 'w').write(txt)
+        print('appended %d moves: %s' % (len(new), ', '.join(t[3] for t in new)))
+    elif os.path.exists(out) and '--force' not in sys.argv:
         print('dex_moves_more2.py exists and is APPEND-ONLY (its order is in saves); not rewriting it')
     else:
         with open(out, 'w') as o:

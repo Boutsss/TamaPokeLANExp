@@ -93,8 +93,8 @@ def main():
                                                            _D.EF_ENDEAVOR, _D.EF_OHKO, _D.EF_COUNTER,
                                                            _D.EF_FINALGAMBIT):
             sys.exit('%s: potencia 0 sin dano fijo' % name)
-        # a stage mask belongs to EF_STAGE, and to the three rules that carry one
-        if bool(mask) != (eff in (EF_STAGE, _D.EF_SWAGGER, _D.EF_DEFOG, _D.EF_MEMENTO)) and not (eff == EF_STAGE and not mask):
+        # a stage mask belongs to EF_STAGE, and only to the few rules that carry one
+        if mask and eff not in (EF_STAGE, _D.EF_SWAGGER, _D.EF_DEFOG, _D.EF_MEMENTO, _D.EF_UTURN):
             sys.exit('%s: EF_STAGE y statMask no concuerdan' % name)
         if mask and not stages:
             sys.exit('%s: statMask sin stages' % name)
