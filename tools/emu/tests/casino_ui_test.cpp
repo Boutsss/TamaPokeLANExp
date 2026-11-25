@@ -204,7 +204,7 @@ int main(){
   ck(!casinoOwns(PK_AVATAR, 1) && pet.coins == 0, "with no coins left nothing more is bought");
 
   // ---- paging, on the rim
-  ck(uiRimPages() == (SHOP_AVATAR_COUNT + 5) / 6, "the avatar shop pages on the rim, one page per six");
+  ck(uiRimPages() == (casinoShopCount(PK_AVATAR) + 5) / 6, "the avatar shop pages on the rim, one page per six");
   onRim(1); render();
   ck(casShopPage == 1 && onScreen("casshop"), "a rim drag turns the page and stays in the shop");
 

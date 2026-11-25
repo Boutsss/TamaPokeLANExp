@@ -90,7 +90,7 @@ static bool inBox(int16_t px, int16_t py, int x, int y, int w, int h) {
   return px >= x && px < x + w && py >= y && py < y + h;
 }
 uint8_t casShopPages() {
-  uint8_t n = casinoPrizeCount(casShopKind);
+  uint8_t n = casinoShopCount(casShopKind);
   return n ? (uint8_t)((n + CAS_SHOP_PER - 1) / CAS_SHOP_PER) : 1;
 }
 
@@ -882,11 +882,11 @@ static void renderCasShop() {
     gfx->drawRoundRect(x, y, w, h, 12, UI_WHITE);
     casText(x + w / 2, y + h / 2 - 4, tabs[i], i == casShopKind ? UI_INK : UI_WHITE, 1);
   }
-  uint8_t n = casinoPrizeCount(casShopKind);
   if (casShopPage >= casShopPages()) casShopPage = 0;
   for (uint8_t t = 0; t < CAS_SHOP_PER; t++) {
-    uint8_t i = casShopPage * CAS_SHOP_PER + t;
-    if (i >= n) break;
+    int li = casinoShopAt(casShopKind, (uint8_t)(casShopPage * CAS_SHOP_PER + t));
+    if (li < 0) break;
+    uint8_t i = (uint8_t)li;
     int x, y, w, h; casTile(t, &x, &y, &w, &h);
     bool own = casinoOwns(casShopKind, i);
     bool eq = (casShopKind == PK_BACK && casino.back == i) || (casShopKind == PK_CARDBG && casino.bg == i) ||
@@ -921,10 +921,10 @@ static void casShopTap(int16_t px, int16_t py) {
     int x, y, w, h; casTab(i, &x, &y, &w, &h);
     if (inBox(px, py, x, y, w, h)) { casShopKind = i; casShopPage = 0; casArmed = -1; sfxPlay(SFX_TAP); return; }
   }
-  uint8_t n = casinoPrizeCount(casShopKind);
   for (uint8_t t = 0; t < CAS_SHOP_PER; t++) {
-    uint8_t i = casShopPage * CAS_SHOP_PER + t;
-    if (i >= n) break;
+    int li = casinoShopAt(casShopKind, (uint8_t)(casShopPage * CAS_SHOP_PER + t));
+    if (li < 0) break;
+    uint8_t i = (uint8_t)li;
     int x, y, w, h; casTile(t, &x, &y, &w, &h);
     if (!inBox(px, py, x, y, w, h)) continue;
     if (casinoOwns(casShopKind, i)) {    // owned: equip it

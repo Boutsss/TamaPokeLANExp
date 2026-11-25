@@ -139,6 +139,9 @@ extern CasinoState casino;
 void casinoBegin();
 bool casinoSave();
 bool casinoOwns(uint8_t kind, uint8_t i);
+bool casinoPrizeRetired(uint8_t kind, uint8_t i);   // kept in the index order, never sold
+uint8_t casinoShopCount(uint8_t kind);               // what the shop LISTS
+int casinoShopAt(uint8_t kind, uint8_t pos);         // list position -> prize index, -1 past the end
 // Spends CASINO_PRICE from `coins` and records the prize. False (nothing
 // changes) if it is owned already or the coins are short. `spend` is called
 // to take the coins and must return whether it landed; only then is the prize

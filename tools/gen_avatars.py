@@ -104,6 +104,12 @@ SHOP = [
 ]
 DEALER = (RED, 'rocket')   # all six frames: the casino dealer animates
 
+# Shop entries that are NOT SOLD any more, but keep their index (ownership is a
+# bit per shop index, so removing one would hand every later purchase to its
+# neighbour). CHAMP RED is GSC's red.png, pixel-for-pixel the free rank avatar
+# RED: the rank avatars stay rank-only, so it is not a prize.
+RETIRED = {'CHAMP RED'}
+
 OUTLINE = 0x18C4     # same ink as the rest of the UI
 HIGHLIGHT = 0xEF7D   # a soft off-white, so it reads on the cream card
 
@@ -255,6 +261,11 @@ def main():
     for i in range(0, len(shopNames), 6):
         nm.append('  ' + ' '.join('"%s",' % n for n in shopNames[i:i + 6]))
     nm.append('};')
+    ret = [i for i, n in enumerate(shopNames) if n in RETIRED]
+    nm.append('// Kept in the frozen order above but never sold: each duplicates a rank avatar.')
+    nm.append('#define SHOP_AVATAR_RETIRED_COUNT %d' % len(ret))
+    nm.append('static const uint8_t SHOP_AVATAR_RETIRED[SHOP_AVATAR_RETIRED_COUNT] = { %s };'
+              % ', '.join('%d' % i for i in ret) + '   // ' + ', '.join(shopNames[i] for i in ret))
     nm.append('')
     open(namesPath, 'w').write('\n'.join(nm))
     sys.stderr.write('wrote %s (%d avatars, %d in the shop)\n' % (outPath, len(names), len(shopNames)))

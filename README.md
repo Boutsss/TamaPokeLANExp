@@ -514,7 +514,7 @@ again to buy it; an owned prize is equipped with one tap. Page with a rim drag.
 | Kind | What there is |
 |---|---|
 | Card backs | 28: CLASSIC (free), TEAM ROCKET, Poke, Great, Ultra and Master Ball, GAME CORNER, all 18 types, MOON STONE, SAFARI, GOLD. Used by High/Low and Blackjack. |
-| Avatars | 82 trainers from Red/Blue and Gold/Silver/Crystal: the Elite Four, gym leaders, Professors Oak and Elm, Gold, Kris, Silver, Champion Red, Team Rocket and many more. Shown on your trainer card. |
+| Avatars | 81 trainers from Red/Blue and Gold/Silver/Crystal: the Elite Four, gym leaders, Professors Oak and Elm, Gold, Kris, Silver, Team Rocket and many more. Shown on your trainer card. The eight rank avatars (RED, BLUE, GIRL, ACE M, ACE F, HIKER, SAILOR, YOUNGSTER) are earned by rank and are never sold here. |
 | Trainer-card backgrounds | 48: the free default, all 18 types, Kanto places (Pallet Town, Viridian Wood, Mt Moon, Lavender, Cinnabar, Seafoam, Safari Zone, Victory Road, Indigo), themes (Team Rocket, Game Corner, Poke Balls, Game Boy, Sunset, Night Sky, Sakura...), and **six animated ones** (LIVE FIELD, FOREST, BEACH, CAVE, MANSION and AURORA). The design fills the card's rim; inside it is softened so the card stays readable. |
 
 Your coins are saved with your wallet, so buying coins can never take the

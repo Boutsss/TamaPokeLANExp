@@ -7,6 +7,7 @@
 #include "Preferences.h"
 #include "casino.h"
 #include "casino_art.h"
+#include "avatars.h"
 #include <cstdio>
 #include <cstring>
 uint32_t g_seed=71; FakeSerial Serial; FakeESP ESP; FakeWire Wire;
@@ -134,8 +135,32 @@ int main(){
     casinoBegin();
     ck(casinoOwns(PK_BACK,1) && casino.back==1, "ownership and the equipped back survive a reload");
     ck(casinoOwns(PK_AVATAR,SHOP_AVATAR_COUNT-1), "and the avatar");
-    ck(casinoPrizeCount(PK_BACK)==CARD_BACK_COUNT && casinoPrizeCount(PK_CARDBG)==CARD_BG_COUNT &&
-       casinoPrizeCount(PK_AVATAR)==SHOP_AVATAR_COUNT, "the shop lists every design there is");
+    ck(casinoShopCount(PK_BACK)==CARD_BACK_COUNT && casinoShopCount(PK_CARDBG)==CARD_BG_COUNT &&
+       casinoShopCount(PK_AVATAR)==SHOP_AVATAR_COUNT - SHOP_AVATAR_RETIRED_COUNT,
+       "the shop lists every design there is, bar the retired ones");
+    // RANK AVATARS ARE EARNED, NOT BOUGHT: nothing the shop lists may draw the
+    // same as a rank avatar. Checked on the PIXELS, so a new duplicate fails
+    // here whatever it is called.
+    {
+      int dup = 0;
+      for (uint8_t p = 0; p < casinoShopCount(PK_AVATAR); p++) {
+        int i = casinoShopAt(PK_AVATAR, p);
+        for (uint8_t b = 0; b < AVATAR_BASE_COUNT; b++)
+          if (!memcmp(AVATARS[SHOP_AVATAR_FIRST + i].idx, AVATARS[b].idx, AVATAR_PX * AVATAR_PX)) {
+            printf("      the shop lists %s, which is the rank avatar %s\n", SHOP_AVATAR_NAMES[i], AVATARS[b].name);
+            dup++;
+          }
+      }
+      ck(dup == 0, "no listed shop avatar is a rank avatar");
+      int champ = -1;
+      for (uint8_t i = 0; i < SHOP_AVATAR_COUNT; i++) if (!strcmp(SHOP_AVATAR_NAMES[i], "CHAMP RED")) champ = i;
+      bool listed = false;
+      for (uint8_t p = 0; p < casinoShopCount(PK_AVATAR); p++) if (casinoShopAt(PK_AVATAR, p) == champ) listed = true;
+      uint16_t c2 = 60000;
+      ck(champ >= 0 && casinoPrizeRetired(PK_AVATAR, champ) && !listed && !casinoBuy(PK_AVATAR, champ, c2, spend) && c2 == 60000,
+         "CHAMP RED (the same sprite as RED) is not listed and cannot be bought");
+      ck(casinoShopAt(PK_AVATAR, casinoShopCount(PK_AVATAR)) == -1, "the list ends where it says it does");
+    }
     bool ascii = true;
     for (uint8_t k=0;k<PK_KINDS;k++) for (uint8_t i=0;i<casinoPrizeCount(k);i++)
       for (const char *c = casinoPrizeName(k,i); *c; c++) if ((uint8_t)*c > 126) ascii = false;

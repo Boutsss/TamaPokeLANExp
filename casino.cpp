@@ -222,6 +222,28 @@ uint8_t casinoPrizeCount(uint8_t kind) {
   }
 }
 
+// Not sold: kept in the frozen index order (ownership is a bit per index) but
+// never listed or bought. Today that is the shop avatar that duplicates a rank
+// avatar -- rank avatars are earned, not bought.
+bool casinoPrizeRetired(uint8_t kind, uint8_t i) {
+  if (kind != PK_AVATAR) return false;
+  for (uint8_t k = 0; k < SHOP_AVATAR_RETIRED_COUNT; k++) if (SHOP_AVATAR_RETIRED[k] == i) return true;
+  return false;
+}
+// The shop's list: position -> prize index, retired ones skipped. -1 past the end.
+uint8_t casinoShopCount(uint8_t kind) {
+  uint8_t n = 0;
+  for (uint8_t i = 0; i < casinoPrizeCount(kind); i++) if (!casinoPrizeRetired(kind, i)) n++;
+  return n;
+}
+int casinoShopAt(uint8_t kind, uint8_t pos) {
+  for (uint8_t i = 0; i < casinoPrizeCount(kind); i++) {
+    if (casinoPrizeRetired(kind, i)) continue;
+    if (pos-- == 0) return i;
+  }
+  return -1;
+}
+
 const char *casinoPrizeName(uint8_t kind, uint8_t i) {
   if (i >= casinoPrizeCount(kind)) return "?";
   switch (kind) {
@@ -255,7 +277,7 @@ static void own(uint8_t kind, uint8_t i) {
 }
 
 bool casinoBuy(uint8_t kind, uint8_t i, uint16_t &coins, bool (*spend)(uint16_t)) {
-  if (i >= casinoPrizeCount(kind) || casinoOwns(kind, i)) return false;
+  if (i >= casinoPrizeCount(kind) || casinoOwns(kind, i) || casinoPrizeRetired(kind, i)) return false;
   if (coins < CASINO_PRICE) return false;
   if (!spend || !spend(CASINO_PRICE)) return false;   // coins first
   own(kind, i);
