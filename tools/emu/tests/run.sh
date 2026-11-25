@@ -64,6 +64,13 @@ else
   echo "=== check_savefile: SKIPPED (node not installed)"
 fi
 
+# The desktop save editor against the real firmware's export (its own emulator
+# run): a second copy of the save format is only worth having if it matches.
+if command -v python3 >/dev/null; then
+  echo "=== check_tpsave (tools/debugger/tpsave.py vs the firmware)"
+  python3 "$ROOT/tools/check_tpsave.py" || { echo "    ^ check_tpsave FAILED"; exit 1; }
+fi
+
 # arrays, not a string: the sprite dir has to reach the compiler still quoted,
 # and passing these through eval silently strips them
 CORE=("$ROOT/gbsynth.cpp" "$ROOT/pet.cpp" "$ROOT/i18n.cpp" "$ROOT/party.cpp" "$ROOT/battle.cpp" "$ROOT/link.cpp" "$ROOT/save.cpp" "$ROOT/inventory.cpp" "$ROOT/held_items.cpp" "$ROOT/wild.cpp" "$ROOT/game_events.cpp" "$ROOT/tasks.cpp" "$ROOT/dex_rewards.cpp" "$ROOT/breed.cpp" "$ROOT/persona.cpp" "$ROOT/chain.cpp" "$ROOT/tower.cpp" "$ROOT/challenge.cpp" "$ROOT/rank.cpp" "$ROOT/friends.cpp" "$ROOT/casino.cpp" "$ROOT/ghost.cpp" "$ROOT/card.cpp" "$ROOT/box_filter.cpp" "$ROOT/box_store.cpp" "$ROOT/pinball.cpp" "$EMU/nvsinfo_stub.cpp")

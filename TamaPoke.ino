@@ -1745,6 +1745,21 @@ void handleSerial() {
     }
     Serial.println();
     Serial.println("DONE");
+  } else if (line.startsWith("BOXADD ")) {
+    // BOXADD <dex> [slot]   a level-50 specimen into the PC box (slot 1..1200,
+    //                       else the first free one) -- PARTY's twin, for
+    //                       filling a box to test with
+    int d = 0, s = 0;
+    int got = sscanf(line.c_str() + 7, "%d %d", &d, &s);
+    if (got >= 1 && d >= 1 && d <= DEX_COUNT && party.box) {
+      PartyMon m;
+      m.dex = d; m.level = 50; m.ageMinutes = 49UL * MINUTES_PER_LEVEL;
+      m.ivAtk = m.ivDef = m.ivSpe = m.ivHp = 20;
+      int at = (got >= 2 && s >= 1 && s <= BOX_SLOTS) ? s - 1 : party.boxFirstFree();
+      if (at >= 0) { party.box[at] = m; party.boxSave(); Serial.printf("box slot %d: %s\n", at + 1, DEX_TBL[d].name); }
+      else Serial.println("box full");
+    } else Serial.println("usage: BOXADD <dex> [slot]");
+    Serial.println("DONE");
   } else if (line == "REG") {
     Serial.printf("pokedex %u/%u:", pet.registeredCount(), DEX_COUNT);
     for (int i = 1; i <= DEX_COUNT; i++)

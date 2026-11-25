@@ -61,7 +61,6 @@ BUG_REPORT_LOG_LINES = 50
 # of these wrong just means offering slightly too few/many blank rows to
 # edit, not encoding anything incorrectly.
 PARTY_SLOTS_UI = 6
-BOX_SLOTS_UI = 18
 RIVAL_CAP_UI = 10
 
 # How many queued serial events _pump_queue will process in one Tk tick
@@ -72,6 +71,7 @@ MAX_QUEUE_ITEMS_PER_TICK = 100
 
 sys.path.insert(0, str(HERE))
 import tpsave  # noqa: E402  (after sys.path fix)
+BOX_SLOTS_UI = tpsave.BOX_SLOTS   # the PC box: 40 boxes of 30 (v3.30), from tpsave rather than restated
 
 
 def _ensure_pyserial():
@@ -1340,6 +1340,7 @@ class App:
                 "stateVersion": 0, "fullness": 80, "joy": 80, "energy": 80, "hygiene": 100,
                 "poops": 0, "weight": 0, "bond": 0, "berryKnown": 0, "careMistakes": 0,
                 "evoDeclinedLv": 0, "lastLearnLevel": 0, "ageMinutes": 0,
+                "held": 0, "persona": 0, "eggPaid": 0, "fav": 0, "favourite": False,
                 "moves": [0, 0, 0, 0], "empty": True}
 
     @classmethod
@@ -1657,8 +1658,16 @@ class App:
         try:
             if "party" in fields or any(not m.get("empty") for m in self.edit_party):
                 fields["party"] = (tpsave.SK_BYTES, tpsave.encode_mon_list(self.edit_party))
-            if "box" in fields or any(not m.get("empty") for m in self.edit_box):
-                fields["box"] = (tpsave.SK_BYTES, tpsave.encode_mon_list(self.edit_box))
+            # The PC box travels as pcNN fields. The old "box" key goes: the
+            # firmware would MIGRATE it into the box at its next boot, on top
+            # of the pcNN creatures -- the same creatures twice.
+            if "box" in fields or any(k.startswith("pc") for k in fields) or \
+                    any(not m.get("empty") for m in self.edit_box):
+                fields.pop("box", None)
+                for k in [k for k in fields if len(k) == 4 and k.startswith("pc") and k[2:].isdigit()]:
+                    del fields[k]
+                for k, v in tpsave.encode_pc_box(self.edit_box).items():
+                    fields[k] = (tpsave.SK_BYTES, v)
             if "bag" in fields or any(s["count"] > 0 for s in self.edit_bag):
                 fields["bag"] = (tpsave.SK_BYTES, tpsave.encode_bag(self.edit_bag))
             if "rivals" in fields or any(not r.get("empty") for r in self.edit_rivals):

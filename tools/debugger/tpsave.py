@@ -53,7 +53,7 @@ SAVE_FIELDS = [
     ("medal", SK_U16), ("tmedal", SK_U16), ("mstone", SK_U16),
     ("ghi", SK_U16), ("shi", SK_U16), ("qhi", SK_U16),
     ("wlt", SK_U32), ("stps", SK_U32),
-    ("party", SK_BYTES), ("box", SK_BYTES), ("bag", SK_BYTES),
+    ("party", SK_BYTES), ("box", SK_BYTES), ("boxnm", SK_BYTES), ("bag", SK_BYTES),
     ("rivals", SK_BYTES),
     ("lang", SK_U8), ("snd", SK_BOOL), ("vol", SK_U8),
 ]
@@ -305,23 +305,43 @@ PARTY_MON_FIELDS = [
     ("evoDeclinedLv", "B"), ("lastLearnLevel", "B"),
     ("_pad", "2x"),
     ("ageMinutes", "I"),
+    # appended in the firmware's old padding (party.h): the record grew 48 -> 52
+    ("held", "B"), ("persona", "B"), ("eggPaid", "B"), ("fav", "B"),
 ]
 PARTY_MON_FMT = "<" + "".join(f for _, f in PARTY_MON_FIELDS)
 PARTY_MON_SIZE = struct.calcsize(PARTY_MON_FMT)
-assert PARTY_MON_SIZE == 48, f"PartyMon layout drifted: {PARTY_MON_SIZE} != 48"
+assert PARTY_MON_SIZE == 52, f"PartyMon layout drifted: {PARTY_MON_SIZE} != 52 (party.h static_assert)"
+LEGACY_MON_SIZE = 48   # before held items / personalities / favourites
+PM_FAV = 0xF7          # PartyMon::fav's magic "is a favourite" value
+PM_EGG_PAID = 0xE9
+# The PC box (v3.30): 40 boxes of 30, carried as one "pcNN" field per box that
+# holds anything, each record [slot in box][PartyMon].
+BOX_BOXES, BOX_PER_BOX = 40, 30
+BOX_SLOTS = BOX_BOXES * BOX_PER_BOX
+PARTY_SLOTS = 6
+BOX_NAME_LEN = 12
 _PMON_NAMES = [n for n, _ in PARTY_MON_FIELDS if n != "_pad"]
+# Where the 2 padding bytes sit. The firmware never initialises them, so they
+# are CARRIED through rather than zeroed: decode-then-encode is then byte-exact
+# against what the board wrote (tools/check_tpsave.py holds that).
+_PAD_OFS = struct.calcsize("<" + "".join(f for n, f in PARTY_MON_FIELDS[:[n for n, _ in PARTY_MON_FIELDS].index("_pad")]))
 # name -> format char, with move0..move3 collapsed to "moveN" so
 # range_for_party_field("moveN") also works for the dialog's move entries.
 _PARTY_MON_FIELD_FMT = {n: f for n, f in PARTY_MON_FIELDS if n != "_pad"}
 _PARTY_MON_FIELD_FMT["moveN"] = "B"
 
 
-def decode_party_mon(raw48: bytes) -> dict:
-    vals = struct.unpack(PARTY_MON_FMT, raw48)
+def decode_party_mon(raw: bytes) -> dict:
+    # an older, shorter record reads into the front, the rest at zero -- the
+    # same rule the firmware's migration uses
+    raw = bytes(raw[:PARTY_MON_SIZE]).ljust(PARTY_MON_SIZE, b"\x00")
+    vals = struct.unpack(PARTY_MON_FMT, raw)
     d = dict(zip(_PMON_NAMES, vals))
+    d["_padbytes"] = raw[_PAD_OFS:_PAD_OFS + 2]
     d["nick"] = d["nick"].split(b"\x00", 1)[0].decode("ascii", "replace")
     d["moves"] = [d.pop(f"move{i}") for i in range(4)]
     d["empty"] = d["dex"] < 1
+    d["favourite"] = d.get("fav") == PM_FAV
     return d
 
 
@@ -338,11 +358,12 @@ def encode_party_mon(d: dict) -> bytes:
             vals.append(moves[int(name[-1])])
         else:
             vals.append(d.get(name, 0))
-    out = bytearray(48)
+    out = bytearray(PARTY_MON_SIZE)
     off = 0
     it = iter(vals)
     for name, f in PARTY_MON_FIELDS:
         if name == "_pad":
+            out[off:off + 2] = bytes(d.get("_padbytes", b"\x00\x00"))[:2].ljust(2, b"\x00")
             off += 2
             continue
         size = struct.calcsize("<" + f)
@@ -351,9 +372,53 @@ def encode_party_mon(d: dict) -> bytes:
     return bytes(out)
 
 
-def decode_mon_list(raw: bytes) -> list:
-    n = len(raw) // PARTY_MON_SIZE
-    return [decode_party_mon(raw[i * PARTY_MON_SIZE:(i + 1) * PARTY_MON_SIZE]) for i in range(n)]
+def decode_mon_list(raw: bytes, count: int = None) -> list:
+    """A list of records. With `count` (the party is PARTY_SLOTS, the old box
+    18) the stride is DERIVED from the length, so a 48-byte-era blob decodes
+    as well as a current one -- 52 x 12 and 48 x 13 are the same length, which
+    is why it must not be guessed from the length alone."""
+    stride = len(raw) // count if count else PARTY_MON_SIZE
+    if not stride:
+        return []
+    n = len(raw) // stride
+    return [decode_party_mon(raw[i * stride:(i + 1) * stride]) for i in range(n)]
+
+
+def decode_pc_box(fields) -> list:
+    """The whole PC box, BOX_SLOTS records, from its pcNN fields (empty slots
+    where a box has nothing)."""
+    box = [decode_party_mon(b"") for _ in range(BOX_SLOTS)]
+    for b in range(BOX_BOXES):
+        key = "pc%02d" % b
+        if key not in fields:
+            continue
+        raw = fields[key][1]
+        rec = 1 + PARTY_MON_SIZE
+        for r in range(0, len(raw) - rec + 1, rec):
+            slot = raw[r]
+            if slot < BOX_PER_BOX:
+                box[b * BOX_PER_BOX + slot] = decode_party_mon(raw[r + 1:r + rec])
+    return box
+
+
+def encode_pc_box(box: list) -> dict:
+    """The inverse: {"pcNN": bytes} for every box that holds anything."""
+    out = {}
+    for b in range(BOX_BOXES):
+        blob = bytearray()
+        for k in range(BOX_PER_BOX):
+            i = b * BOX_PER_BOX + k
+            if i < len(box) and not box[i].get("empty", True):
+                blob.append(k)
+                blob += encode_party_mon(box[i])
+        if blob:
+            out["pc%02d" % b] = bytes(blob)
+    return out
+
+
+def decode_box_names(raw: bytes) -> list:
+    return [raw[i:i + BOX_NAME_LEN].split(b"\x00", 1)[0].decode("ascii", "replace")
+            for i in range(0, len(raw) - BOX_NAME_LEN + 1, BOX_NAME_LEN)]
 
 
 def encode_mon_list(mons: list) -> bytes:
@@ -628,8 +693,16 @@ def decode_save(raw: bytes, dex_h_path: str = None, items_h_path: str = None) ->
             player[key] = decode_scalar(*fields[key])
     result["player"] = player
 
-    result["party"] = decode_mon_list(fields["party"][1]) if "party" in fields else []
-    result["box"] = decode_mon_list(fields["box"][1]) if "box" in fields else []
+    result["party"] = decode_mon_list(fields["party"][1], PARTY_SLOTS) if "party" in fields else []
+    # The PC box: pcNN fields today; a backup from before v3.30 carries the old
+    # 18-slot "box" key instead (the firmware migrates it at the next boot).
+    if any(("pc%02d" % b) in fields for b in range(BOX_BOXES)):
+        result["box"] = decode_pc_box(fields)
+    elif "box" in fields:
+        result["box"] = decode_mon_list(fields["box"][1], 18)
+    else:
+        result["box"] = []
+    result["box_names"] = decode_box_names(fields["boxnm"][1]) if "boxnm" in fields else []
     result["bag"] = decode_bag(fields["bag"][1]) if "bag" in fields else []
     result["rivals"] = decode_rivals_blob(fields["rivals"][1]) if "rivals" in fields else []
 
