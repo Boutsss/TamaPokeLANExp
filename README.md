@@ -478,9 +478,13 @@ bash tools/flash.sh --monitor
 
 ### The Game Corner (hidden)
 
-There is a casino behind the arcade. On the training menu, **press and hold the
-ARCADE row for five seconds** (a normal tap still opens the arcade). A Team
-Rocket grunt deals; he laughs when you lose and grumbles when you win.
+There is a secret behind the arcade. On the training menu, **press and hold
+the ARCADE row** (a normal tap still opens the arcade). After a second and a
+half the row starts to turn over like a card, slowly at first and faster with a
+rising note each half-turn, until it comes to rest on its other face, **GAME
+CORNER**, and glitters. Keep holding and at five seconds you are let in; let go
+any earlier and it turns back to ARCADE. A Team Rocket grunt deals; he laughs
+when you lose and grumbles when you win.
 
 | | |
 |---|---|
