@@ -1,18 +1,27 @@
 #!/bin/bash
-# Regenera web/firmware/tamapoke.bin (firmware combinado) para el instalador web.
+# Rebuilds the web installer's firmware (four parts, the app password-locked).
 # Uso: bash tools/build_web.sh
 set -e
 cd "$(dirname "$0")/.."
 FQBN="esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB"
 
 echo "Compilando..."
-arduino-cli compile --fqbn "$FQBN" --export-binaries .
+# arduino-cli insists the folder is named after the main .ino, and a fork's
+# checkout usually is not (TamaPokeLANExp). Same answer as tests/run.sh: build a
+# copy of the top-level sources in a folder that IS named TamaPoke.
+SKETCH=.
+if [ "$(basename "$PWD")" != "TamaPoke" ]; then
+  SKETCH="build/sketch/TamaPoke"; rm -rf "$SKETCH"; mkdir -p "$SKETCH"
+  cp ./*.ino ./*.cpp ./*.h "$SKETCH"/
+fi
+arduino-cli compile --fqbn "$FQBN" --export-binaries --output-dir build/esp32.esp32.esp32s3 "$SKETCH"
 
 B=build/esp32.esp32.esp32s3
 echo "Fusionando binarios..."
 # esptool is not on PATH; the Arduino core ships one and that is the version
 # that matches the build we just made.
 ESPTOOL="$(ls ~/Library/Arduino15/packages/esp32/tools/esptool_py/*/esptool 2>/dev/null | head -1)"
+[ -z "$ESPTOOL" ] && ESPTOOL="$(ls ~/.arduino15/packages/esp32/tools/esptool_py/*/esptool 2>/dev/null | head -1)"
 [ -z "$ESPTOOL" ] && ESPTOOL="$(command -v esptool.py || command -v esptool)"
 [ -z "$ESPTOOL" ] && { echo "no esptool found"; exit 1; }
 
@@ -25,18 +34,24 @@ ESPTOOL="$(ls ~/Library/Arduino15/packages/esp32/tools/esptool_py/*/esptool 2>/d
 # 0x9000..0xE000 alone, exactly as arduino-cli's USB upload always has.
 cp "$B/TamaPoke.ino.bootloader.bin" web/firmware/bootloader.bin
 cp "$B/TamaPoke.ino.partitions.bin" web/firmware/partitions.bin
-cp "$B/boot_app0.bin"               web/firmware/boot_app0.bin
+# Newer cores no longer export boot_app0.bin beside the sketch; it is a stock
+# file of the core itself, so take it from there when it is not.
+BOOT_APP0="$B/boot_app0.bin"
+[ -f "$BOOT_APP0" ] || BOOT_APP0="$(ls ~/Library/Arduino15/packages/esp32/hardware/esp32/*/tools/partitions/boot_app0.bin \
+  ~/.arduino15/packages/esp32/hardware/esp32/*/tools/partitions/boot_app0.bin 2>/dev/null | tail -1)"
+[ -f "$BOOT_APP0" ] || { echo "no boot_app0.bin found"; exit 1; }
+cp "$BOOT_APP0"                     web/firmware/boot_app0.bin
 cp "$B/TamaPoke.ino.bin"            web/firmware/app.bin
 
 # Still merged for anyone flashing a BLANK board from the command line in one
 # shot. It is deliberately NOT in the manifest: it would erase the save.
-"$ESPTOOL" --chip esp32s3 merge-bin -o web/firmware/tamapoke.bin \
+"$ESPTOOL" --chip esp32s3 merge-bin -o build/tamapoke.bin \
   0x0     "$B/TamaPoke.ino.bootloader.bin" \
   0x8000  "$B/TamaPoke.ino.partitions.bin" \
-  0xe000  "$B/boot_app0.bin" \
+  0xe000  "$BOOT_APP0" \
   0x10000 "$B/TamaPoke.ino.bin"
 
-echo "OK -> web/firmware/ (4 parts + tamapoke.bin for a blank board)"
+echo "OK -> web/firmware/ (4 parts) + build/tamapoke.bin for a blank board (local only: it is the game unlocked)"
 
 # The manifest version is what the installer shows people; keeping it in step
 # with FW_VERSION by hand is exactly the sort of thing that silently rots.
@@ -97,6 +112,14 @@ json.dump(m, open('web/manifest.json', 'w', encoding='utf-8', newline=''), inden
 print('manifest version -> ' + sys.argv[1])
 PYEOF
 
+# THE GAME IS PASSWORD LOCKED. app.bin is encrypted into app.bin.enc and the
+# manifest's 0x10000 part pointed at that; the plaintext app.bin and the merged
+# tamapoke.bin are gitignored so the public repo never carries them. The page
+# decrypts in the browser (web/lock.js). No password = no build: this refuses
+# rather than publish the game unlocked. See tools/lock_firmware.py.
+echo "Locking the firmware..."
+python3 tools/lock_firmware.py || { echo "could not lock the firmware -- refusing"; exit 1; }
+
 # Fails the build if anything the manifest writes would land on the save.
 echo "Checking the installer cannot erase a save..."
 python3 tools/check_installer.py || { echo "installer would wipe saves -- refusing"; exit 1; }
@@ -129,14 +152,16 @@ import hashlib, pathlib, re
 def key(path):
     return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()[:16]
 
-save_key = key('web/savefile.js')
 installer = pathlib.Path('web/installer.js')
 src = installer.read_bytes().decode('utf-8')
-src, n = re.subn(r"(from '\./savefile\.js)(?:\?v=[0-9a-f]+)?'",
-                 lambda m: f"{m.group(1)}?v={save_key}'", src)
-if n != 1:
-    raise SystemExit(f"expected exactly one savefile.js import in installer.js, found {n}")
+for module in ('savefile', 'lock'):
+    module_key = key(f'web/{module}.js')
+    src, n = re.subn(rf"(from '\./{module}\.js)(?:\?v=[0-9a-f]+)?'",
+                     lambda m: f"{m.group(1)}?v={module_key}'", src)
+    if n != 1:
+        raise SystemExit(f"expected exactly one {module}.js import in installer.js, found {n}")
 installer.write_bytes(src.encode('utf-8'))
+save_key = key('web/savefile.js')
 
 installer_key = key('web/installer.js')
 index = pathlib.Path('web/index.html')

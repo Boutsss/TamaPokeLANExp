@@ -1,4 +1,5 @@
 import { verifyBackup, describeBackup, sendBackup } from './savefile.js?v=1e0c9406aa8d98ea';
+import { unlockApp, lockIsValid, deriveKey, checkKey } from './lock.js?v=18755907f88c24a1';
 
 const byId = (id) => document.getElementById(id);
 const enc = new TextEncoder();
@@ -9,6 +10,13 @@ const PACK_QUERY_TIMEOUT_MS = 20000;
 const PACK_COMMIT_TIMEOUT_MS = 30000;
 
 let editions = [];
+let selectedEdition = null;
+// The install password, once it has been checked against a lock block. Only
+// ever in memory, plus localStorage if the player ticked "remember".
+let installPassword = '';
+let flashReady = false;
+let flashBlobs = [];
+const PASSWORD_KEY = 'tamapoke-install-password';
 let packs = {};
 let port = null;
 let reader = null;
@@ -29,7 +37,7 @@ const REQUIRED_FLASH_PARTS = new Map([
   [0, 'firmware/bootloader.bin'],
   [0x8000, 'firmware/partitions.bin'],
   [0xe000, 'firmware/boot_app0.bin'],
-  [0x10000, 'firmware/app.bin'],
+  [0x10000, 'firmware/app.bin.enc'],
 ]);
 const verifiedPacks = new Map();
 
@@ -55,6 +63,7 @@ const normalizeVersion = (value) => String(value || '').trim().replace(/^v/i, ''
 function validateReleaseManifest(manifest, tag) {
   if (normalizeVersion(manifest.version) !== normalizeVersion(tag)) return false;
   if (manifest.new_install_prompt_erase !== true) return false;
+  if (!lockIsValid(manifest.lock)) return false;
   const build = (manifest.builds || []).find((item) => item.chipFamily === 'ESP32-S3');
   if (!build || !Array.isArray(build.parts) || build.parts.length !== REQUIRED_FLASH_PARTS.size) return false;
   return build.parts.every((part) => {
@@ -163,7 +172,7 @@ async function loadEditions() {
     version: normalizeVersion(currentManifest.version) || 'unknown',
     description: currentConfig.description || 'The build currently hosted by this GitHub Pages site.',
     notes: currentConfig.notes || 'This build has not been published as an immutable GitHub Release yet.',
-    releaseUrl: `https://github.com/${config.repository || 'reallyjustsomeguy/TamaPokeLANExp'}/releases`,
+    releaseUrl: `https://github.com/${config.repository || 'Boutsss/TamaPokeLANExp'}/releases`,
   };
 
   let released = [];
@@ -180,15 +189,155 @@ async function loadEditions() {
   selectEdition(recommended.id);
 }
 
+// ---- the install password -------------------------------------------------
+//
+// The manifest on the server is LOCKED: its 0x10000 part is app.bin.enc, which
+// esp-web-tools would flash as-is if it were ever handed that manifest -- so it
+// never is. Once the password checks out, the page fetches the encrypted app,
+// decrypts it here (web/lock.js), and builds a manifest in memory whose app part
+// is a blob: URL of the plaintext. The other three parts are the stock
+// bootloader/partition table/boot_app0 and are fetched from Pages as before,
+// by absolute URL because a blob: manifest has no directory to be relative to.
+// Offsets and new_install_prompt_erase are copied from the server's manifest
+// untouched, so check_installer.py's guarantees carry straight over.
+
+function setUnlockStatus(text, error = false) {
+  const status = byId('unlock-status');
+  status.textContent = text;
+  status.classList.toggle('error', error);
+}
+
+function setFlashReady(ready) {
+  flashReady = ready;
+  byId('backup-flash').disabled = !ready;
+  byId('install-skip').disabled = !ready;
+}
+
+function releaseFlashBlobs() {
+  for (const url of flashBlobs) URL.revokeObjectURL(url);
+  flashBlobs = [];
+}
+
+async function prepareFlash() {
+  const edition = selectedEdition;
+  setFlashReady(false);
+  if (!edition || !installPassword) return;
+  try {
+    setUnlockStatus(`Unlocking v${edition.version}...`);
+    const manifestUrl = new URL(edition.manifest, location.href).toString();
+    const manifest = await loadJson(manifestUrl);
+    if (!lockIsValid(manifest.lock)) throw new Error('this build is not locked the way this page expects');
+    const build = (manifest.builds || []).find((item) => item.chipFamily === 'ESP32-S3');
+    if (!build) throw new Error('no ESP32-S3 build in the manifest');
+    const parts = [];
+    const blobs = [];
+    for (const part of build.parts) {
+      const url = new URL(part.path, manifestUrl).toString();
+      if (Number(part.offset) === 0x10000) {
+        const response = await fetch(url, { cache: 'no-cache' });
+        if (!response.ok) throw new Error(`firmware download failed: HTTP ${response.status}`);
+        const plain = await unlockApp(installPassword, manifest.lock, new Uint8Array(await response.arrayBuffer()));
+        const blob = URL.createObjectURL(new Blob([plain], { type: 'application/octet-stream' }));
+        blobs.push(blob);
+        parts.push({ path: blob, offset: part.offset });
+      } else {
+        parts.push({ path: url, offset: part.offset });
+      }
+    }
+    const unlocked = { ...manifest, builds: [{ ...build, parts }] };
+    delete unlocked.lock;
+    const manifestBlob = URL.createObjectURL(new Blob([JSON.stringify(unlocked)], { type: 'application/json' }));
+    blobs.push(manifestBlob);
+    if (selectedEdition !== edition) {        // the player picked another while this ran
+      for (const url of blobs) URL.revokeObjectURL(url);
+      return;
+    }
+    releaseFlashBlobs();
+    flashBlobs = blobs;
+    const flashButton = byId('flash-button');
+    flashButton.manifest = manifestBlob;
+    flashButton.setAttribute('manifest', manifestBlob);
+    setFlashReady(true);
+    byId('unlock-row').classList.add('unlocked');
+    setUnlockStatus(`Unlocked: v${edition.version} is ready to install.`);
+    log(`Firmware v${edition.version} unlocked and verified.`);
+  } catch (error) {
+    if (selectedEdition !== edition) return;
+    if (/wrong password/.test(error.message)) {
+      forgetPassword();
+      setUnlockStatus('That password does not unlock this firmware.', true);
+    } else {
+      setUnlockStatus(`Could not unlock: ${error.message}`, true);
+    }
+    log(`Unlock failed: ${error.message}`);
+  }
+}
+
+function forgetPassword() {
+  installPassword = '';
+  try { localStorage.removeItem(PASSWORD_KEY); } catch { /* private mode */ }
+  byId('unlock-row').classList.remove('unlocked');
+}
+
+async function tryPassword(password, remember) {
+  // Checked against the CURRENT build's lock first, so a typo is reported
+  // without downloading anything big.
+  const manifestUrl = new URL((selectedEdition && selectedEdition.manifest) || 'manifest.json', location.href).toString();
+  const manifest = await loadJson(manifestUrl);
+  if (!lockIsValid(manifest.lock)) throw new Error('this build is not locked the way this page expects');
+  const key = await deriveKey(password, manifest.lock);
+  if (!(await checkKey(key, manifest.lock))) return false;
+  installPassword = password;
+  if (remember) {
+    try { localStorage.setItem(PASSWORD_KEY, password); } catch { /* private mode */ }
+  }
+  await prepareFlash();
+  return true;
+}
+
+byId('unlock-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const input = byId('unlock-password');
+  const button = byId('unlock-button');
+  button.disabled = true;
+  setUnlockStatus('Checking...');
+  try {
+    if (!(await tryPassword(input.value, byId('unlock-remember').checked))) {
+      setUnlockStatus('That password does not unlock this firmware.', true);
+      input.select();
+    } else {
+      input.value = '';
+    }
+  } catch (error) {
+    setUnlockStatus(`Could not check the password: ${error.message}`, true);
+  } finally {
+    button.disabled = false;
+  }
+});
+
+async function restorePassword() {
+  let saved = '';
+  try { saved = localStorage.getItem(PASSWORD_KEY) || ''; } catch { /* private mode */ }
+  if (!saved) return;
+  byId('unlock-remember').checked = true;
+  try {
+    if (!(await tryPassword(saved, true))) {
+      forgetPassword();
+      setUnlockStatus('The saved password no longer works -- the password was changed. Enter the new one.', true);
+    }
+  } catch (error) {
+    log(`Saved password not checked: ${error.message}`);
+  }
+}
+
 function selectEdition(id) {
   const edition = editions.find((item) => item.id === id);
   if (!edition) return;
   for (const option of document.querySelectorAll('.edition-option')) {
     option.classList.toggle('selected', option.querySelector('input').value === id);
   }
-  const flashButton = byId('flash-button');
-  flashButton.manifest = edition.manifest;
-  flashButton.setAttribute('manifest', edition.manifest);
+  selectedEdition = edition;
+  void prepareFlash();
   byId('edition-summary').textContent = edition.description;
   const versionLabel = `v${edition.version}`;
   byId('release-notes-title').textContent = edition.name.toLowerCase().includes(versionLabel.toLowerCase())
@@ -879,6 +1028,7 @@ async function renderHistory() {
 // back to the player: promptInstall() reveals the real "Install update"
 // button, and a genuine click on THAT is what starts the flash.
 async function backupThenFlash() {
+  if (!flashReady) { log('Unlock the firmware with the install password first.'); return; }
   resetInstallPrompt();
   setBusy(true);
   let captured = false;
@@ -1075,6 +1225,7 @@ byId('backup-flash').addEventListener('click', backupThenFlash);
 // update" button is `hidden` until a backup attempt reveals it, but hidden
 // elements can still be .click()'d, so this reaches it either way.
 byId('install-skip').addEventListener('click', () => {
+  if (!flashReady) return;
   document.querySelector('#flash-button [slot="activate"]').click();
 });
 byId('history-clear').addEventListener('click', async () => {
@@ -1093,5 +1244,6 @@ if ('serial' in navigator) {
 }
 
 await Promise.all([loadEditions(), loadPacks()]);
+await restorePassword();
 syncControls();
 refreshIcons();

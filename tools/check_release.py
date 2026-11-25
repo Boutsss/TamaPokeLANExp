@@ -93,11 +93,11 @@ def main():
     # real failure -- and it would look like the save backup quietly behaving the
     # way it did before. build_web.sh computes both; this refuses a release where
     # somebody has hand-edited one out of step.
-    for source, pattern in (
-        (ROOT / 'web' / 'installer.js', r"from '\./savefile\.js\?v=([0-9a-f]+)'"),
-        (ROOT / 'web' / 'index.html', r'src="installer\.js\?v=([0-9a-f]+)"'),
+    for source, pattern, target in (
+        (ROOT / 'web' / 'installer.js', r"from '\./savefile\.js\?v=([0-9a-f]+)'", ROOT / 'web' / 'savefile.js'),
+        (ROOT / 'web' / 'installer.js', r"from '\./lock\.js\?v=([0-9a-f]+)'", ROOT / 'web' / 'lock.js'),
+        (ROOT / 'web' / 'index.html', r'src="installer\.js\?v=([0-9a-f]+)"', ROOT / 'web' / 'installer.js'),
     ):
-        target = ROOT / 'web' / ('savefile.js' if source.name == 'installer.js' else 'installer.js')
         match = re.search(pattern, source.read_text(encoding="utf-8"))
         if not match:
             fail(f'{source.relative_to(ROOT)} has no cache key for {target.name}; run tools/build_web.sh')

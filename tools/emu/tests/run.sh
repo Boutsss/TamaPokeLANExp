@@ -63,6 +63,13 @@ if command -v node >/dev/null; then
 else
   echo "=== check_savefile: SKIPPED (node not installed)"
 fi
+# The installer's password lock: Python encrypts, the page's WebCrypto decrypts.
+if command -v node >/dev/null && python3 -c "import cryptography" 2>/dev/null; then
+  echo "=== check_lock (web/lock.js vs tools/lock_firmware.py)"
+  node "$ROOT/tools/check_lock.mjs" >/dev/null || { node "$ROOT/tools/check_lock.mjs"; echo "    ^ check_lock FAILED"; exit 1; }
+else
+  echo "=== check_lock: SKIPPED (needs node and python3 -m pip install cryptography)"
+fi
 
 # The desktop save editor against the real firmware's export (its own emulator
 # run): a second copy of the save format is only worth having if it matches.

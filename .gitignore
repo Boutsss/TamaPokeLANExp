@@ -80,3 +80,10 @@ tools/debugger/serial_logs/
 # FT3168 touch) -- not wired into TamaPoke.ino yet, held back until it is.
 /pin_config_amoled143b.h
 /touch_ft3168.h
+
+# The installer's game binary UNLOCKED. Only web/firmware/app.bin.enc (and the
+# three stock parts) are published -- see tools/lock_firmware.py. The password
+# itself lives in .install-password and must never be committed either.
+web/firmware/app.bin
+web/firmware/tamapoke.bin
+.install-password

@@ -1,6 +1,6 @@
 # TamaPoke
 
-[![Flash in browser](https://img.shields.io/badge/flash-in%20browser-FF6B00?logo=googlechrome&logoColor=white)](https://reallyjustsomeguy.github.io/TamaPokeLANExp/web/)
+[![Flash in browser](https://img.shields.io/badge/flash-in%20browser-FF6B00?logo=googlechrome&logoColor=white)](https://boutsss.github.io/TamaPokeLANExp/web/)
 [![MakerWorld](https://img.shields.io/badge/MakerWorld-3D%20case-00AE42?logo=bambulab&logoColor=white)](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)
 ![Board](https://img.shields.io/badge/board-ESP32--S3%20round%20AMOLED-E7352C?logo=espressif&logoColor=white)
 ![Firmware](https://img.shields.io/badge/firmware-v3.35-8A2BE2)
@@ -29,7 +29,7 @@ and complete them all (shinies included).
 > PMD SpriteCollab (CC BY-NC, Pokémon © Nintendo/Game Freak), and the 3D case is
 > CC BY-NC-SA. See **[License](#license)** and **Credits**.
 
-🔴 **3D-printed Pokéball case + print profiles → [on MakerWorld](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)** · flash it in your browser → **[web installer](https://reallyjustsomeguy.github.io/TamaPokeLANExp/web/)**
+🔴 **3D-printed Pokéball case + print profiles → [on MakerWorld](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)** · flash it in your browser → **[web installer](https://boutsss.github.io/TamaPokeLANExp/web/)**
 
 ## Status
 
@@ -1210,6 +1210,13 @@ timing, DMA tearing, PSRAM or audio — those still need the board.
 `web/index.html` flashes the firmware (ESP Web Tools) and pushes the sprites to
 the SD over Web Serial, no Arduino needed. Serve it over HTTPS or `localhost`
 (secure context) and open it in **Chrome/Edge**. See [`web/README.md`](web/README.md).
+
+**This fork's installer is password protected.** The game part of the firmware
+is published encrypted; type the install password on the page and it is
+unlocked in your browser (nothing is sent anywhere) and flashed as usual. Ask
+whoever gave you the link for the password. Sprite packs and save backups do not
+need it. To build it yourself, put a password in `.install-password` (never
+committed) and run `bash tools/build_web.sh`.
 
 ### Generate and load the sprites yourself
 

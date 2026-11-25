@@ -12,7 +12,7 @@
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="https://github.com/reallyjustsomeguy/TamaPokeLANExp" target="_blank" rel="noreferrer">
+    <a class="brand" href="https://github.com/Boutsss/TamaPokeLANExp" target="_blank" rel="noreferrer">
       <span class="brand-mark" aria-hidden="true"><span></span></span>
       <span>TamaPoke</span>
     </a>
@@ -54,8 +54,22 @@
         <p class="muted">Loading firmware catalogue...</p>
       </div>
 
-      <div class="action-row flash-row">
-        <button class="button button-primary" id="backup-flash">
+      <div class="unlock-row" id="unlock-row">
+        <form class="unlock-form" id="unlock-form" autocomplete="on">
+          <label for="unlock-password"><i data-lucide="lock" aria-hidden="true"></i> Install password</label>
+          <input type="text" name="username" value="tamapoke" autocomplete="username" hidden>
+          <input type="password" id="unlock-password" autocomplete="current-password" placeholder="Ask whoever sent you this page" required>
+          <label class="unlock-remember"><input type="checkbox" id="unlock-remember"> Remember on this computer</label>
+          <button class="button button-primary" type="submit" id="unlock-button">
+            <i data-lucide="key-round" aria-hidden="true"></i>
+            <span>Unlock</span>
+          </button>
+        </form>
+        <p class="action-copy" id="unlock-status">This firmware is password protected. The password unlocks it here in your browser; it is never sent anywhere.</p>
+      </div>
+
+      <div class="action-row flash-row" id="flash-row">
+        <button class="button button-primary" id="backup-flash" disabled>
           <i data-lucide="shield-check" aria-hidden="true"></i>
           <span id="backup-flash-label">Backup, then install</span>
         </button>
@@ -67,7 +81,7 @@
           <span slot="unsupported">Use Chrome or Edge to flash this board.</span>
           <span slot="not-allowed">This installer requires HTTPS.</span>
         </esp-web-install-button>
-        <button class="button button-quiet button-small" id="install-skip">Install without backup</button>
+        <button class="button button-quiet button-small" id="install-skip" disabled>Install without backup</button>
         <p class="action-copy" id="edition-summary">The standard edition includes every game feature and loads region art from microSD.</p>
       </div>
       <p class="action-copy"><strong>Backup, then install</strong> reads the save off the board, checks it, downloads it and keeps a copy in this browser. Once it's done, the button reads <strong>Backup complete, now →</strong> and <strong>Install update</strong> appears next to it -- click that to flash. Your browser will ask which board to use twice: once to read the save, once to flash. A brand-new board has nothing to back up and goes straight there. Prefer to skip the backup entirely? Use <strong>Install without backup</strong> instead.</p>
@@ -78,7 +92,7 @@
             <p class="eyebrow">Changelog</p>
             <h3 id="release-notes-title">Current Pages build</h3>
           </div>
-          <a id="release-link" href="https://github.com/reallyjustsomeguy/TamaPokeLANExp/releases" target="_blank" rel="noreferrer">All releases</a>
+          <a id="release-link" href="https://github.com/Boutsss/TamaPokeLANExp/releases" target="_blank" rel="noreferrer">All releases</a>
         </header>
         <pre id="release-notes-body">Loading version notes...</pre>
       </section>
@@ -213,11 +227,11 @@
   <footer>
     <span>Personal, non-commercial fan project.</span>
     <span>Sprites: <a href="https://github.com/PMDCollab/SpriteCollab" target="_blank" rel="noreferrer">PMD SpriteCollab</a> (CC BY-NC)</span>
-    <a href="https://github.com/reallyjustsomeguy/TamaPokeLANExp" target="_blank" rel="noreferrer">Source and game manual</a>
+    <a href="https://github.com/Boutsss/TamaPokeLANExp" target="_blank" rel="noreferrer">Source and game manual</a>
   </footer>
 
   <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js"></script>
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
-  <script type="module" src="installer.js?v=02a360dadb465057"></script>
+  <script type="module" src="installer.js?v=d2efe7f03171d06f"></script>
 </body>
 </html>

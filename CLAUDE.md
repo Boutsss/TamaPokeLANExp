@@ -150,6 +150,24 @@ Things that have already bitten, or nearly:
   costs nothing to host and creates no custody of anyone else's data. IndexedDB
   is a convenience layer and the page labels it as one.
 
+## The installer is password locked
+
+`web/firmware/app.bin.enc` is the game, AES-256-GCM under a key from
+PBKDF2-SHA256 of the install password (`tools/lock_firmware.py`; parameters in
+`manifest.json`'s `lock` block). `web/lock.js` decrypts it in the browser and
+the page hands esp-web-tools a manifest it BUILT IN MEMORY (blob: URLs) -- never
+the locked one, which would flash ciphertext. `lock.js` is DOM-free for the same
+reason as `savefile.js`: `tools/check_lock.mjs` tests it against the Python.
+
+- The plaintext `app.bin` and merged `tamapoke.bin` are gitignored and
+  `check_installer.py` FAILS if either is committed. `tamapoke.bin` is now
+  written to `build/`, local only.
+- `build_web.sh` refuses without a password (`$TAMAPOKE_PASSWORD` or the
+  gitignored `.install-password`). Never commit the password; never give the
+  lock tool a default.
+- It gates the one-click install and nothing else: the source is public. Do not
+  describe it as more than that.
+
 ## Releasing
 
 `git push origin vX.Y` is the whole release: `.github/workflows/publish-release.yml`

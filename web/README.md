@@ -16,14 +16,20 @@ same one as `tools/send_sd.py`).
 - `manifest.json` — the Standard edition's ESP Web Tools config.
 - `paks.json` — generated region sizes, CRC32s, file counts, and firmware region
    indices.
-- `firmware/bootloader.bin` `partitions.bin` `boot_app0.bin` `app.bin` — what the
-  installer actually writes, each at its own offset. **This is deliberate**: a
+- `firmware/bootloader.bin` `partitions.bin` `boot_app0.bin` `app.bin.enc` — what
+  the installer actually writes, each at its own offset. **This is deliberate**: a
   single image at `0x0` pads the gaps with `0xFF` and so blanks the NVS
   partition at `0x9000`, which is the player's save. `tools/check_installer.py`
   fails the build if anything the manifest ships would land on it.
-- `firmware/tamapoke.bin` — the same four merged into one image for flashing a
-  **blank** board from the command line. Not in the manifest, because installing
-  it over an existing game erases the pet.
+- **`app.bin.enc` is the game, password locked** (AES-256-GCM, key from
+  PBKDF2-SHA256 of the install password; parameters in `manifest.json`'s `lock`
+  block). The page asks for the password, decrypts in the browser (`lock.js`),
+  and hands ESP Web Tools a manifest it built in memory -- never the locked one.
+  The plaintext `app.bin` and the merged `tamapoke.bin` are gitignored, and
+  `check_installer.py` fails if either is committed. The other three parts are
+  the stock Espressif/Arduino files and are not secret.
+- `lock.js` — the decryption, DOM-free like `savefile.js` so
+  `tools/check_lock.mjs` can test it against `tools/lock_firmware.py`.
 - `sprites-<region>.pak` — the sprites bundled (TPAK) **one file per region**, so
    the page sends a region in one click. They are **generated** by
   `tools/pack_bundle.py`, which derives the region list from `dex_data.py`, and
@@ -34,8 +40,23 @@ same one as `tools/send_sd.py`).
 After changing the firmware or the sprites:
 
 ```bash
-bash tools/build_web.sh        # recompiles -> firmware/tamapoke.bin AND rebuilds the region .paks
+bash tools/build_web.sh        # recompiles, LOCKS app.bin, and rebuilds the region .paks
 ```
+
+## The install password
+
+`build_web.sh` refuses to run without one. It reads `$TAMAPOKE_PASSWORD`, else
+the first line of `.install-password` at the repo root (gitignored -- never
+commit it). To change it, edit that file and run
+`python3 tools/lock_firmware.py` (or the whole `build_web.sh`); once Pages
+redeploys, the old password stops working and anyone who ticked "remember" is
+asked for the new one.
+
+What it does and does not protect: the source is public, so anyone determined
+can still build the firmware with arduino-cli. The lock stops a stranger who
+finds the page from installing the game in one click -- that is all it is for.
+Pages has no server, so there is no login, no rate limit and no account: a
+friend with the password can pass it on.
 
 ## Test locally
 

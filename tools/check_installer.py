@@ -127,7 +127,36 @@ def main():
               "true, which offers an unchecked 'Erase device' box instead")
         bad += 1
 
-    print("\n%s" % ("FAILURES" if bad else "the save is out of the blast radius"))
+    # The game is password locked (tools/lock_firmware.py). The page only ever
+    # hands esp-web-tools a manifest it decrypted itself, so the app part on
+    # the server must be the locked file, with a lock block to open it by, and
+    # the game must not ALSO be sitting in the repo in the clear.
+    lock = manifest.get("lock") or {}
+    app = [p for p in parts if p[1] == 0x10000]
+    if not app or not app[0][0].endswith(".enc"):
+        print("\nFAIL: the app part (0x10000) is not the locked app.bin.enc -- run tools/build_web.sh")
+        bad += 1
+    else:
+        blob = open(os.path.join(manifest_dir, app[0][0]), "rb").read(4)
+        if blob != b"TPLK":
+            print("\nFAIL: %s is not a locked file (no TPLK header)" % app[0][0])
+            bad += 1
+    if lock.get("kdf") != "PBKDF2-SHA256" or int(lock.get("iterations", 0)) < 100000 \
+            or not lock.get("salt") or not lock.get("check"):
+        print("\nFAIL: the manifest has no usable \"lock\" block -- run tools/lock_firmware.py")
+        bad += 1
+    try:
+        import subprocess
+        tracked = subprocess.run(["git", "ls-files", "--", os.path.join(manifest_dir, "firmware")],
+                                 cwd=ROOT, capture_output=True, text=True, check=True).stdout.split()
+        for t in tracked:
+            if os.path.basename(t) in ("app.bin", "tamapoke.bin"):
+                print("\nFAIL: %s is committed -- that is the game UNLOCKED; git rm --cached it" % t)
+                bad += 1
+    except (OSError, subprocess.CalledProcessError):
+        pass   # not a git checkout: nothing to say about what is committed
+
+    print("\n%s" % ("FAILURES" if bad else "the save is out of the blast radius, and the game is locked"))
     return 1 if bad else 0
 
 
