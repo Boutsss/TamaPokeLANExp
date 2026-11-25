@@ -54,7 +54,11 @@ struct PartyMon {
   // filler). Appended at the END of the struct on purpose -- Party::begin()
   // migrates older, shorter blobs by length, and that only works if nothing
   // that already exists moves. Everything below obeys the same rule.
-  uint8_t moves[MOVE_SLOTS] = { 0, 0, 0, 0 };
+  // Since v3.37 a move ID is 16 bits: this is its LOW byte, left exactly where
+  // it always was, and movesHi[] (appended at the end) holds the high byte --
+  // so every record written before reads back with the same moves. Never touch
+  // either array directly: move(i) / setMove(i, m) are the one way in.
+  uint8_t movesLo[MOVE_SLOTS] = { 0, 0, 0, 0 };
 
   // ---- care state, appended in v2.10 --------------------------------------
   // 0 means "this record predates care state": its fields below are merely the
@@ -87,7 +91,12 @@ struct PartyMon {
   // traded away until it is unfavourited. The last byte of what was padding,
   // so the record is still 52 bytes (see the static_assert below).
   uint8_t fav = 0;
+  // ---- v3.37: the high byte of each move ID (see movesLo). Zero in every
+  // older record, which is exactly right: no move past 255 existed then.
+  uint8_t movesHi[MOVE_SLOTS] = { 0, 0, 0, 0 };
 
+  uint16_t move(uint8_t i) const { return (uint16_t)(movesLo[i] | ((uint16_t)movesHi[i] << 8)); }
+  void setMove(uint8_t i, uint16_t m) { movesLo[i] = (uint8_t)m; movesHi[i] = (uint8_t)(m >> 8); }
   bool empty() const { return dex < 1; }
   bool paidEgg() const { return eggPaid == PM_EGG_PAID; }
   bool isFav() const { return fav == PM_FAV; }
@@ -97,7 +106,7 @@ struct PartyMon {
 // sizeof(PartyMon) is load-bearing in four places (CLAUDE.md section 5), and
 // eggPaid and fav were placed in old padding precisely so it would not move.
 // If this fires, read that section before touching anything else.
-static_assert(sizeof(PartyMon) == 52, "PartyMon grew: party/box migration, MAX_VAL, the link tag and the pet tail all depend on it");
+static_assert(sizeof(PartyMon) == 56, "PartyMon grew: party/box migration, MAX_VAL, the link tag and the pet tail all depend on it");
 
 class Party {
 public:

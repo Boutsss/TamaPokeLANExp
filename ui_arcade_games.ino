@@ -47,7 +47,7 @@ Pinball &arcPinball() { return arcPb; }
 // sparkle. True when the last ball has gone.
 bool pinStep(uint32_t dt) {
   arcPb.step(dt);
-  uint8_t e = arcPb.events;
+  uint16_t e = arcPb.events;   // 16 bits: ORBIT and everything after it live above 255
   arcPb.events = 0;
   uint32_t pts = arcPb.score / PB_PTS_DIV;
   arcPts = (uint16_t)(pts > 65000 ? 65000 : pts);

@@ -139,9 +139,14 @@ struct LinkMon {
   uint8_t level;
   uint16_t maxHp;
   uint16_t base[SI_COUNT];
-  uint8_t moves[MOVE_SLOTS];
+  uint8_t movesLo[MOVE_SLOTS];   // low byte of each move ID; movesHi below (v3.37)
   uint8_t shiny;
   char name[LINK_NAME_LEN];
+  // Appended so a ghost (ghost.h) saved with the older, shorter record still
+  // reads: its stride travels with it and the tail stays zero.
+  uint8_t movesHi[MOVE_SLOTS];
+  uint16_t move(uint8_t i) const { return (uint16_t)(movesLo[i] | ((uint16_t)movesHi[i] << 8)); }
+  void setMove(uint8_t i, uint16_t m) { movesLo[i] = (uint8_t)m; movesHi[i] = (uint8_t)(m >> 8); }
 };
 
 // What the host tells the guest happened. Everything the guest needs to render
@@ -153,7 +158,7 @@ struct LinkMon {
 struct LinkResult {
   uint16_t hostHp, guestHp;
   uint8_t hostAil, guestAil;
-  uint8_t hostMove, guestMove;
+  uint16_t hostMove, guestMove;
   uint16_t hostDmg, guestDmg;
   uint8_t hostIdx, guestIdx;   // which squad member is out on each side
   uint8_t flags;               // bit0 crit, bit1 super, bit2 a faint happened
@@ -315,4 +320,4 @@ uint16_t linkBuildTag();
 // whatever actually arrived over the air.
 void linkMonFrom(LinkMon &out, const Combatant &c);
 void linkMonTo(Combatant &out, const LinkMon &m);
-uint8_t linkSafeMove(uint8_t m);      // 0 unless it is a real move
+uint16_t linkSafeMove(uint16_t m);      // 0 unless it is a real move

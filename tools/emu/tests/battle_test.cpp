@@ -136,9 +136,9 @@ int main() {
   int turn = 0;
   while (!A.fainted() && !B.fainted() && turn < 200) {
     turn++;
-    uint8_t ma = A.moves[random(MOVE_SLOTS)], mb = B.moves[random(MOVE_SLOTS)];
+    uint16_t ma = A.moves[random(MOVE_SLOTS)], mb = B.moves[random(MOVE_SLOTS)];
     Combatant *first = &A, *second = &B;
-    uint8_t mf = ma, ms = mb;
+    uint16_t mf = ma, ms = mb;
     if (!battleMovesFirst(A, ma, B, mb)) { first = &B; second = &A; mf = mb; ms = ma; }
     battleAct(*first, *second, mf, lg);
     if (!second->fainted()) battleAct(*second, *first, ms, lg);
@@ -163,8 +163,8 @@ int main() {
           int t = 0;
           while (!X.fainted() && !Y.fainted() && t < 200) {
             t++;
-            uint8_t mx = X.moves[random(MOVE_SLOTS)], my = Y.moves[random(MOVE_SLOTS)];
-            Combatant *f = &X, *sd = &Y; uint8_t mf = mx, ms = my;
+            uint16_t mx = X.moves[random(MOVE_SLOTS)], my = Y.moves[random(MOVE_SLOTS)];
+            Combatant *f = &X, *sd = &Y; uint16_t mf = mx, ms = my;
             if (!battleMovesFirst(X, mx, Y, my)) { f = &Y; sd = &X; mf = my; ms = mx; }
             battleAct(*f, *sd, mf, lg);
             if (!sd->fainted()) battleAct(*sd, *f, ms, lg);

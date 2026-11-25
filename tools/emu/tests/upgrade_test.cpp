@@ -142,7 +142,7 @@ int main(){
   ck(pty.slots[2].medals == 5, "and the medals it earned in life");
   bool freshMoves = true;
   for (int i = 0; i < 4; i++)
-    if (pty.slots[i].moves[0] || pty.slots[i].moves[3]) freshMoves = false;
+    if (pty.slots[i].move(0) || pty.slots[i].move(3)) freshMoves = false;
   ck(freshMoves, "the moveset a pre-moves save never had comes up empty, not garbage");
   ck(pty.slots[1].shiny, "a banked shiny is still shiny");
   ck(pty.boxCount() == 0, "the box, which did not exist then, comes up empty");

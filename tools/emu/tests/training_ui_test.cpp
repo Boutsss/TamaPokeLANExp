@@ -160,7 +160,7 @@ int main() {
   ck(pts > hits, "timing has earned more points than punches");
   sackUntil = millis();
   allFlush &= flushes(renderSack);
-  uint8_t want = (uint8_t)((pts / 4) > 18 ? 18 : pts / 4);
+  uint16_t want = (uint8_t)((pts / 4) > 18 ? 18 : pts / 4);
   printf("      %u punches, %u points -> STR +%u (want %u)\n", hits, pts, sackGain, want);
   ck(sackOverUntil && sackGain == want && pet.trAtk == want, "STR gain = min(18, points / 4)");
   ck(pet.strHi == hits, "the record still counts PUNCHES, not points");

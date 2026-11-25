@@ -212,7 +212,7 @@ struct PetCoreSnapshot {
   uint8_t fullness, joy, energy, hygiene, poops, weight;
   uint8_t ivAtk, ivDef, ivSpe, ivHp;
   uint8_t trAtk, trDef, trSpe;
-  uint8_t moves[MOVE_SLOTS];
+  uint8_t moves[MOVE_SLOTS];   // the LOW byte of each move ID; the high byte is PET_V3_MOVESHI
   uint8_t lastLearnLevel;
   uint8_t berryKnown, shiny, eggShiny, starterPick;
   uint8_t evoPen, sleepAuto, retirePending, eggTaps;
@@ -271,7 +271,9 @@ static constexpr size_t PET_V3_SSHINY = 1;      // u8  stashed egg is shiny
 static constexpr size_t PET_V3_STARGET = 2;     // i16 stashed egg's species
 static constexpr size_t PET_V3_SEVOPEN = 4;     // u8  stashed egg's evolution debt
 static constexpr size_t PET_V3_FAV = 5;         // u8  1 = a favourite (was reserved: old saves read 0)
-static constexpr size_t PET_V3_LEN = 6;
+static constexpr size_t PET_V3_LEN0 = 6;      // what v3.28-v3.36 wrote
+static constexpr size_t PET_V3_MOVESHI = 6;   // u8[4] the high byte of each move ID (v3.37)
+static constexpr size_t PET_V3_LEN = 10;
 static constexpr size_t PET_BODY = PET_TAIL_MON + sizeof(PartyMon) + PET_V3_LEN;
 static_assert(PET_BODY + CKPT_CRC <= PET_CORE_CAP, "raise PET_CORE_CAP");
 
@@ -835,7 +837,7 @@ void Pet::reviveFrom(const PartyMon &m) {
   persona = personaValid(m.persona) ? m.persona : PT_NONE;
   ivAtk = m.ivAtk; ivDef = m.ivDef; ivSpe = m.ivSpe; ivHp = m.ivHp;
   trAtk = m.trAtk; trDef = m.trDef; trSpe = m.trSpe;
-  for (int i = 0; i < MOVE_SLOTS; i++) moves[i] = m.moves[i];
+  for (int i = 0; i < MOVE_SLOTS; i++) moves[i] = m.move(i);
   // its banked level expressed as an age, so level() needs no special case
   ageMinutes = (uint32_t)(m.level ? m.level - 1 : 0) * MINUTES_PER_LEVEL;
   lastLearnLevel = level();     // do not replay every gate it already passed
@@ -876,7 +878,7 @@ PartyMon Pet::toPartyMon() const {
   m.trDef = trDef;
   m.trSpe = trSpe;
   m.shiny = shiny ? 1 : 0;
-  for (int i = 0; i < MOVE_SLOTS; i++) m.moves[i] = moves[i];
+  for (int i = 0; i < MOVE_SLOTS; i++) m.setMove(i, moves[i]);
   strncpy(m.nick, nick, sizeof(m.nick) - 1);
   m.nick[sizeof(m.nick) - 1] = 0;
   m.stateVersion = 1;
@@ -918,7 +920,7 @@ bool Pet::switchTo(const PartyMon &m) {
   persona = personaValid(m.persona) ? m.persona : PT_NONE;
   ivAtk = m.ivAtk; ivDef = m.ivDef; ivSpe = m.ivSpe; ivHp = m.ivHp;
   trAtk = m.trAtk; trDef = m.trDef; trSpe = m.trSpe;
-  for (int i = 0; i < MOVE_SLOTS; i++) moves[i] = m.moves[i];
+  for (int i = 0; i < MOVE_SLOTS; i++) moves[i] = m.move(i);
   medals = m.medals;
   mistakeCooldown = 0;
   sleeping = false;
@@ -1349,7 +1351,7 @@ uint8_t Pet::moveCount() const {
   return n;
 }
 
-bool Pet::knowsMove(uint8_t mv) const {
+bool Pet::knowsMove(uint16_t mv) const {
   if (!mv) return false;
   for (int i = 0; i < MOVE_SLOTS; i++)
     if (moves[i] == mv) return true;
@@ -1386,10 +1388,10 @@ static uint8_t tmLevelFor(const MoveEntry &m) {
 
 // THE single answer, used by relearnFromLevel(), by the STAB fallback and by
 // the move picker in the sketch. Three call sites once had three opinions.
-uint8_t moveUnlockLevel(int16_t dex, uint8_t idx) {
+uint8_t moveUnlockLevel(int16_t dex, uint16_t idx) {
   uint8_t at = learnLevel(dex, idx);
   if (at > 0) return at;                 // a real level-up move
-  uint8_t mv = learnMove(dex, idx);
+  uint16_t mv = learnMove(dex, idx);
   if (!mv || mv >= MOVE_COUNT) return 255;
   return tmLevelFor(MOVE_TBL[mv]);       // a TM: no natural level, so the gate
 }
@@ -1398,7 +1400,8 @@ void Pet::relearnFromLevel() {
   for (int i = 0; i < MOVE_SLOTS; i++) moves[i] = 0;
   if (isEgg()) return;
   const DexEntry &d = DEX_TBL[speciesId];
-  uint8_t lvl = level(), n = learnCount(speciesId);
+  uint8_t lvl = level();
+  uint16_t n = learnCount(speciesId);
   int16_t score[MOVE_SLOTS] = { 0, 0, 0, 0 };
   // Two passes. Level-up moves (level >= 1) are what a creature grows into, so
   // they fill the set first; TMs (level 0, no gate) only top up the slots left
@@ -1406,11 +1409,11 @@ void Pet::relearnFromLevel() {
   // because every TM is legal at level 1.
   for (int pass = 0; pass < 2; pass++) {
   bool tmPass = (pass == 1);
-  for (uint8_t i = 0; i < n; i++) {
+  for (uint16_t i = 0; i < n; i++) {
     uint8_t at = learnLevel(speciesId, i);
     if (at > lvl) continue;
     if (tmPass != (at == 0)) continue;
-    uint8_t mv = learnMove(speciesId, i);
+    uint16_t mv = learnMove(speciesId, i);
     if (!mv || mv >= MOVE_COUNT || knowsMove(mv)) continue;
     const MoveEntry &m = MOVE_TBL[mv];
     // A TM carries no level requirement in the data, which is true of the games
@@ -1453,12 +1456,12 @@ void Pet::relearnFromLevel() {
     const MoveEntry &m = MOVE_TBL[moves[i]];
     if (m.cat != MC_STATUS && (m.type == d.type1 || m.type == d.type2)) return;
   }
-  uint8_t best = 0;
+  uint16_t best = 0;
   int16_t bestSc = 0;
-  for (uint8_t i = 0; i < n; i++) {
+  for (uint16_t i = 0; i < n; i++) {
     uint8_t at = learnLevel(speciesId, i);
     if (at > lvl) continue;
-    uint8_t mv = learnMove(speciesId, i);
+    uint16_t mv = learnMove(speciesId, i);
     if (!mv || mv >= MOVE_COUNT) continue;
     const MoveEntry &m = MOVE_TBL[mv];
     if (m.cat == MC_STATUS || (m.type != d.type1 && m.type != d.type2)) continue;
@@ -1482,17 +1485,17 @@ void Pet::checkLearnGates() {
   if (isEgg() || ceremony != CER_NONE) return;
   uint8_t lvl = level();
   if (lvl <= lastLearnLevel) return;
-  uint8_t n = learnCount(speciesId);
-  for (uint8_t i = 0; i < n; i++) {
+  uint16_t n = learnCount(speciesId);
+  for (uint16_t i = 0; i < n; i++) {
     uint8_t at = learnLevel(speciesId, i);
     if (at == 0 || at <= lastLearnLevel || at > lvl) continue;  // 0 = TM, no gate
-    uint8_t mv = learnMove(speciesId, i);
+    uint16_t mv = learnMove(speciesId, i);
     if (!mv || mv >= MOVE_COUNT || knowsMove(mv)) continue;
     int freeSlot = -1;
     for (int s = 0; s < MOVE_SLOTS; s++)
       if (!moves[s]) { freeSlot = s; break; }
     if (freeSlot >= 0) { moves[freeSlot] = mv; continue; }
-    if (learnQCount >= sizeof(learnQueue)) continue;
+    if (learnQCount >= sizeof(learnQueue) / sizeof(learnQueue[0])) continue;
     bool dup = false;
     for (uint8_t q = 0; q < learnQCount; q++)
       if (learnQueue[q] == mv) dup = true;
@@ -1502,7 +1505,7 @@ void Pet::checkLearnGates() {
   pendingSave = true;
 }
 
-static void popLearn(uint8_t *q, uint8_t &n) {
+static void popLearn(uint16_t *q, uint8_t &n) {
   if (!n) return;
   for (uint8_t i = 0; i + 1 < n; i++) q[i] = q[i + 1];
   q[--n] = 0;
@@ -1520,15 +1523,16 @@ void Pet::declineLearn() {
   save();
 }
 
-uint8_t Pet::pendingLearnables(uint8_t *out, uint8_t max) const {
+uint8_t Pet::pendingLearnables(uint16_t *out, uint8_t max) const {
   if (isEgg() || !out || !max) return 0;
-  uint8_t lvl = level(), n = learnCount(speciesId), w = 0;
-  for (uint8_t i = 0; i < n && w < max; i++) {
+  uint8_t lvl = level(), w = 0;
+  uint16_t n = learnCount(speciesId);
+  for (uint16_t i = 0; i < n && w < max; i++) {
     if (learnLevel(speciesId, i) > lvl) break;
-    uint8_t mv = learnMove(speciesId, i);
+    uint16_t mv = learnMove(speciesId, i);
     if (knowsMove(mv)) continue;
     bool dup = false;                     // do not offer the same move twice
-    for (uint8_t j = 0; j < w; j++)
+    for (uint16_t j = 0; j < w; j++)
       if (out[j] == mv) { dup = true; break; }
     if (!dup) out[w++] = mv;
   }
@@ -2149,7 +2153,7 @@ bool Pet::saveCoreSnapshot() {
   snapshot.ivAtk = ivAtk; snapshot.ivDef = ivDef;
   snapshot.ivSpe = ivSpe; snapshot.ivHp = ivHp;
   snapshot.trAtk = trAtk; snapshot.trDef = trDef; snapshot.trSpe = trSpe;
-  memcpy(snapshot.moves, moves, sizeof(moves));
+  for (int i = 0; i < MOVE_SLOTS; i++) snapshot.moves[i] = (uint8_t)moves[i];
   snapshot.lastLearnLevel = lastLearnLevel;
   snapshot.berryKnown = berryKnown; snapshot.shiny = shiny;
   snapshot.eggShiny = eggShiny; snapshot.starterPick = starterPick;
@@ -2175,6 +2179,7 @@ bool Pet::saveCoreSnapshot() {
     ckptWr16(v3 + PET_V3_STARGET, (uint16_t)stashTarget);
     v3[PET_V3_SEVOPEN] = stashEvoPen;
     v3[PET_V3_FAV] = favorite ? 1 : 0;
+    for (int i = 0; i < MOVE_SLOTS; i++) v3[PET_V3_MOVESHI + i] = (uint8_t)(moves[i] >> 8);
   }
 
   uint16_t total = ckptSeal(buf, PET_BODY, PET_CORE_MAGIC, PET_CORE_VERSION, nextGen);
@@ -2230,9 +2235,10 @@ bool Pet::loadCoreSnapshot() {
   favorite = false;
   stashTarget = 0;
   stashEvoPen = 0;
+  uint8_t movesHiRead[MOVE_SLOTS] = { 0, 0, 0, 0 };   // an older record: every move < 256
   if (body >= PET_TAIL_MON) {
     size_t monLen = ckptRd16(buf + PET_TAIL_MONLEN);
-    if (monLen && PET_TAIL_MON + monLen + PET_V3_LEN <= body) {
+    if (monLen && PET_TAIL_MON + monLen + PET_V3_LEN0 <= body) {
       const uint8_t *v3 = buf + PET_TAIL_MON + monLen;
       eggPaid = (v3[PET_V3_FLAGS] & 1) != 0;
       int16_t t = (int16_t)ckptRd16(v3 + PET_V3_STARGET);
@@ -2242,6 +2248,9 @@ bool Pet::loadCoreSnapshot() {
       stashShiny = eggStashed && v3[PET_V3_SSHINY];
       stashEvoPen = eggStashed ? v3[PET_V3_SEVOPEN] : 0;
       favorite = v3[PET_V3_FAV] == 1;
+      // the move high bytes, if this record is new enough to carry them
+      if (PET_TAIL_MON + monLen + PET_V3_LEN <= body)
+        for (int i = 0; i < MOVE_SLOTS; i++) movesHiRead[i] = v3[PET_V3_MOVESHI + i];
     }
     if (monLen && PET_TAIL_MON + monLen <= body) {
       // Prefix rule again: a record from before PartyMon grew lands in the front
@@ -2271,7 +2280,7 @@ bool Pet::loadCoreSnapshot() {
   ivAtk = snapshot.ivAtk; ivDef = snapshot.ivDef;
   ivSpe = snapshot.ivSpe; ivHp = snapshot.ivHp;
   trAtk = snapshot.trAtk; trDef = snapshot.trDef; trSpe = snapshot.trSpe;
-  memcpy(moves, snapshot.moves, sizeof(moves));
+  for (int i = 0; i < MOVE_SLOTS; i++) moves[i] = (uint16_t)(snapshot.moves[i] | ((uint16_t)movesHiRead[i] << 8));
   lastLearnLevel = snapshot.lastLearnLevel;
   berryKnown = snapshot.berryKnown != 0; shiny = snapshot.shiny != 0;
   eggShiny = snapshot.eggShiny != 0; starterPick = snapshot.starterPick != 0;
@@ -2342,7 +2351,14 @@ bool Pet::save() {
   SAVE_KEY(prefs.putUChar("tatk", trAtk), "tatk");
   SAVE_KEY(prefs.putUChar("tdef", trDef), "tdef");
   SAVE_KEY(prefs.putUChar("tspe", trSpe), "tspe");
-  SAVE_KEY(prefs.putBytes("mvs", moves, sizeof(moves)), "mvs");
+  {
+    // "mvs" stays the four LOW bytes it always was (a downgrade still reads it);
+    // "mvh" is the high bytes, new in v3.37 and absent = all zero.
+    uint8_t lo[MOVE_SLOTS], hi[MOVE_SLOTS];
+    for (int i = 0; i < MOVE_SLOTS; i++) { lo[i] = (uint8_t)moves[i]; hi[i] = (uint8_t)(moves[i] >> 8); }
+    SAVE_KEY(prefs.putBytes("mvs", lo, sizeof(lo)), "mvs");
+    SAVE_KEY(prefs.putBytes("mvh", hi, sizeof(hi)), "mvh");
+  }
   SAVE_KEY(prefs.putUChar("mvlv", lastLearnLevel), "mvlv");
   SAVE_KEY(prefs.putUChar("avtr", avatar), "avtr");
   SAVE_KEY(prefs.putUChar("reg", region), "reg");
@@ -2466,7 +2482,12 @@ void Pet::load() {
   // which are read above. A save from before moves existed has no "mvs" key and
   // leaves the array zeroed, so an established pet is handed the moveset it
   // should already have rather than walking into a battle knowing nothing.
-  loadBlob(prefs, "mvs", moves, sizeof(moves));
+  {
+    uint8_t lo[MOVE_SLOTS] = { 0, 0, 0, 0 }, hi[MOVE_SLOTS] = { 0, 0, 0, 0 };
+    loadBlob(prefs, "mvs", lo, sizeof(lo));
+    loadBlob(prefs, "mvh", hi, sizeof(hi));
+    for (int i = 0; i < MOVE_SLOTS; i++) moves[i] = (uint16_t)(lo[i] | ((uint16_t)hi[i] << 8));
+  }
   for (int i = 0; i < MOVE_SLOTS; i++)
     if (moves[i] >= MOVE_COUNT) moves[i] = 0;   // never index MOVE_TBL with junk
   lastLearnLevel = prefs.getUChar("mvlv", 0);

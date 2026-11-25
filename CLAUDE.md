@@ -1805,6 +1805,34 @@ Costs to weigh before starting: the WiFi stack is ~40-50 KB RAM (there is
 headroom -- currently 10% used), meaningful current draw on a battery device,
 and pairing UX on a touch-only screen.
 
+### 16-bit move IDs (v3.37)
+
+Every stored move keeps its LOW byte exactly where it always was and gains a
+HIGH byte appended at the end, so an old record reads back with the same moves
+and nothing is reinterpreted (§ "wearing an INDEX"):
+
+| where | low byte | high byte |
+|---|---|---|
+| `PartyMon` (56 bytes now) | `movesLo[]` | `movesHi[]`, after `fav` |
+| `LinkMon` (wire + ghosts) | `movesLo[]` | `movesHi[]`, after `name` |
+| pet checkpoint | `PetCoreSnapshot::moves` | v3 tail `PET_V3_MOVESHI` |
+| legacy keys | `"mvs"` | `"mvh"` |
+
+**Never touch `movesLo`/`movesHi` directly** -- `move(i)` / `setMove(i, m)` are
+the one way in; renaming the field is what made every old access a compile
+error instead of a silent truncation. RAM-only copies (`Pet::moves`,
+`Combatant::moves`, `TurnLog`, `LinkResult`) are plain `uint16_t`.
+
+Three readers could NOT use the prefix rule and have explicit old-format paths:
+a `Ghost` holds an ARRAY of `LinkMon` (`GhostV1` in ghost.cpp), the backup's box
+field changed from `pcNN` ([slot][52-byte record], frozen as `PC_REC_V1`) to
+`pmNN` ([record size][slot][record]..., self-describing from now on), and the
+pet checkpoint's v3 tail is read by whichever prefix is present.
+`upgrade336_test` proves all of it against fixtures written by the v3.36 sources
+(`tools/fixtures/gen_v336.cpp`), and both old-format readers were negative-checked.
+Learnset counts and indices are 16-bit too (`learnCount()`, `LEARNABLE_MAX` 1024):
+MEW alone passes 255 once the table grows.
+
 ### The party is the live pet + FIVE banked (v3.31)
 
 Party slot 1 on screen is the creature you raise (`partyLivePos()`/
@@ -1895,9 +1923,8 @@ recoil, drain, a CHANCE of an ailment or of one stage change (a damaging
 foe, or to the user for SUPERPOWER and friends), stat-only status moves, sure
 ailments and a 50% self-heal. It wrote `dex_moves_more.py` ONCE: that file is
 APPEND-ONLY like the base list (it refuses to overwrite), because position is
-the saved ID. `MOVE_COUNT` is 255 on purpose, one short of 256: several loops
-and every stored move are `uint8_t`. More moves past that need a 16-bit move ID
--- a save, link and backup format change. `fetch_more_learnsets.py` gives them
+the saved ID. **Move IDs are 16-bit since v3.37** (see § "16-bit move IDs"),
+so `MOVE_COUNT` may pass 255. `fetch_more_learnsets.py` gives them
 real levels through `fetch_pokeapi.learn_rows()` (the one level rule), into
 `dex_learnsets_more.py`, appended after each species' own rows by
 `gen_moves.py`. `LEARNABLE_MAX` (255) sizes the move picker: it was 64, and MEW

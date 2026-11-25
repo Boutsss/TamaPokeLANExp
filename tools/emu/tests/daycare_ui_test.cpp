@@ -24,7 +24,7 @@ extern bool daycareOpen, partyOpen; extern uint8_t dcView; extern uint16_t dcPag
 int dcCardCenterX(uint8_t i); int dcCardCenterY();
 int dcBtnCenterX(uint8_t i); int dcBtnCenterY();
 int dcRowCenterY(uint8_t i);
-uint8_t dcPickedA(); uint8_t dcPickedB();
+uint16_t dcPickedA(); uint16_t dcPickedB();
 void dcDebugPick(uint16_t a, uint16_t b);
 
 static int bad=0;
@@ -61,7 +61,7 @@ int main(){
   ck(dcView == 0 && dcPickedA() == 0, "tapping the first row sets A to party slot 0 and returns");
   tapCard(1);
   tapRow(0);
-  ck(dcView == 1 && dcPickedB() == 0xFF, "the row A already holds is locked for B, not taken");
+  ck(dcView == 1 && dcPickedB() == 0xFFFF, "the row A already holds is locked for B, not taken");
   onSwipeV(1); render();
   ck(daycareOpen && dcView == 0, "swiping down backs out of the picker to the daycare, not further");
   tapCard(1); tapRow(2);

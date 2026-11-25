@@ -303,8 +303,14 @@ void uiDrawRimBar();
 void uiChrome();
 // Room for every move one species can learn (MEW: 152 since the Gen 1-7 moves).
 // It was 64, which would have cut the move picker short without a word.
-#define LEARNABLE_MAX 255
-uint8_t learnableList(uint8_t *out, uint8_t max);
+// MEW alone can learn more than 255 once the table grows past one byte of IDs.
+#define LEARNABLE_MAX 1024
+uint16_t learnableList(uint16_t *out, uint16_t max);
+// ONE scratch list for every caller (the picker's tap, draw and page count):
+// 2 KB, and none of them runs while another holds it.
+static uint16_t gLearnBuf[LEARNABLE_MAX];
+uint16_t pickTargetMove(uint8_t slot);
+void pickSetMove(uint8_t slot, uint16_t mv);
 uint8_t pickCandidates();
 // Declared here because renderMonSheet() and the sheet's tap handlers use both
 // ~4000 lines above where they are defined. The emulator generates a proto.h and
@@ -426,7 +432,7 @@ static int eggRegionTap(int16_t x, int16_t y);
 static void drawBtlBack();
 static void btlLinkPoll();   // defined with the battle code, called from render()
 static void btlSwitchTo(uint8_t i);
-static void btlResolve(uint8_t yourMove);
+static void btlResolve(uint16_t yourMove);
 // The peer's whole team, kept live. A trainer's replacements are built fresh
 // from TRAINERS[] because they only ever arrive once; a linked opponent can
 // switch OUT and back IN, so its creatures have to remember how battered they
@@ -2156,7 +2162,7 @@ void renderMonSheet(const PartyMon &m, bool fromBox) {
   gfx->print(ty);
 
   for (int i = 0; i < MOVE_SLOTS; i++)
-    drawMoveRow(78 + i * 52, m.moves[i], false, m.dex);
+    drawMoveRow(78 + i * 52, m.move(i), false, m.dex);
 
   // STATS: the full page, the same one the creature you raise gets
   for (uint8_t k = 0; k < (fromBox ? 2 : 1); k++) {   // STATS, and on a box sheet MOVE
@@ -2837,20 +2843,19 @@ void onTap(int16_t x, int16_t y) {
     return;
   }
   if (movePickOpen) {
-    uint8_t all[LEARNABLE_MAX];
-    uint8_t n = learnableList(all, sizeof(all));
+    uint16_t *all = gLearnBuf;
+    uint16_t n = learnableList(all, LEARNABLE_MAX);
     for (uint8_t i = 0; i < MOVE_PICK_PER_PAGE; i++) {
-      uint8_t idx = movePickPage * MOVE_PICK_PER_PAGE + i;
+      uint16_t idx = (uint16_t)movePickPage * MOVE_PICK_PER_PAGE + i;
       if (idx >= n) break;
       int ry = MOVE_PICK_Y(i);
       if (x < 70 || x > 396 || y < ry || y > ry + 50) continue;
       sfxPlay(SFX_TAP);
       // Swapping for a move already in another slot would silently duplicate
       // it, so trade the two slots instead of overwriting.
-      uint8_t *tgt = pickTargetMoves();
-      for (int s = 0; s < MOVE_SLOTS; s++)
-        if (tgt[s] == all[idx] && s != movePickSlot) tgt[s] = tgt[movePickSlot];
-      tgt[movePickSlot] = all[idx];
+      for (uint8_t s = 0; s < MOVE_SLOTS; s++)
+        if (pickTargetMove(s) == all[idx] && s != movePickSlot) pickSetMove(s, pickTargetMove(movePickSlot));
+      pickSetMove(movePickSlot, all[idx]);
       if (movePickParty) party.save(); else pet.saveNow();
       movePickOpen = false;
       return;
@@ -3306,8 +3311,8 @@ static RimPage uiRimTarget(uint16_t *pages) {
     case SCR_CARDBOOK: p = &cardBookPage; n = cardBookPages(); break;
     case SCR_CARD:    p = &cardPage;    n = CARD_PAGES; break;
     case SCR_MOVEPICK: {
-      uint8_t all[LEARNABLE_MAX];
-      uint8_t k = learnableList(all, sizeof(all));
+      uint16_t *all = gLearnBuf;
+      uint16_t k = learnableList(all, LEARNABLE_MAX);
       p = &movePickPage;
       n = k ? (uint8_t)((k + MOVE_PICK_PER_PAGE - 1) / MOVE_PICK_PER_PAGE) : 1;
       break;
@@ -4369,7 +4374,7 @@ int drawTypeChip(int x, int y, uint8_t type) {
   return w;
 }
 
-void drawMoveRow(int y, uint8_t mv, bool highlight, int16_t dex) {
+void drawMoveRow(int y, uint16_t mv, bool highlight, int16_t dex) {
   gfx->fillRoundRect(70, y, 326, 50, 12, highlight ? UI_BAR_WARN : UI_BG_DAY);
   gfx->drawRoundRect(70, y, 326, 50, 12, UI_INK);
   if (!mv) {
@@ -4424,19 +4429,19 @@ void renderCardMoves() {
 
 // Every move the species can learn by this level, so a slot can be swapped for
 // anything legal -- not just the handful a level-up would have offered.
-uint8_t learnableFor(int16_t dex, uint8_t lvl, uint8_t *out, uint8_t max) {
+uint16_t learnableFor(int16_t dex, uint8_t lvl, uint16_t *out, uint16_t max) {
   if (dex < 1 || dex > DEX_COUNT) return 0;
-  uint8_t n = learnCount(dex), w = 0;
-  for (uint8_t i = 0; i < n && w < max; i++) {
+  uint16_t n = learnCount(dex), w = 0;
+  for (uint16_t i = 0; i < n && w < max; i++) {
     // moveUnlockLevel(), NOT learnLevel(): a TM is stored as level 0 and would
     // otherwise clear this check at level 1. That is how a level 22 Charmeleon
     // came to be offered FIRE BLAST -- the same class of bug as the level 1
     // Squirtle with SURF, in the one path that fix did not reach.
     if (moveUnlockLevel(dex, i) > lvl) continue;
-    uint8_t mv = learnMove(dex, i);
+    uint16_t mv = learnMove(dex, i);
     if (!mv || mv >= MOVE_COUNT) continue;
     bool dup = false;
-    for (uint8_t j = 0; j < w; j++)
+    for (uint16_t j = 0; j < w; j++)
       if (out[j] == mv) { dup = true; break; }
     if (!dup) out[w++] = mv;
   }
@@ -4445,7 +4450,7 @@ uint8_t learnableFor(int16_t dex, uint8_t lvl, uint8_t *out, uint8_t max) {
 
 // The picker targets either the live pet or a banked member. A banked one keeps
 // its frozen level, so it can only relearn what it could have known back then.
-uint8_t learnableList(uint8_t *out, uint8_t max) {
+uint16_t learnableList(uint16_t *out, uint16_t max) {
   if (movePickParty) {
     const PartyMon &m = party.slots[movePickParty - 1];
     return learnableFor(m.dex, (uint8_t)m.level, out, max);
@@ -4453,8 +4458,14 @@ uint8_t learnableList(uint8_t *out, uint8_t max) {
   return pet.isEgg() ? 0 : learnableFor(pet.speciesId, pet.level(), out, max);
 }
 
-uint8_t *pickTargetMoves() {
-  return movePickParty ? party.slots[movePickParty - 1].moves : pet.moves;
+// One way in and out of the target's moves: a banked record keeps each ID as
+// two bytes (party.h), so nothing may hold a pointer into it.
+uint16_t pickTargetMove(uint8_t slot) {
+  return movePickParty ? party.slots[movePickParty - 1].move(slot) : pet.moves[slot];
+}
+void pickSetMove(uint8_t slot, uint16_t mv) {
+  if (movePickParty) party.slots[movePickParty - 1].setMove(slot, mv);
+  else pet.moves[slot] = mv;
 }
 int16_t pickTargetDex() {
   return movePickParty ? party.slots[movePickParty - 1].dex : pet.speciesId;
@@ -4468,18 +4479,19 @@ void renderMovePick() {
   gfx->setCursor(CX - strlen(T(S_MOVE_PICK)) * 6, 40);
   gfx->print(T(S_MOVE_PICK));
 
-  uint8_t all[LEARNABLE_MAX];
-  uint8_t n = learnableList(all, sizeof(all));
-  uint8_t pages = n ? (n + MOVE_PICK_PER_PAGE - 1) / MOVE_PICK_PER_PAGE : 1;
+  uint16_t *all = gLearnBuf;
+  uint16_t n = learnableList(all, LEARNABLE_MAX);
+  uint8_t pages = n ? (uint8_t)((n + MOVE_PICK_PER_PAGE - 1) / MOVE_PICK_PER_PAGE) : 1;
   if (movePickPage >= pages) movePickPage = 0;
   for (uint8_t i = 0; i < MOVE_PICK_PER_PAGE; i++) {
-    uint8_t idx = movePickPage * MOVE_PICK_PER_PAGE + i;
+    uint16_t idx = (uint16_t)movePickPage * MOVE_PICK_PER_PAGE + i;
     if (idx >= n) break;
     // the move already in this slot is highlighted, so replacing like for like
     // is obvious rather than a guess
-    drawMoveRow(MOVE_PICK_Y(i), all[idx], all[idx] == pickTargetMoves()[movePickSlot], pickTargetDex());
+    drawMoveRow(MOVE_PICK_Y(i), all[idx], all[idx] == pickTargetMove(movePickSlot), pickTargetDex());
   }
-  for (uint8_t i = 0; i < pages && pages > 1; i++) {
+  // dots while they fit the panel; past that the rim scrollbar says where you are
+  for (uint8_t i = 0; i < pages && pages > 1 && pages <= 12; i++) {
     if (i == movePickPage) gfx->fillCircle(CX - (pages - 1) * 13 + i * 26, 380, 5, UI_INK);
     else gfx->drawCircle(CX - (pages - 1) * 13 + i * 26, 380, 4, UI_INK);
   }
@@ -4967,7 +4979,7 @@ static void btlLinkPoll() {
 }
 
 // Packs the outcome for the guest. Only the host ever calls this.
-static void btlShipResult(uint8_t yourMove, uint8_t theirMove,
+static void btlShipResult(uint16_t yourMove, uint16_t theirMove,
                           uint16_t hp0You, uint16_t hp0Foe) {
   LinkResult r = {};
   r.hostHp = btlYou.hp;   r.guestHp = btlFoe.hp;
@@ -5076,11 +5088,11 @@ static void btlUseItem(ItemKey k) {
 }
 
 // One exchange: both sides act in speed order, then burn/poison chip.
-static void btlResolve(uint8_t yourMove) {
+static void btlResolve(uint16_t yourMove) {
   TurnLog lg;
   // Against another device the opponent's move comes off the wire, never from
   // the AI -- and the host is the only side that runs this at all.
-  uint8_t foeMove;
+  uint16_t foeMove;
   bool foeSwitched = false;
   uint32_t now = millis();
   if (btlLink) {
@@ -5128,8 +5140,8 @@ static void btlResolve(uint8_t yourMove) {
   }
   Combatant *a = youFirst ? &btlYou : &btlFoe;
   Combatant *b = youFirst ? &btlFoe : &btlYou;
-  uint8_t ma = youFirst ? yourMove : foeMove;
-  uint8_t mb = youFirst ? foeMove : yourMove;
+  uint16_t ma = youFirst ? yourMove : foeMove;
+  uint16_t mb = youFirst ? foeMove : yourMove;
 
   uint16_t hp0You = btlYou.hp, hp0Foe = btlFoe.hp;
   battleAct(*a, *b, ma, lg);
@@ -5609,7 +5621,7 @@ void renderBattle() {
     drawBtlBack();
     for (int i = 0; i < MOVE_SLOTS; i++) {
       int x = BTL_CELL_X(i), y = BTL_CELL_Y(i);
-      uint8_t mv = btlYou.moves[i];
+      uint16_t mv = btlYou.moves[i];
       gfx->fillRoundRect(x, y, BTL_CELL_W, BTL_CELL_H, 10, mv ? UI_BG_DAY : UI_TRACK);
       gfx->drawRoundRect(x, y, BTL_CELL_W, BTL_CELL_H, 10, UI_INK);
       if (!mv) continue;
@@ -6911,7 +6923,7 @@ static int regionPickTap(int16_t x, int16_t y, uint8_t mode) {
 void renderLearn() {
   gfx->fillScreen(RGB565_BLACK);
   gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
-  uint8_t mv = pet.learnOffer();
+  uint16_t mv = pet.learnOffer();
   char head[40];
   const char *nm = pet.nick[0] ? pet.nick : DEX_TBL[pet.speciesId].name;
   snprintf(head, sizeof(head), T(S_LEARN_Q), nm);
@@ -7620,10 +7632,10 @@ int dcCardCenterY() { return DC_CARD_Y + DC_CARD_H / 2; }
 int dcBtnCenterX(uint8_t i) { int a, b; dcBtnRect(i, &a, &b); return (a + b) / 2; }
 int dcBtnCenterY() { return DC_BTN_Y + DC_BTN_H / 2; }
 int dcRowCenterY(uint8_t i) { return DC_ROW_Y(i) + DC_ROW_H / 2; }
-uint8_t dcPickedA() { return dcA; }
+uint16_t dcPickedA() { return dcA; }
 // The emulator's --shot and the UI test set up a pair without tapping through it.
 void dcDebugPick(uint16_t a, uint16_t b) { dcA = a; dcB = b; }
-uint8_t dcPickedB() { return dcB; }
+uint16_t dcPickedB() { return dcB; }
 
 // Banked indices that hold a creature, in party-then-box order.
 static uint16_t dcList(uint16_t *out) {
@@ -8270,7 +8282,7 @@ PartyMon wildToPartyMon() {
   m.ivAtk = wildIv[0]; m.ivDef = wildIv[1];
   m.ivSpe = wildIv[2]; m.ivHp = wildIv[3];
   m.shiny = wildShiny ? 1 : 0;
-  for (int i = 0; i < MOVE_SLOTS; i++) m.moves[i] = btlFoe.moves[i];
+  for (int i = 0; i < MOVE_SLOTS; i++) m.setMove(i, btlFoe.moves[i]);
   // A caught creature has real care state from the start rather than being a
   // v0 record, so switching to it does not reset a creature that was never
   // banked in the first place. Its age IS its level: nothing raised it.

@@ -20,7 +20,7 @@ int main(){
   if (p.awaitingStarter()) p.chooseStarter(4);
   PartyMon m; m.dex=6; m.level=61; m.shiny=1;
   m.ivAtk=m.ivDef=m.ivSpe=m.ivHp=24; m.trAtk=m.trDef=m.trSpe=35;
-  m.moves[0]=1; m.moves[1]=2;
+  m.setMove(0, 1); m.setMove(1, 2);
   snprintf(m.nick,sizeof(m.nick),"BLAZE");
 
   p.reviveFrom(m);

@@ -54,7 +54,7 @@ enum : uint16_t {
 };
 #define MED_COUNT 8
 
-uint8_t moveUnlockLevel(int16_t dex, uint8_t idx);
+uint8_t moveUnlockLevel(int16_t dex, uint16_t idx);
 
 // ---------------------------------------------------------------------------
 // Which regions have their sprite pack on the microSD.
@@ -245,9 +245,9 @@ public:
   // The four known moves (indices into MOVE_TBL; 0 = empty slot). Player-chosen
   // once the learn/forget prompt exists -- until then, and for saves made before
   // moves were stored at all, relearnFromLevel() fills them in.
-  uint8_t moves[MOVE_SLOTS] = { 0, 0, 0, 0 };
+  uint16_t moves[MOVE_SLOTS] = { 0, 0, 0, 0 };   // 16-bit IDs; the checkpoint splits them (pet.cpp)
   uint8_t moveCount() const;
-  bool knowsMove(uint8_t mv) const;
+  bool knowsMove(uint16_t mv) const;
   // The newest MOVE_SLOTS moves this species has learned by its current level,
   // newest last. Used on hatch, on a fresh save, and to backfill empty slots.
   void relearnFromLevel();
@@ -261,7 +261,7 @@ public:
 
   // Moves reachable at this level that are not already known, for the learn
   // prompt. Returns how many were written into out (at most max).
-  uint8_t pendingLearnables(uint8_t *out, uint8_t max) const;
+  uint8_t pendingLearnables(uint16_t *out, uint8_t max) const;
 
   // Player-wide, like the streak and the Pokedex: badges outlive the creature
   // that earned them, so newEgg() must never clear this.
@@ -464,11 +464,11 @@ public:
   // offline catch-up -- which can cross a dozen levels in one go -- queues its
   // offers instead of firing a dozen dialogs at boot.
   uint8_t lastLearnLevel = 0;
-  uint8_t learnQueue[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+  uint16_t learnQueue[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
   uint8_t learnQCount = 0;
   void checkLearnGates();
   bool hasLearnOffer() const { return learnQCount > 0; }
-  uint8_t learnOffer() const { return learnQCount ? learnQueue[0] : 0; }
+  uint16_t learnOffer() const { return learnQCount ? learnQueue[0] : 0; }
   void acceptLearn(uint8_t slot);   // put the pending move into slot 0..3
   void declineLearn();
   // tope de entrenamiento que permite un IV: 77 (IV 8) .. 100 (IV 31)

@@ -221,7 +221,7 @@ static bool sameMon(const PartyMon &a, const PartyMon &b) {
   return a.dex == b.dex && a.level == b.level && a.ageMinutes == b.ageMinutes &&
          a.ivAtk == b.ivAtk && a.ivDef == b.ivDef && a.ivSpe == b.ivSpe && a.ivHp == b.ivHp &&
          a.trAtk == b.trAtk && a.trDef == b.trDef && a.trSpe == b.trSpe &&
-         a.shiny == b.shiny && !memcmp(a.moves, b.moves, sizeof(a.moves)) &&
+         a.shiny == b.shiny && !memcmp(a.movesLo, b.movesLo, sizeof(a.movesLo)) && !memcmp(a.movesHi, b.movesHi, sizeof(a.movesHi)) &&
          !strncmp(a.nick, b.nick, sizeof(a.nick));
 }
 

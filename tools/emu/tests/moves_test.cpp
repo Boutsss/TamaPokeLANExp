@@ -28,7 +28,7 @@ static void ck(bool ok, const char *what) {
   printf("%s  %s\n", ok ? "PASS" : "FAIL", what);
   if (!ok) bad++;
 }
-static void dump(const char *tag, const uint8_t *mv) {
+static void dump(const char *tag, const uint16_t *mv) {
   printf("     %s:", tag);
   for (int i = 0; i < MOVE_SLOTS; i++)
     printf(" %s", mv[i] ? MOVE_TBL[mv[i]].name : "-");
@@ -96,7 +96,7 @@ int main() {
   ck(true, "default sets are attack-led with STAB (see above)");
 
   // --- learn candidates are offered, and never ones already known
-  uint8_t cand[8];
+  uint16_t cand[8];
   uint8_t n = p.pendingLearnables(cand, 8);
   bool alreadyKnown = false;
   for (uint8_t i = 0; i < n; i++)
@@ -107,7 +107,7 @@ int main() {
   // --- party migration: a blob written in the OLD layout (no moves[]) must
   // survive, with slots still aligned. This is the case that silently
   // corrupted the party if migrated by a plain getBytes().
-  const size_t oldStride = sizeof(PartyMon) - MOVE_SLOTS;
+  const size_t oldStride = offsetof(PartyMon, movesLo);   // the record before it had moves
   uint8_t legacy[PARTY_SLOTS * (sizeof(PartyMon))];
   for (int i = 0; i < PARTY_SLOTS; i++) {
     PartyMon m;
@@ -156,7 +156,7 @@ int main() {
     const int16_t CHARMELEON = 5;
     bool early = false, late = false, ember1 = false, flame34 = false;
     for (uint8_t i = 0; i < learnCount(CHARMELEON); i++) {
-      uint8_t mv = learnMove(CHARMELEON, i);
+      uint16_t mv = learnMove(CHARMELEON, i);
       if (mv >= MOVE_COUNT) continue;
       uint8_t at = moveUnlockLevel(CHARMELEON, i);
       if (!strcmp(MOVE_TBL[mv].name, "FIRE BLAST")) { early = at <= 22; late = at >= 40; }

@@ -2,7 +2,7 @@
 """The desktop save editor (tools/debugger/tpsave.py) against what the REAL
 firmware writes: the emulator builds a save -- a party, creatures in two PC
 boxes, a named box -- and EXPORTs it; tpsave must decode every one of them,
-and encoding the PC box back must reproduce the firmware's own pcNN bytes.
+and encoding the PC box back must reproduce the firmware's own pmNN bytes.
 
     python3 tools/check_tpsave.py        # also runs inside tools/emu/tests/run.sh
 
@@ -35,13 +35,13 @@ def main():
     if not s['ok']:
         return 1
     party = [(m['dex'], m['level']) for m in s['party'] if not m['empty']]
-    ck(party == [(25, 50), (26, 50)], 'the party decodes at the 52-byte record: %r' % party)
+    ck(party == [(25, 50), (26, 50)], 'the party decodes at the 56-byte record: %r' % party)
     box = {i: m['dex'] for i, m in enumerate(s['box']) if not m['empty']}
     ck(len(s['box']) == tpsave.BOX_SLOTS and box == {0: 7, 29: 143, 1199: 150},
-       'the PC box decodes from its pcNN fields, each in its own slot: %r' % box)
-    pc = {k: v[1] for k, v in s['fields'].items() if k.startswith('pc')}
-    ck(tpsave.encode_pc_box(s['box']) == pc, 're-encoding the box reproduces the firmware\'s own pcNN bytes')
-    ck(set(pc) == {'pc00', 'pc39'}, 'only boxes holding something travel (%s)' % sorted(pc))
+       'the PC box decodes from its pmNN fields, each in its own slot: %r' % box)
+    pc = {k: v[1] for k, v in s['fields'].items() if k[:2] in ('pc', 'pm')}
+    ck(tpsave.encode_pc_box(s['box']) == pc, 're-encoding the box reproduces the firmware\'s own pmNN bytes')
+    ck(set(pc) == {'pm00', 'pm39'}, 'only boxes holding something travel (%s)' % sorted(pc))
     print('all good' if not bad else 'FAILURES')
     return 1 if bad else 0
 

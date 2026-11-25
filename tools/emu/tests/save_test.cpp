@@ -46,7 +46,7 @@ int main(){
   for (int i=0;i<PARTY_BANKED;i++){ PartyMon m; m.dex=20+i*7; m.level=40+i;
     m.ivAtk=m.ivDef=m.ivSpe=m.ivHp=20+i; m.shiny=(i==2);
     snprintf(m.nick,sizeof(m.nick),"P%d",i);
-    m.moves[0]=1+i; m.moves[1]=9;
+    m.setMove(0, 1+i); m.setMove(1, 9);
     m.held = (i % 2) ? IT_ORAN_BERRY : IT_FOCUS_SASH;
     party.replaceAt(i,m); }
   for (int i=0;i<BOX_SLOTS;i++){ PartyMon m; m.dex=1+(i*3)%DEX_COUNT; m.level=10+i%90;
@@ -147,7 +147,7 @@ int main(){
   for (int i=0;i<PARTY_BANKED;i++){
     const PartyMon &m = q2.slots[i];
     if (m.dex != 20+i*7 || m.level != 40+i) party_ok = false;
-    if (m.moves[0] != 1+i || m.moves[1] != 9) party_ok = false;
+    if (m.move(0) != 1+i || m.move(1) != 9) party_ok = false;
     char want[8]; snprintf(want,sizeof(want),"P%d",i);
     if (strcmp(m.nick, want)) party_ok = false;
   }

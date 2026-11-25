@@ -109,7 +109,7 @@ static void checkAll(const char *how) {
   const PartyMon &b = party.box[0];
   CK(party.boxCount() == 2 && b.dex == 143 && b.level == 12 && !strcmp(b.nick, "SNOOZE"),
      "the boxed SNORLAX 'SNOOZE' Lv12 is still in the box");
-  CK(b.ivAtk == 17 && b.ivDef == 25 && b.ivSpe == 24 && b.ivHp == 9 && b.moves[0] == 1,
+  CK(b.ivAtk == 17 && b.ivDef == 25 && b.ivSpe == 24 && b.ivHp == 9 && b.move(0) == 1,
      "with its IVs and moveset");
   CK(b.stateVersion == 1 && b.fullness == 80 && b.hygiene == 100 && b.ageMinutes == 660 &&
      b.held == ITEM_NONE, "and its care state and age, holding nothing");

@@ -375,7 +375,7 @@ static int shotMode(const char *screen, const char *out, int lvl, int iv, int de
       t.ageMinutes = 49UL * MINUTES_PER_LEVEL; t.relearnFromLevel();
       PartyMon m; m.dex = mineDex[i]; m.level = 50;
       m.ivAtk = m.ivDef = m.ivSpe = m.ivHp = 25;
-      for (int k = 0; k < MOVE_SLOTS; k++) m.moves[k] = t.moves[k];
+      for (int k = 0; k < MOVE_SLOTS; k++) m.setMove(k, t.moves[k]);
       party.replaceAt(i, m);
       Combatant mc; combatantFromParty(mc, m);
       LinkMon mine; linkMonFrom(mine, mc); lan.addMon(mine);
@@ -438,7 +438,7 @@ static int shotMode(const char *screen, const char *out, int lvl, int iv, int de
     t.ageMinutes=53UL*MINUTES_PER_LEVEL; t.relearnFromLevel();
     PartyMon m; m.dex=131; m.level=54; m.shiny=1;
     m.ivAtk=m.ivDef=m.ivSpe=m.ivHp=27; m.trAtk=m.trDef=m.trSpe=40;
-    for(int k=0;k<MOVE_SLOTS;k++) m.moves[k]=t.moves[k];
+    for(int k=0;k<MOVE_SLOTS;k++) m.setMove(k, t.moves[k]);
     snprintf(m.nick,sizeof(m.nick),"NESSIE");
     party.replaceAt(0,m);
     partyOpen = true; partyDetail = 1;

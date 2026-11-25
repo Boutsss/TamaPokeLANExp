@@ -28,7 +28,7 @@ const SaveField SAVE_FIELDS[] = {
   { "ivhp", SK_U8 },    { "tatk", SK_U8 },    { "tdef", SK_U8 },
   { "tspe", SK_U8 },
   // moves
-  { "mvs", SK_BYTES },  { "mvlv", SK_U8 },
+  { "mvs", SK_BYTES },  { "mvh", SK_BYTES },  { "mvlv", SK_U8 },
   // flags
   { "bk", SK_BOOL },    { "shy", SK_BOOL },   { "eshy", SK_BOOL },
   { "stpk", SK_BOOL },  { "evop", SK_U8 },    { "slpa", SK_U8 },    { "rtpn", SK_BOOL },
@@ -87,8 +87,15 @@ const uint16_t SAVE_FIELD_COUNT = sizeof(SAVE_FIELDS) / sizeof(SAVE_FIELDS[0]);
 // one "pcNN" field per box of 30, occupied slots only ([slot in box][record]).
 // MAX_VAL is the largest of everything that does travel as one value -- each
 // size DERIVED from its own header, never restated here.
+//
+// Two shapes of that field. "pcNN" is what v3.30-v3.36 wrote: [slot][record]
+// with the 52-byte record of the time -- FROZEN, so it is a literal on purpose
+// (it describes old backups, not this build). "pmNN" (v3.37) leads with the
+// record size, [size][slot][record]..., so the next time PartyMon grows the
+// backup carries its own stride and no third key is needed.
+#define PC_REC_V1 (1 + 52)
 #define PC_REC (1 + sizeof(PartyMon))
-#define PC_FIELD_MAX (BOX_PER_BOX * PC_REC)
+#define PC_FIELD_MAX (1 + BOX_PER_BOX * PC_REC)
 static constexpr size_t cmax(size_t a, size_t b) { return a > b ? a : b; }
 #define MAX_VAL cmax(cmax(sizeof(PartyMon) * BOX_LEGACY_SLOTS, PC_FIELD_MAX), \
                      cmax(GHOST_BLOB_MAX, CARD_BOOK_BLOB_MAX))
@@ -221,16 +228,17 @@ size_t saveExport(uint8_t *out, size_t cap) {
   p.end();
   // The PC box: one field per box that holds anything.
   for (uint16_t b = 0; party.box && b < BOX_BOXES; b++) {
-    size_t vn = 0;
+    size_t vn = 1;
+    val[0] = (uint8_t)sizeof(PartyMon);
     for (uint8_t k = 0; k < BOX_PER_BOX; k++) {
       const PartyMon &m = party.box[b * BOX_PER_BOX + k];
       if (m.empty()) continue;
       val[vn++] = k;
       memcpy(val + vn, &m, sizeof(PartyMon)); vn += sizeof(PartyMon);
     }
-    if (!vn) continue;
+    if (vn == 1) continue;
     char key[8];
-    snprintf(key, sizeof(key), "pc%02u", (unsigned)b);
+    snprintf(key, sizeof(key), "pm%02u", (unsigned)b);
     size_t klen = strlen(key);
     if (at + 1 + klen + 1 + 2 + vn + 2 > cap) return 0;
     out[at++] = (uint8_t)klen;
@@ -262,11 +270,23 @@ static const SaveField *fieldFor(const char *key, uint8_t kind) {
   return nullptr;
 }
 
-// "pc00".."pc39": a box of the PC box. -1 if the key is anything else.
-static int pcBoxOf(const char *key, uint8_t klen) {
-  if (klen != 4 || key[0] != 'p' || key[1] != 'c' || key[2] < '0' || key[2] > '9' || key[3] < '0' || key[3] > '9') return -1;
+// "pc00".."pc39" (old) or "pm00".."pm39": a box of the PC box. -1 if the key is
+// anything else. *sized says which: a pm field leads with its record size.
+static int pcBoxOf(const char *key, uint8_t klen, bool *sized = nullptr) {
+  if (klen != 4 || key[0] != 'p' || (key[1] != 'c' && key[1] != 'm') ||
+      key[2] < '0' || key[2] > '9' || key[3] < '0' || key[3] > '9') return -1;
+  if (sized) *sized = key[1] == 'm';
   int b = (key[2] - '0') * 10 + (key[3] - '0');
   return b < BOX_BOXES ? b : -1;
+}
+// Where a box field's records start and how far apart they are; false if the
+// field cannot be a box at all. A record smaller than the one pcNN carried is
+// refused: no build ever wrote one, so it can only be damage.
+static bool pcLayout(bool sized, const uint8_t *v, uint16_t vlen, uint16_t *first, uint16_t *stride) {
+  if (!sized) { *first = 0; *stride = PC_REC_V1; return vlen % PC_REC_V1 == 0; }
+  if (vlen < 1 || v[0] < PC_REC_V1 - 1) return false;
+  *first = 1; *stride = (uint16_t)(1 + v[0]);
+  return (vlen - 1) % *stride == 0;
 }
 
 bool saveImport(const uint8_t *in, size_t n) {
@@ -294,9 +314,11 @@ bool saveImport(const uint8_t *in, size_t n) {
     uint8_t w = widthOf(kind);
     if (w && vlen != w) return false;          // a scalar of the wrong width
     // a box of the PC box: whole records, each in a real slot of that box
-    if (pcBoxOf((const char *)in + at + 1, klen) >= 0) {
-      if (kind != SK_BYTES || vlen % PC_REC) return false;
-      for (uint16_t r = 0; r < vlen; r += PC_REC)
+    bool sized = false;
+    if (pcBoxOf((const char *)in + at + 1, klen, &sized) >= 0) {
+      uint16_t first, stride;
+      if (kind != SK_BYTES || !pcLayout(sized, in + vat + 3, vlen, &first, &stride)) return false;
+      for (uint16_t r = first; r < vlen; r += stride)
         if (in[vat + 3 + r] >= BOX_PER_BOX) return false;
     }
     at = vat + 3 + vlen;
@@ -323,11 +345,16 @@ bool saveImport(const uint8_t *in, size_t n) {
     size_t vat = at + 1 + klen;
     uint8_t kind = in[vat];
     uint16_t vlen = (uint16_t)in[vat + 1] | ((uint16_t)in[vat + 2] << 8);
-    int pb = pcBoxOf(key, klen);
-    if (pb >= 0 && party.box) {
-      for (uint16_t r = 0; r < vlen; r += PC_REC) {
+    bool sized = false;
+    int pb = pcBoxOf(key, klen, &sized);
+    uint16_t first = 0, stride = PC_REC;
+    if (pb >= 0 && party.box && pcLayout(sized, in + vat + 3, vlen, &first, &stride)) {
+      for (uint16_t r = first; r < vlen; r += stride) {
+        // prefix rule: an older, shorter record leaves the newer fields
+        // (movesHi: every move it had was < 256) at their defaults
         PartyMon m;
-        memcpy(&m, in + vat + 3 + r + 1, sizeof(PartyMon));
+        uint16_t rec = stride - 1;
+        memcpy(&m, in + vat + 3 + r + 1, rec < sizeof(PartyMon) ? rec : sizeof(PartyMon));
         if (m.dex < 1 || m.dex > DEX_COUNT) continue;   // never index a table with junk
         m.nick[sizeof(m.nick) - 1] = 0;
         party.box[pb * BOX_PER_BOX + in[vat + 3 + r]] = m;

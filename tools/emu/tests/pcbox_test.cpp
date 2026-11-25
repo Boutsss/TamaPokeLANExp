@@ -151,16 +151,16 @@ int main(){
     ck(n > 0, "EXPORT works with a PC box");
     std::vector<uint8_t> keep(buf, buf + n);
     auto hasKey = [&](const char *k) { return std::search(keep.begin(), keep.end(), k, k + strlen(k)) != keep.end(); };
-    ck(hasKey("pc00") && hasKey("pc01") && hasKey("pc39") && !hasKey("pc02"), "one pcNN field per box that holds anything");
+    ck(hasKey("pm00") && hasKey("pm01") && hasKey("pm39") && !hasKey("pm02") && !hasKey("pc00"), "one pmNN field per box that holds anything");
     party.box[0] = PartyMon(); party.box[500] = mon(99, 99, "JUNK"); party.boxSave();
     ck(saveImport(keep.data(), keep.size()), "IMPORT takes it");
     Party r; r.begin();
     ck(r.box[0].dex == 1 && r.box[35].dex == 4 && r.box[1199].dex == 7 && r.box[1199].isFav(), "the box comes back exactly, favourites included");
     ck(r.box[500].empty() && r.boxCount() == 3, "and REPLACES what was there");
     std::vector<uint8_t> bad1 = keep;
-    // corrupt the slot byte of the first pc00 record
-    auto it = std::search(bad1.begin(), bad1.end(), "pc00", "pc00" + 4);
-    size_t at = (it - bad1.begin()) + 4 + 1 + 2;        // key, kind, length
+    // corrupt the slot byte of the first pm00 record (after the record-size byte)
+    auto it = std::search(bad1.begin(), bad1.end(), "pm00", "pm00" + 4);
+    size_t at = (it - bad1.begin()) + 4 + 1 + 2 + 1;    // key, kind, length, record size
     bad1[at] = 31;
     // re-sign it, so it is the SLOT check that refuses it, not the checksum
     uint16_t c = crc16ccitt(bad1.data(), bad1.size() - 2);

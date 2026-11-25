@@ -31,7 +31,7 @@ void combatantFromPet(Combatant &c, const Pet &p) {
 void combatantFromParty(Combatant &c, const PartyMon &m) {
   fill(c, m.dex, (uint8_t)m.level, party.vitOf(m), party.atkOf(m), party.defOf(m),
        party.spaOf(m), party.spdOf(m), party.speOf(m));
-  for (int i = 0; i < MOVE_SLOTS; i++) c.moves[i] = m.moves[i];
+  for (int i = 0; i < MOVE_SLOTS; i++) c.moves[i] = m.move(i);
   c.shiny = m.shiny != 0;
   c.held = itemIsHeld(m.held) ? m.held : ITEM_NONE;
   const char *nm = m.nick[0] ? m.nick : DEX_TBL[m.dex].name;
@@ -63,7 +63,7 @@ static uint16_t effStat(const Combatant &c, uint8_t idx) {
 // ---------- damage ----------
 
 // roll is 217..255, the series' damage spread, passed in so tests can pin it.
-uint16_t battleDamage(const Combatant &atk, const Combatant &def, uint8_t mv,
+uint16_t battleDamage(const Combatant &atk, const Combatant &def, uint16_t mv,
                       bool crit, uint8_t roll) {
   if (!mv || mv >= MOVE_COUNT) return 0;
   const MoveEntry &m = MOVE_TBL[mv];
@@ -94,8 +94,8 @@ uint16_t battleDamage(const Combatant &atk, const Combatant &def, uint8_t mv,
 
 // ---------- turn order ----------
 
-bool battleMovesFirst(const Combatant &a, uint8_t ma,
-                      const Combatant &b, uint8_t mb, uint8_t *claw) {
+bool battleMovesFirst(const Combatant &a, uint16_t ma,
+                      const Combatant &b, uint16_t mb, uint8_t *claw) {
   if (claw) *claw = ITEM_NONE;
   int pa = (ma && ma < MOVE_COUNT && MOVE_TBL[ma].effect == EF_PRIORITY)
                ? MOVE_TBL[ma].param : 0;
@@ -159,7 +159,7 @@ static uint16_t sashCap(Combatant &c, uint16_t damage, uint8_t &logItem) {
   return c.hp - 1;
 }
 
-void battleAct(Combatant &atk, Combatant &def, uint8_t mv, TurnLog &log) {
+void battleAct(Combatant &atk, Combatant &def, uint16_t mv, TurnLog &log) {
   log = TurnLog();
   log.move = mv;
   if (atk.fainted() || def.fainted()) { log.skipped = true; return; }
@@ -319,17 +319,18 @@ void battleEndTurn(Combatant &c, TurnLog &log) {
 
 // ---------- move choice ----------
 
-uint8_t aiChooseMove(const Combatant &self, const Combatant &foe, bool smart) {
-  uint8_t legal[MOVE_SLOTS], n = 0;
+uint16_t aiChooseMove(const Combatant &self, const Combatant &foe, bool smart) {
+  uint16_t legal[MOVE_SLOTS];
+  uint8_t n = 0;
   for (int i = 0; i < MOVE_SLOTS; i++)
     if (self.moves[i] && self.moves[i] < MOVE_COUNT) legal[n++] = self.moves[i];
   if (!n) return 0;
   if (!smart) return legal[random(n)];
 
   int16_t bestScore = -32768;
-  uint8_t best = legal[0];
+  uint16_t best = legal[0];
   for (uint8_t i = 0; i < n; i++) {
-    uint8_t mv = legal[i];
+    uint16_t mv = legal[i];
     const MoveEntry &m = MOVE_TBL[mv];
     int32_t sc;
     if (m.cat == MC_STATUS) {

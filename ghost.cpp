@@ -6,7 +6,35 @@ static Ghost g[GHOST_CAP];
 static uint8_t gN = 0;
 static Ghost gNone;
 
-#define GHOST_VER 1
+#define GHOST_VER 2   // 2: LinkMon gained movesHi[] (v3.37, 16-bit move IDs)
+
+// The v1 record, exactly as v3.33-v3.36 wrote it. A Ghost holds an ARRAY of
+// LinkMon, so the prefix rule cannot read an old one once LinkMon grows: every
+// creature after the first would be misaligned. Version 1 is converted field
+// by field instead; every move in it is < 256, so the high bytes are zero.
+struct LinkMonV1 {
+  int16_t dex; uint8_t level; uint16_t maxHp; uint16_t base[SI_COUNT];
+  uint8_t moves[MOVE_SLOTS]; uint8_t shiny; char name[LINK_NAME_LEN];
+};
+struct GhostV1 {
+  uint8_t mac[6]; char name[LINK_NAME_LEN]; uint8_t n, wins, losses, rsvd;
+  LinkMonV1 mon[TRAINER_TEAM_MAX];
+};
+static void fromV1(Ghost &out, const GhostV1 &v) {
+  out = Ghost();
+  memcpy(out.mac, v.mac, sizeof(out.mac));
+  memcpy(out.name, v.name, sizeof(out.name));
+  out.n = v.n; out.wins = v.wins; out.losses = v.losses;
+  for (uint8_t k = 0; k < TRAINER_TEAM_MAX; k++) {
+    LinkMon &m = out.mon[k]; const LinkMonV1 &o = v.mon[k];
+    memset(&m, 0, sizeof(m));
+    m.dex = o.dex; m.level = o.level; m.maxHp = o.maxHp;
+    memcpy(m.base, o.base, sizeof(m.base));
+    for (uint8_t i = 0; i < MOVE_SLOTS; i++) m.setMove(i, o.moves[i]);
+    m.shiny = o.shiny;
+    memcpy(m.name, o.name, sizeof(m.name));
+  }
+}
 #define GHOST_KEY "ghosts"
 
 uint8_t ghostCount() { return gN; }
@@ -40,8 +68,13 @@ void ghostsBegin() {
     uint8_t cnt = buf[1];
     if (stride && cnt <= GHOST_CAP && GHOST_HDR + (size_t)cnt * stride <= n) {
       for (uint8_t i = 0; i < cnt; i++) {
-        // prefix rule: an older, shorter record leaves the tail at its defaults
-        memcpy(&g[i], buf + GHOST_HDR + i * stride, stride < sizeof(Ghost) ? stride : sizeof(Ghost));
+        if (buf[0] == 1 && stride == sizeof(GhostV1)) {
+          GhostV1 v; memcpy(&v, buf + GHOST_HDR + i * stride, sizeof(v));
+          fromV1(g[i], v);
+        } else {
+          // prefix rule: an older, shorter record leaves the tail at its defaults
+          memcpy(&g[i], buf + GHOST_HDR + i * stride, stride < sizeof(Ghost) ? stride : sizeof(Ghost));
+        }
         g[i].name[LINK_NAME_LEN - 1] = 0;
         if (g[i].n > TRAINER_TEAM_MAX) g[i].n = TRAINER_TEAM_MAX;
       }

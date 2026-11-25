@@ -85,7 +85,7 @@ static void check(const char *name, bool *open, P *page){
   if (*page != n - 1) { printf("FAIL  %-10s did not clamp at the last page (%u of %u)\n", name, (unsigned)*page, n); bad++; return; }
   printf("PASS  %-10s pages on the rim and clamps at both ends\n", name);
 }
-uint8_t learnableFor(int16_t dex, uint8_t lvl, uint8_t *out, uint8_t max);
+uint16_t learnableFor(int16_t dex, uint8_t lvl, uint16_t *out, uint16_t max);
 extern bool casinoOpen; extern uint8_t casShopKind, casShopPage;
 extern const char *const SCREEN_NAME[];
 extern bool cardBookOpen; extern uint8_t cardBookPage;
@@ -408,10 +408,10 @@ int main(){
   // PICKER has to actually ask it. It once kept its own copy of the check,
   // which IS the bug, so this drives the screen's own list, not the rule.
   {
-    uint8_t l[64];
-    uint8_t n = learnableFor(5, 22, l, sizeof(l));    // a Charmeleon at 22
+    uint16_t l[1024];
+    uint16_t n = learnableFor(5, 22, l, 1024);    // a Charmeleon at 22
     bool blast = false, ember = false;
-    for (uint8_t i = 0; i < n; i++) {
+    for (uint16_t i = 0; i < n; i++) {
       if (!strcmp(MOVE_TBL[l[i]].name, "FIRE BLAST")) blast = true;
       if (!strcmp(MOVE_TBL[l[i]].name, "EMBER")) ember = true;
     }
@@ -419,7 +419,7 @@ int main(){
     else printf("PASS  picker     no FIRE BLAST for a level 22 Charmeleon\n");
     if (!ember) { printf("FAIL  picker     lost the moves it really knows\n"); bad++; }
     else printf("PASS  picker     still offers what it really knows\n");
-    if (learnableFor(5, 40, l, sizeof(l)) <= n) {
+    if (learnableFor(5, 40, l, 1024) <= n) {
       printf("FAIL  picker     TMs never arrive at all\n"); bad++;
     } else printf("PASS  picker     and the TMs arrive once it is built\n");
   }

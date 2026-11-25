@@ -158,7 +158,9 @@ def main():
              '  uint8_t ailChance; // percent, 0 = never\n'
              '};\n\n')
 
-    o.append('enum MoveId : uint8_t {\n  MV_NONE = 0,\n')
+    o.append('// Move IDs are 16-bit since v3.37: stored creatures keep the low byte where\n'
+             '// it always was and the high byte in an appended field (party.h).\n'
+             'enum MoveId : uint16_t {\n  MV_NONE = 0,\n')
     for name, *_ in MOVES:
         o.append('  %s,\n' % ident(name))
     o.append('};\n')
@@ -197,7 +199,7 @@ def main():
              '// LEARN_TBL[LEARN_OFS[n] .. LEARN_OFS[n + 1]).\n'
              '// nivel 0 = MT, sin requisito. El nivel se guarda pero todavia\n'
              '// no filtra nada: lo decide la fase de UI.\n')
-    o.append('struct LearnEntry { uint8_t move; uint8_t level; };\n\n')
+    o.append('struct __attribute__((packed)) LearnEntry { uint16_t move; uint8_t level; };\n\n')
 
     flat, ofs = [], [0]
     empties = []
@@ -212,7 +214,7 @@ def main():
     o.append('static const LearnEntry LEARN_TBL[%d] = {\n' % len(flat))
     line = []
     for mid, lv, nm in flat:
-        line.append('{ %3d, %3d },' % (mid, lv))
+        line.append('{ %4d, %3d },' % (mid, lv))
         if len(line) == 6:
             o.append('  ' + ' '.join(line) + '\n')
             line = []
@@ -220,7 +222,8 @@ def main():
         o.append('  ' + ' '.join(line) + '\n')
     o.append('};\n\n')
 
-    o.append('static const uint16_t LEARN_OFS[DEX_COUNT + 2] = {\n')
+    # the offsets outgrow 16 bits once the learnsets pass 65535 rows
+    o.append('static const %s LEARN_OFS[DEX_COUNT + 2] = {\n' % ('uint16_t' if len(flat) <= 65535 else 'uint32_t'))
     for i in range(0, len(ofs), 12):
         o.append('  ' + ' '.join('%5d,' % v for v in ofs[i:i + 12]) + '\n')
     o.append('};\n\n')
@@ -228,15 +231,16 @@ def main():
     o.append('// Cuantos movimientos puede usar la especie, y cual es el i-esimo.\n'
              '// DITTO y las dos crisalidas no aprenden ninguno de la lista: para\n'
              '// ellos moveOf() devuelve MV_STRUGGLE en vez de nada.\n')
-    o.append('static inline uint8_t learnCount(int16_t dex) {\n'
+    o.append('// 16-bit counts: MEW alone learns well over 255 moves once the table grows.\n'
+             'static inline uint16_t learnCount(int16_t dex) {\n'
              '  if (dex < 1 || dex > DEX_COUNT) return 0;\n'
-             '  return (uint8_t)(LEARN_OFS[dex + 1] - LEARN_OFS[dex]);\n'
+             '  return (uint16_t)(LEARN_OFS[dex + 1] - LEARN_OFS[dex]);\n'
              '}\n\n')
-    o.append('static inline uint8_t learnMove(int16_t dex, uint8_t i) {\n'
+    o.append('static inline uint16_t learnMove(int16_t dex, uint16_t i) {\n'
              '  if (i >= learnCount(dex)) return MV_STRUGGLE;\n'
              '  return LEARN_TBL[LEARN_OFS[dex] + i].move;\n'
              '}\n\n')
-    o.append('static inline uint8_t learnLevel(int16_t dex, uint8_t i) {\n'
+    o.append('static inline uint8_t learnLevel(int16_t dex, uint16_t i) {\n'
              '  if (i >= learnCount(dex)) return 0;\n'
              '  return LEARN_TBL[LEARN_OFS[dex] + i].level;\n'
              '}\n')

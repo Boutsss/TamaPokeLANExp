@@ -102,7 +102,7 @@ int main(){
       const DexEntry &e = DEX_TBL[d];
       bool found = false;
       for (uint8_t i = 0; i < learnCount(d) && !found; i++) {
-        uint8_t mv = learnMove(d, i);
+        uint16_t mv = learnMove(d, i);
         if (mv >= MOVE_COUNT) continue;
         const MoveEntry &m = MOVE_TBL[mv];
         if (m.cat == MC_STATUS || !m.power) continue;

@@ -182,7 +182,7 @@ int main(){
   // --- NOTHING off the wire may be trusted to index a table
   {
     LinkMon junk{};
-    junk.dex=9999; junk.level=250; junk.maxHp=0; junk.moves[0]=250;
+    junk.dex=9999; junk.level=250; junk.maxHp=0; junk.setMove(0, 9999);
     Combatant c; linkMonTo(c,junk);
     ck(c.dex>=1 && c.dex<=DEX_COUNT, "a nonsense dex is clamped into the table");
     ck(c.level>=1 && c.level<=MAX_LEVEL, "so is a nonsense level");

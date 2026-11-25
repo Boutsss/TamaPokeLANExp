@@ -35,7 +35,7 @@ uint16_t linkBuildTag() {
   return (uint16_t)(h ^ (h >> 16));
 }
 
-uint8_t linkSafeMove(uint8_t m) { return m < MOVE_COUNT ? m : 0; }
+uint16_t linkSafeMove(uint16_t m) { return m < MOVE_COUNT ? m : 0; }
 
 void linkMonFrom(LinkMon &out, const Combatant &c) {
   memset(&out, 0, sizeof(out));
@@ -43,7 +43,7 @@ void linkMonFrom(LinkMon &out, const Combatant &c) {
   out.level = c.level;
   out.maxHp = c.maxHp;
   for (int i = 0; i < SI_COUNT; i++) out.base[i] = c.base[i];
-  for (int i = 0; i < MOVE_SLOTS; i++) out.moves[i] = c.moves[i];
+  for (int i = 0; i < MOVE_SLOTS; i++) out.setMove(i, c.moves[i]);
   out.shiny = c.shiny ? 1 : 0;
   snprintf(out.name, sizeof(out.name), "%s", c.name);
 }
@@ -59,7 +59,7 @@ void linkMonTo(Combatant &out, const LinkMon &m) {
   out.maxHp = m.maxHp ? m.maxHp : 1;
   out.hp = out.maxHp;
   for (int i = 0; i < SI_COUNT; i++) out.base[i] = m.base[i] ? m.base[i] : 1;
-  for (int i = 0; i < MOVE_SLOTS; i++) out.moves[i] = linkSafeMove(m.moves[i]);
+  for (int i = 0; i < MOVE_SLOTS; i++) out.moves[i] = linkSafeMove(m.move(i));
   out.shiny = m.shiny != 0;
   // NOT snprintf("%s"): a name off the wire need not be terminated, and reading
   // it as a C string would run off the end of the struct.
@@ -588,7 +588,7 @@ bool tradeSanitize(PartyMon &m) {
   for (uint8_t *p : tr) if (*p > 100) *p = 100;
   m.shiny = m.shiny ? 1 : 0;
   m.nick[sizeof(m.nick) - 1] = 0;
-  for (int i = 0; i < MOVE_SLOTS; i++) m.moves[i] = linkSafeMove(m.moves[i]);
+  for (int i = 0; i < MOVE_SLOTS; i++) m.setMove(i, linkSafeMove(m.move(i)));
   uint8_t *care[4] = { &m.fullness, &m.joy, &m.energy, &m.hygiene };
   for (uint8_t *p : care) if (*p > 100) *p = 100;
   if (m.bond > 100) m.bond = 100;

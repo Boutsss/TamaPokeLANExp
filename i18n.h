@@ -468,7 +468,7 @@ enum StrId : uint16_t {
 };
 
 const char *T(StrId id);       // texto en el idioma activo
-const char *moveName(uint8_t move);  // localized display name; move ID stays stable
+const char *moveName(uint16_t move);  // localized display name; move ID stays stable
 const char *medalName(int i);  // banner de medalla (MED_COUNT)
 const char *medalLabel(int i); // etiqueta corta de medalla
 const char *medalDesc(int i);  // descripcion larga de medalla

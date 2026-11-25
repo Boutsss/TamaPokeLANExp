@@ -42,7 +42,7 @@ SAVE_FIELDS = [
     ("ivat", SK_U8), ("ivdf", SK_U8), ("ivsp", SK_U8),
     ("ivhp", SK_U8), ("tatk", SK_U8), ("tdef", SK_U8),
     ("tspe", SK_U8),
-    ("mvs", SK_BYTES), ("mvlv", SK_U8),
+    ("mvs", SK_BYTES), ("mvh", SK_BYTES), ("mvlv", SK_U8),
     ("bk", SK_BOOL), ("shy", SK_BOOL), ("eshy", SK_BOOL),
     ("stpk", SK_BOOL), ("evop", SK_U8), ("slpa", SK_U8), ("rtpn", SK_BOOL),
     ("tnam", SK_STR), ("avtr", SK_U8), ("badg", SK_U16),
@@ -307,10 +307,13 @@ PARTY_MON_FIELDS = [
     ("ageMinutes", "I"),
     # appended in the firmware's old padding (party.h): the record grew 48 -> 52
     ("held", "B"), ("persona", "B"), ("eggPaid", "B"), ("fav", "B"),
+    # v3.37: move IDs are 16-bit. move0..3 above are the LOW bytes, these the
+    # high bytes (zero in every older record); "moves" combines them.
+    ("moveHi0", "B"), ("moveHi1", "B"), ("moveHi2", "B"), ("moveHi3", "B"),
 ]
 PARTY_MON_FMT = "<" + "".join(f for _, f in PARTY_MON_FIELDS)
 PARTY_MON_SIZE = struct.calcsize(PARTY_MON_FMT)
-assert PARTY_MON_SIZE == 52, f"PartyMon layout drifted: {PARTY_MON_SIZE} != 52 (party.h static_assert)"
+assert PARTY_MON_SIZE == 56, f"PartyMon layout drifted: {PARTY_MON_SIZE} != 56 (party.h static_assert)"
 LEGACY_MON_SIZE = 48   # before held items / personalities / favourites
 PM_FAV = 0xF7          # PartyMon::fav's magic "is a favourite" value
 PM_EGG_PAID = 0xE9
@@ -328,7 +331,7 @@ _PAD_OFS = struct.calcsize("<" + "".join(f for n, f in PARTY_MON_FIELDS[:[n for 
 # name -> format char, with move0..move3 collapsed to "moveN" so
 # range_for_party_field("moveN") also works for the dialog's move entries.
 _PARTY_MON_FIELD_FMT = {n: f for n, f in PARTY_MON_FIELDS if n != "_pad"}
-_PARTY_MON_FIELD_FMT["moveN"] = "B"
+_PARTY_MON_FIELD_FMT["moveN"] = "H"   # a whole 16-bit move ID, as the editor shows it
 
 
 def decode_party_mon(raw: bytes) -> dict:
@@ -339,7 +342,7 @@ def decode_party_mon(raw: bytes) -> dict:
     d = dict(zip(_PMON_NAMES, vals))
     d["_padbytes"] = raw[_PAD_OFS:_PAD_OFS + 2]
     d["nick"] = d["nick"].split(b"\x00", 1)[0].decode("ascii", "replace")
-    d["moves"] = [d.pop(f"move{i}") for i in range(4)]
+    d["moves"] = [d.pop(f"move{i}") | (d.pop(f"moveHi{i}") << 8) for i in range(4)]
     d["empty"] = d["dex"] < 1
     d["favourite"] = d.get("fav") == PM_FAV
     return d
@@ -354,8 +357,10 @@ def encode_party_mon(d: dict) -> bytes:
             continue
         if name == "nick":
             vals.append(nick.ljust(12, b"\x00"))
+        elif name.startswith("moveHi"):
+            vals.append((moves[int(name[-1])] >> 8) & 0xFF)
         elif name.startswith("move"):
-            vals.append(moves[int(name[-1])])
+            vals.append(moves[int(name[-1])] & 0xFF)
         else:
             vals.append(d.get(name, 0))
     out = bytearray(PARTY_MON_SIZE)
@@ -384,17 +389,30 @@ def decode_mon_list(raw: bytes, count: int = None) -> list:
     return [decode_party_mon(raw[i * stride:(i + 1) * stride]) for i in range(n)]
 
 
+PC_REC_V1 = 1 + 52   # "pcNN" (v3.30-v3.36): [slot][52-byte record], frozen
+
+
+def pc_box_keys(fields) -> bool:
+    return any(("pc%02d" % b) in fields or ("pm%02d" % b) in fields for b in range(BOX_BOXES))
+
+
 def decode_pc_box(fields) -> list:
-    """The whole PC box, BOX_SLOTS records, from its pcNN fields (empty slots
-    where a box has nothing)."""
-    box = [decode_party_mon(b"") for _ in range(BOX_SLOTS)]
+    """The whole PC box, BOX_SLOTS records, from its pmNN fields -- [record
+    size] then [slot][record]... -- or an older backup's pcNN fields (empty
+    slots where a box has nothing)."""
+    box = [decode_party_mon(b"") for _ in range(BOX_BOXES * BOX_PER_BOX)]
     for b in range(BOX_BOXES):
-        key = "pc%02d" % b
-        if key not in fields:
+        if "pm%02d" % b in fields:
+            raw = fields["pm%02d" % b][1]
+            if not raw:
+                continue
+            first, rec = 1, 1 + raw[0]
+        elif "pc%02d" % b in fields:
+            raw = fields["pc%02d" % b][1]
+            first, rec = 0, PC_REC_V1
+        else:
             continue
-        raw = fields[key][1]
-        rec = 1 + PARTY_MON_SIZE
-        for r in range(0, len(raw) - rec + 1, rec):
+        for r in range(first, len(raw) - rec + 1, rec):
             slot = raw[r]
             if slot < BOX_PER_BOX:
                 box[b * BOX_PER_BOX + slot] = decode_party_mon(raw[r + 1:r + rec])
@@ -402,17 +420,17 @@ def decode_pc_box(fields) -> list:
 
 
 def encode_pc_box(box: list) -> dict:
-    """The inverse: {"pcNN": bytes} for every box that holds anything."""
+    """The inverse: {"pmNN": bytes} for every box that holds anything."""
     out = {}
     for b in range(BOX_BOXES):
-        blob = bytearray()
+        blob = bytearray([PARTY_MON_SIZE])
         for k in range(BOX_PER_BOX):
             i = b * BOX_PER_BOX + k
             if i < len(box) and not box[i].get("empty", True):
                 blob.append(k)
                 blob += encode_party_mon(box[i])
-        if blob:
-            out["pc%02d" % b] = bytes(blob)
+        if len(blob) > 1:
+            out["pm%02d" % b] = bytes(blob)
     return out
 
 
@@ -587,6 +605,11 @@ def decode_pet_checkpoint(raw: bytes) -> dict:
             take = min(mon_len, PARTY_MON_SIZE, body_len - PET_TAIL_MON)
             chunk = raw[PET_TAIL_MON:PET_TAIL_MON + take].ljust(PARTY_MON_SIZE, b"\x00")
             d["ended_mon"] = decode_party_mon(chunk)
+            # v3.37: the high byte of each live move ID, at the end of the v3
+            # tail (pet.cpp PET_V3_MOVESHI); absent = every move was < 256
+            hi_at = PET_TAIL_MON + mon_len + 6
+            if body_len >= hi_at + 4:
+                d["moves"] = [m | (raw[hi_at + i] << 8) for i, m in enumerate(d["moves"])]
     return d
 
 
@@ -696,7 +719,7 @@ def decode_save(raw: bytes, dex_h_path: str = None, items_h_path: str = None) ->
     result["party"] = decode_mon_list(fields["party"][1], PARTY_SLOTS) if "party" in fields else []
     # The PC box: pcNN fields today; a backup from before v3.30 carries the old
     # 18-slot "box" key instead (the firmware migrates it at the next boot).
-    if any(("pc%02d" % b) in fields for b in range(BOX_BOXES)):
+    if pc_box_keys(fields):
         result["box"] = decode_pc_box(fields)
     elif "box" in fields:
         result["box"] = decode_mon_list(fields["box"][1], 18)

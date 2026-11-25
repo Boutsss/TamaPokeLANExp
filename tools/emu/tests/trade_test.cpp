@@ -143,10 +143,10 @@ int main(){
   // ---- untrusted bytes are clamped, a bad dex refused
   {
     PartyMon m = pmon(25, "PIKA");
-    // move 255 is past MOVE_COUNT (254 moves exist since v3.33: 250 is a real one now)
-    m.level = 250; m.ivAtk = 99; m.moves[0] = 255; m.held = 250; m.persona = 99; m.joy = 200;
+    // move 9999 is past MOVE_COUNT whatever the table grows to
+    m.level = 250; m.ivAtk = 99; m.setMove(0, 9999); m.held = 250; m.persona = 99; m.joy = 200;
     m.nick[sizeof(m.nick) - 1] = 'X';
-    ck(tradeSanitize(m) && m.level == MAX_LEVEL && m.ivAtk == 31 && m.moves[0] == 0 &&
+    ck(tradeSanitize(m) && m.level == MAX_LEVEL && m.ivAtk == 31 && m.move(0) == 0 &&
        m.held == 0 && m.persona == 0 && m.joy == 100 && m.nick[sizeof(m.nick) - 1] == 0,
        "a received creature's every field is clamped");
     PartyMon z = pmon(25, "Z"); z.dex = DEX_COUNT + 5;

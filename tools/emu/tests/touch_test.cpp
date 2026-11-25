@@ -63,7 +63,7 @@ extern uint8_t pickPage;
 #define PICK_Y(i) (86 + ((i) / 2) * 80)
 #define BTL_CELL_X(i) (69 + ((i) % 2) * 168)
 #define BTL_CELL_Y(i) (286 + ((i) / 2) * 52)
-uint8_t learnableList(uint8_t *out, uint8_t max);
+uint16_t learnableList(uint16_t *out, uint16_t max);
 #define MOVE_PICK_PER_PAGE 5
 #define MOVE_PICK_Y(i) (76 + (i) * 58)
 extern uint8_t cardPage;
@@ -96,7 +96,7 @@ static void click(int x, int y) {
 
 void uiButtonAt(int i, int *cx, int *cy, int *half);
 
-uint8_t aiChooseMove(const Combatant &self, const Combatant &foe, bool smart);
+uint16_t aiChooseMove(const Combatant &self, const Combatant &foe, bool smart);
 int main(int argc, char **argv) {
   if (argc > 1) emuSetTimeScale((uint32_t)atoi(argv[1]));
   printf("--- time scale x%u ---\n", emuTimeScale());
@@ -293,8 +293,8 @@ int main(int argc, char **argv) {
   uint8_t s0 = pet.moves[0], s2 = pet.moves[2];
   cardPage = 2;
   click(233, 212);                       // slot 2
-  uint8_t all[64];
-  uint8_t n = learnableList(all, sizeof(all));
+  uint16_t all[1024];
+  uint16_t n = learnableList(all, 1024);
   int page = -1, row = -1;
   for (uint8_t i = 0; i < n; i++)
     if (all[i] == s0) { page = i / MOVE_PICK_PER_PAGE; row = i % MOVE_PICK_PER_PAGE; }
@@ -386,7 +386,7 @@ int main(int argc, char **argv) {
     // Gen 1-7 moves a level 100 CHARIZARD leads with FLARE BLITZ, whose recoil
     // into Brock's resisting rocks knocks it out if spammed.
     int slot = -1;
-    uint8_t want = aiChooseMove(btlYou, btlFoe, true);
+    uint16_t want = aiChooseMove(btlYou, btlFoe, true);
     for (int i = 0; i < MOVE_SLOTS; i++) if (btlYou.moves[i] == want) { slot = i; break; }
     if (slot < 0) for (int i = 0; i < MOVE_SLOTS; i++) if (btlYou.moves[i]) { slot = i; break; }
     if (slot < 0) break;
@@ -444,7 +444,7 @@ int main(int argc, char **argv) {
     const uint8_t saveRegion = gymRegion, savePick = pickRegion;
     const bool savePickOpen = pickOpen, saveHard = gymHard, saveGymOpen = gymOpen;
     const uint8_t openOn = 1;                            // JOHTO: FALKNER
-    const uint8_t want = TRAINER_SETS[openOn].list[0].count;
+    const uint16_t want = TRAINER_SETS[openOn].list[0].count;
     // The region to move the chooser to is FOUND, not guessed. Johto and Kalos
     // both field two creatures in their first gym, so the obvious hardcoded pair
     // made this assertion true whether the fix was there or not -- it passed with

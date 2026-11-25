@@ -1661,10 +1661,11 @@ class App:
             # The PC box travels as pcNN fields. The old "box" key goes: the
             # firmware would MIGRATE it into the box at its next boot, on top
             # of the pcNN creatures -- the same creatures twice.
-            if "box" in fields or any(k.startswith("pc") for k in fields) or \
+            if "box" in fields or any(k[:2] in ("pc", "pm") for k in fields) or \
                     any(not m.get("empty") for m in self.edit_box):
                 fields.pop("box", None)
-                for k in [k for k in fields if len(k) == 4 and k.startswith("pc") and k[2:].isdigit()]:
+                # pcNN (an older backup) and pmNN (v3.37) are both replaced by pmNN
+                for k in [k for k in fields if len(k) == 4 and k[:2] in ("pc", "pm") and k[2:].isdigit()]:
                     del fields[k]
                 for k, v in tpsave.encode_pc_box(self.edit_box).items():
                     fields[k] = (tpsave.SK_BYTES, v)

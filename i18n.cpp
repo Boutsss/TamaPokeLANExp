@@ -483,7 +483,7 @@ static const char *const MED_DSC[LANG_COUNT][MED_COUNT] = {
     "SEQ 7 DIAS", "LACO MAX", "FORMA FINAL", "EM FORMA" },
 };
 
-const char *moveName(uint8_t move) {
+const char *moveName(uint16_t move) {
   if (move >= MOVE_COUNT) move = MV_NONE;
   return MOVE_NAME_TBL[gLang][move];
 }
