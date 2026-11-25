@@ -326,7 +326,9 @@ static constexpr uint32_t PLAYER_MAGIC = 0x31594B54UL;   // "TKY1"
 // v3 appended the casino coins after the wallet.
 // v4 appended the full 16-bit avatar after the coins (byte 17 keeps a
 // downgrade-safe low byte: the value itself if it fits, else 0).
-static constexpr uint16_t PLAYER_VERSION = 4;
+// v5 appended the full 32-bit coin count after the avatar (the v3 field keeps
+// a downgrade-safe min(coins, 65535)).
+static constexpr uint16_t PLAYER_VERSION = 5;
 static constexpr size_t PLAYER_FIXED = 42;   // header + every scalar, before the arrays
 static constexpr size_t PLAYER_CAP = 512;
 static constexpr size_t PLAYER_DEX_BYTES = (DEX_COUNT + 7) / 8;
@@ -335,7 +337,7 @@ static constexpr size_t PLAYER_DEX_BYTES = (DEX_COUNT + 7) / 8;
 // the signal to raise PLAYER_CAP, not to trim the record.
 static constexpr size_t PLAYER_MAX =
     PLAYER_FIXED + 2 * PLAYER_DEX_BYTES + 4 * (GYM_REGIONS - 1) +
-    2 * REGION_COUNT + 12 /* trainerName */ + 8 /* wallet + stepsTotal */ + 2 /* coins */ + 2 /* avatar */ + CKPT_CRC;
+    2 * REGION_COUNT + 12 /* trainerName */ + 8 /* wallet + stepsTotal */ + 2 /* coins */ + 2 /* avatar */ + 4 /* coins, full */ + CKPT_CRC;
 static_assert(PLAYER_MAX <= PLAYER_CAP, "raise PLAYER_CAP for the player record");
 
 // A bounds-checked cursor over the variable tail of a blob. Overrunning sets
@@ -420,8 +422,10 @@ bool Pet::savePlayerSnapshot() {
   // append-only rule at the top of this section.
   cur.put(&wallet, sizeof(wallet));
   cur.put(&stepsTotal, sizeof(stepsTotal));
-  cur.put(&coins, sizeof(coins));            // v3
+  uint16_t coins16 = coinsLegacy();
+  cur.put(&coins16, sizeof(coins16));        // v3: what a downgrade reads
   cur.put(&avatar, sizeof(avatar));          // v4: the full avatar index
+  cur.put(&coins, sizeof(coins));            // v5: the full coin count
   if (cur.bad) {   // PLAYER_MAX static_asserts this cannot happen; say so if it does
     Serial.println("save: player record does not fit PLAYER_CAP");
     return false;
@@ -510,11 +514,13 @@ bool Pet::loadPlayerSnapshot() {
   }
   // v3 tail: the casino coins. Absent = none, their own initialiser.
   if (body >= need + 10) {
-    coins = ckptRd16(buf + need + 8);
-    if (coins > 9999) coins = 9999;
+    coins = ckptRd16(buf + need + 8);   // a v3/v4 record: the whole count (<= 9999 then)
   }
   // v4 tail: the full avatar index. Absent = byte 17 was the whole truth.
   if (body >= need + 12) avatar = ckptRd16(buf + need + 10);
+  // v5 tail: the full coin count. Absent = the v3 field was the whole truth.
+  if (body >= need + 16) coins = ckptRd32(buf + need + 12);
+  if (coins > COIN_CAP) coins = COIN_CAP;
 
   // REGION_ALL is the LAST entry of the table and is stored RAW, so a save from
   // a build with fewer regions has a number that now means somebody else --
@@ -2421,7 +2427,8 @@ bool Pet::save() {
   SAVE_KEY(prefs.putUShort("qhi", spdHi), "qhi");
   SAVE_KEY(prefs.putUInt("wlt", wallet), "wlt");
   SAVE_KEY(prefs.putUInt("stps", stepsTotal), "stps");
-  SAVE_KEY(prefs.putUShort("coin", coins), "coin");
+  SAVE_KEY(prefs.putUShort("coin", coinsLegacy()), "coin");   // what a downgrade reads
+  SAVE_KEY(prefs.putUInt("coin2", coins), "coin2");
   SAVE_STR_KEY(prefs.putString("nick", nick), "nick", nick);
 #undef SAVE_KEY
 #undef SAVE_STR_KEY
@@ -2496,8 +2503,9 @@ void Pet::load() {
   wallet = prefs.getUInt("wlt", 0);
   if (wallet > WALLET_CAP) wallet = WALLET_CAP;
   stepsTotal = prefs.getUInt("stps", 0);
-  coins = prefs.getUShort("coin", 0);
-  if (coins > 9999) coins = 9999;
+  // "coin2" is the full count (v3.46); absent on older saves, where "coin" is.
+  coins = prefs.isKey("coin2") ? prefs.getUInt("coin2", 0) : prefs.getUShort("coin", 0);
+  if (coins > COIN_CAP) coins = COIN_CAP;
   prefs.getString("nick", nick, sizeof(nick));
   // Moves load last: relearnFromLevel() needs speciesId and ageMinutes, both of
   // which are read above. A save from before moves existed has no "mvs" key and

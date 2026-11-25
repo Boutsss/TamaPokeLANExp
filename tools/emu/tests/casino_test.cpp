@@ -20,8 +20,8 @@ static void ck(bool ok,const char*w){printf("%s  %s\n",ok?"PASS":"FAIL",w); if(!
 
 // card helpers: rank r (0=A..12=K) in spades
 static uint8_t C(uint8_t r){ return r; }
-static uint16_t wallet = 0; static bool spendWorks = true; static int spends = 0;
-static bool spend(uint16_t n){ spends++; if (!spendWorks || wallet < n) return false; wallet -= n; return true; }
+static uint32_t wallet = 0; static bool spendWorks = true; static int spends = 0;
+static bool spend(uint32_t n){ spends++; if (!spendWorks || wallet < n) return false; wallet -= n; return true; }
 
 int main(){
   // ---- blackjack totals
@@ -136,7 +136,7 @@ int main(){
        casino.back == 1 && casino.bjWins == 9,
        "an old 40-byte casino record loads unchanged, owning nothing past 128");
     static_assert(SHOP_AVATAR_COUNT > 128, "this check needs avatars in the appended block");
-    uint16_t c = 60000; wallet = c; spendWorks = true;
+    uint32_t c = 60000; wallet = c; spendWorks = true;
     const uint16_t HI = 150;   // sold, and in the 128-255 block
     static_assert(HI < SHOP_AVATAR_COUNT, "");
     ck(casinoPrizeSold(PK_AVATAR, HI) && casinoBuy(PK_AVATAR, HI, c, spend), "an avatar past 128 can be bought");
@@ -149,7 +149,7 @@ int main(){
   {
     nvs().clear(); casinoBegin();
     ck(casinoOwns(PK_BACK,0) && casinoOwns(PK_CARDBG,0) && !casinoOwns(PK_AVATAR,0), "only the free defaults are owned at first");
-    uint16_t coins = CASINO_PRICE - 1; wallet = coins;
+    uint32_t coins = CASINO_PRICE - 1; wallet = coins;
     ck(!casinoBuy(PK_BACK,1,coins,spend) && !casinoOwns(PK_BACK,1), "9998 coins buy nothing");
     coins = wallet = 20000; spendWorks = false; spends = 0;
     ck(!casinoBuy(PK_BACK,1,coins,spend) && spends==1 && !casinoOwns(PK_BACK,1),
@@ -187,7 +187,7 @@ int main(){
       for (uint8_t i = 0; i < SHOP_AVATAR_COUNT; i++) if (!strcmp(SHOP_AVATAR_NAMES[i], "CHAMP RED")) champ = i;
       bool listed = false;
       for (uint8_t p = 0; p < casinoShopCount(PK_AVATAR); p++) if (casinoShopAt(PK_AVATAR, p) == champ) listed = true;
-      uint16_t c2 = 60000;
+      uint32_t c2 = 60000;
       ck(champ >= 0 && casinoPrizeRetired(PK_AVATAR, champ) && !listed && !casinoBuy(PK_AVATAR, champ, c2, spend) && c2 == 60000,
          "CHAMP RED (the same sprite as RED) is not listed and cannot be bought");
       ck(casinoShopAt(PK_AVATAR, casinoShopCount(PK_AVATAR)) == -1, "the list ends where it says it does");

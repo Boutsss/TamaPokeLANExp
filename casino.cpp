@@ -117,16 +117,16 @@ bool HighLow::guess(bool higher) {
   bool right = higher ? b > a : b < a;     // a tie is never right
   card = next;
   if (!right) { pot = 0; state = HL_LOST; return false; }
-  uint32_t p = (uint32_t)pot * 2;
-  pot = p > COIN_CAP ? COIN_CAP : (uint16_t)p;
+  uint64_t p = (uint64_t)pot * 2;
+  pot = p > COIN_CAP ? COIN_CAP : (uint32_t)p;
   streak++;
   if (streak > casino.hlBest) casino.hlBest = streak;
   return true;
 }
 
-uint16_t HighLow::cashOut() {
+uint32_t HighLow::cashOut() {
   if (state != HL_GUESS) return 0;
-  uint16_t p = pot;
+  uint32_t p = pot;
   pot = 0;
   state = HL_IDLE;
   return p;
@@ -296,7 +296,7 @@ static void own(uint8_t kind, uint16_t i) {
   }
 }
 
-bool casinoBuy(uint8_t kind, uint16_t i, uint16_t &coins, bool (*spend)(uint16_t)) {
+bool casinoBuy(uint8_t kind, uint16_t i, uint32_t &coins, bool (*spend)(uint32_t)) {
   if (!casinoPrizeSold(kind, i) || casinoOwns(kind, i)) return false;
   if (coins < CASINO_PRICE) return false;
   if (!spend || !spend(CASINO_PRICE)) return false;   // coins first

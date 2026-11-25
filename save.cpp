@@ -68,7 +68,7 @@ const SaveField SAVE_FIELDS[] = {
   // friends: gifts and visits between two boards (friends.cpp)
   // the Game Corner: coins ride the player checkpoint (legacy "coin");
   // prizes owned and equipped (casino.cpp)
-  { "coin", SK_U16 },  { "casino", SK_BYTES },
+  { "coin", SK_U16 },  { "coin2", SK_U32 },  { "casino", SK_BYTES },
   // LAN rivals remembered for PRACTICE (ghost.cpp)
   { "ghosts", SK_BYTES },
   // trainer cards collected from friends (card.cpp)

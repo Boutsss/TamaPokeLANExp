@@ -44,16 +44,16 @@ static bool casHoldArmed = false;
 static uint8_t slStop[3] = { 0, 0, 0 };
 static uint8_t slShown = 3;            // reels stopped (3 = idle)
 static uint32_t slSpinAt = 0;
-static uint16_t slWon = 0;
+static uint32_t slWon = 0;
 static HighLow casHl;
 static Blackjack casBj;
 static uint32_t casDealtAt = 0;        // newest card's slide-in starts here
-static uint16_t casLastWin = 0;
+static uint32_t casLastWin = 0;
 static uint8_t casResultShown = 0;     // a finished round's banner is up
 
 // ---------------------------------------------------------------- coins
-static bool casSpendCoins(uint16_t n) { return pet.spendCoins(n); }
-static void casPay(uint16_t n) { if (n) pet.addCoins(n); }
+static bool casSpendCoins(uint32_t n) { return pet.spendCoins(n); }
+static void casPay(uint32_t n) { if (n) pet.addCoins(n); }
 static bool casTakeBet(uint16_t n) {
   if (pet.coins < n) { sfxPlay(SFX_DENY); casSetMood(DM_LAUGH); return false; }
   return pet.spendCoins(n);
@@ -500,7 +500,7 @@ static void renderCasSlots() {
 }
 static void casSlotsSettle() {
   uint16_t m = slotPays(SLOT_REELS[0][slStop[0]], SLOT_REELS[1][slStop[1]], SLOT_REELS[2][slStop[2]]);
-  slWon = (uint16_t)((uint32_t)m * casBet() > COIN_CAP ? COIN_CAP : m * casBet());
+  slWon = (uint32_t)m * casBet();   // addCoins clamps at COIN_CAP
   casPay(slWon);
   if (slWon > casino.slotBest) { casino.slotBest = slWon; casinoSave(); }
   casSetMood(slWon > casBet() ? DM_GRUMBLE : slWon ? DM_IDLE : DM_LAUGH);
@@ -938,7 +938,7 @@ static void casShopTap(int16_t px, int16_t py) {
       return;
     }
     if (casArmed != (int16_t)i) { casArmed = i; sfxPlay(SFX_TAP); return; }   // 9999 coins: tap twice
-    uint16_t coins = pet.coins;
+    uint32_t coins = pet.coins;
     bool ok = casinoBuy(casShopKind, i, coins, casSpendCoins);
     casArmed = -1;
     if (ok) {

@@ -1,4 +1,5 @@
 #pragma once
+#include "coins.h"
 #include <Arduino.h>
 #include <Preferences.h>
 #include "dex.h"
@@ -386,14 +387,17 @@ public:
   uint32_t stepsTotal = 0;  // lifetime steps, uncapped and never spent -- display only
   // The Game Corner's coins (casino.h). In the PLAYER checkpoint beside
   // the wallet, so buying coins is one atomic write: the dollars leave and the
-  // coins arrive together or not at all. Capped like the real Coin Case.
-  uint16_t coins = 0;
-  void addCoins(uint16_t n) {
-    uint32_t c = (uint32_t)coins + n;
-    coins = c > 9999 ? 9999 : (uint16_t)c;
+  // coins arrive together or not at all. Capped at COIN_CAP (coins.h).
+  uint32_t coins = 0;
+  // 16-bit view for the old save fields (checkpoint v3 tail, "coin"): what a
+  // downgrade reads. The full count travels beside it.
+  uint16_t coinsLegacy() const { return coins > 0xFFFF ? 0xFFFF : (uint16_t)coins; }
+  void addCoins(uint32_t n) {
+    uint64_t c = (uint64_t)coins + n;
+    coins = c > COIN_CAP ? COIN_CAP : (uint32_t)c;
     saveNow();
   }
-  bool spendCoins(uint16_t n) {
+  bool spendCoins(uint32_t n) {
     if (n > coins) return false;
     coins -= n;
     if (saveNow()) return true;
@@ -402,10 +406,12 @@ public:
   }
   // `n` coins at `dollarsPer` each, clamped to the Coin Case's room. False
   // (nothing changes) if the wallet is short or the case is full.
-  bool buyCoins(uint16_t n, uint16_t dollarsPer) {
-    if (coins >= 9999) return false;
-    if ((uint32_t)coins + n > 9999) n = 9999 - coins;
-    uint32_t cost = (uint32_t)n * dollarsPer;
+  bool buyCoins(uint32_t n, uint16_t dollarsPer) {
+    if (coins >= COIN_CAP) return false;
+    if ((uint64_t)coins + n > COIN_CAP) n = COIN_CAP - coins;
+    uint64_t cost64 = (uint64_t)n * dollarsPer;
+    if (cost64 > wallet) return false;
+    uint32_t cost = (uint32_t)cost64;
     if (cost > wallet) return false;
     wallet -= cost;
     coins += n;

@@ -304,8 +304,8 @@ int main() {
     int auraOthers = 0;
     for (uint16_t a = 0; a < AVATAR_COUNT; a++) if ((AVATARS[a].fx & AVFX_AURA) && !isTower(a)) auraOthers++;
     ck(auraAll && auraOthers == 0, "every legendary costume glows, and nothing else does");
-    uint16_t c = 60000;
-    ck(!casinoPrizeSold(PK_AVATAR, TOWER_AVATARS[0]) && !casinoBuy(PK_AVATAR, TOWER_AVATARS[0], c, [](uint16_t){ return true; }),
+    uint32_t c = 60000;
+    ck(!casinoPrizeSold(PK_AVATAR, TOWER_AVATARS[0]) && !casinoBuy(PK_AVATAR, TOWER_AVATARS[0], c, [](uint32_t){ return true; }),
        "a legendary costume is not sold at the Game Corner");
     ck(!casinoGrantAvatar(0) && !casinoOwns(PK_AVATAR, 0), "and the tower cannot hand out an ordinary prize");
 

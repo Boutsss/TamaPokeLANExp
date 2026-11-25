@@ -8,7 +8,7 @@
 // MONEY. Coins live on Pet (Pet::coins), in the PLAYER checkpoint beside the
 // wallet they are bought with, so a coin purchase is ONE atomic write: the
 // dollars leave and the coins arrive together or not at all. Capped at
-// COIN_CAP like the real Coin Case. Coins cannot be sold back.
+// COIN_CAP (coins.h). Coins cannot be sold back.
 //
 // PRIZES. Card backs, trainer avatars and trainer-card backgrounds, all
 // CASINO_PRICE coins. What you own and what you have equipped are in NVS under
@@ -17,7 +17,7 @@
 //
 // EVERY RANDOM DRAW goes through the caller's random(), so a test seeds it.
 
-#define COIN_CAP 9999
+#include "coins.h"         // COIN_CAP
 #define CASINO_PRICE 9999
 #define COIN_DOLLARS 20         // Pokedollars per coin: the GBC price, 50 coins for $1000
 #define CASINO_HOLD_MS 6400     // hold ARCADE this long to find the Game Corner
@@ -76,12 +76,12 @@ enum HlState : uint8_t { HL_IDLE = 0, HL_GUESS, HL_LOST };
 struct HighLow {
   Deck deck;
   uint8_t card = 0, next = 0;
-  uint16_t pot = 0;            // coins riding
+  uint32_t pot = 0;            // coins riding: doubles, so it can pass 65535
   uint8_t streak = 0;
   uint8_t state = HL_IDLE;
   void start(uint16_t betCoins);
   bool guess(bool higher);     // true: right, pot doubled (capped at COIN_CAP)
-  uint16_t cashOut();          // the pot, and the round is over
+  uint32_t cashOut();          // the pot, and the round is over
 };
 
 // ---- slots -------------------------------------------------------------------
@@ -161,5 +161,5 @@ int casinoShopAt(uint8_t kind, uint16_t pos);         // list position -> prize 
 // changes) if it is owned already or the coins are short. `spend` is called
 // to take the coins and must return whether it landed; only then is the prize
 // written (coins first: a cut costs coins, never hands out a prize).
-bool casinoBuy(uint8_t kind, uint16_t i, uint16_t &coins, bool (*spend)(uint16_t));
+bool casinoBuy(uint8_t kind, uint16_t i, uint32_t &coins, bool (*spend)(uint32_t));
 void casinoEquip(uint8_t kind, uint16_t i);
