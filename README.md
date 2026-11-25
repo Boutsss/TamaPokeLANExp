@@ -477,45 +477,6 @@ Bests, today's prizes and the one-time bonuses are saved (`arcHi`, 6 x 16-bit;
 
 &nbsp;
 
-### The Game Corner (hidden)
-
-There is a secret behind the arcade. On the training menu, **press and hold
-the ARCADE row** (a normal tap still opens the arcade). For three seconds
-nothing happens. Then the row starts to turn over like a card, slowly at first
-and faster with a rising note each half-turn, until it comes to rest on its
-hidden face: Team Rocket's, black with a red **R**, hazard stripes and **GAME
-CORNER**, glittering. Keep holding and at about six and a half seconds Team
-Rocket's riveted doors appear, shut with the R across them, and slide apart onto
-the lobby. Let go any earlier and the row turns back to ARCADE. A Team Rocket
-grunt deals; he laughs when you lose and grumbles when you win.
-
-It plays like the GBC Game Corner: **you buy coins with your money, and you
-play and buy prizes with coins only** -- prizes never take money. There are four games: slots, High/Low, blackjack and roulette.
-
-| | |
-|---|---|
-| Coins | bought at BUY COINS at the GBC prices: **50 coins for $1,000** or **500 coins for $10,000**, from the same wallet the Mart uses. The Coin Case holds **9,999**. Coins cannot be sold back. |
-| Bets | the slots take **1, 2 or 3 coins** like the old machines; the tables take 5, 10 or 50 (tap the red chip to change) |
-| **Slots** | one pay line; tap SPIN, then STOP each reel (they also stop on their own). The result is decided when you press SPIN, not by your timing. Pays x bet: **7 7 7** 300, **R R R** 100, **BAR x3** 50, Poke Ball or bolt x3 15, moon or cherry x3 8, cherry-cherry first 4, a cherry first 2. Long-run return 92%. |
-| **High / Low** | guess whether the next card is higher or lower (ace low, king high). A tie loses. Each right guess doubles the pot (up to 9,999); CASH OUT whenever. |
-| **Blackjack** | one deck, reshuffled every hand. Dealer stands on all 17s. Blackjack pays 3:2, a win 1:1, a push returns the bet. DOUBLE on your first two cards takes exactly one more card at twice the bet. |
-| **Roulette** | a single-zero wheel (0-36, in the real pocket order) with a Poke Ball hub. Bet on RED or BLACK, ODD or EVEN, 1-18 or 19-36 (each pays 1:1), GREEN -- the zero -- (pays 35:1), a DOZEN (tap again to change which; pays 2:1) or a single NUMBER (tap its right half to step up, left half to step down; pays 35:1). 0 loses every bet except GREEN or a straight bet on 0. Every bet returns 36 coins in 37 over the long run. The result is drawn when you press SPIN; the wheel and the ball only travel to it. |
-| Leaving | swipe down. A blackjack hand in play is stood on and settled; a High/Low pot is cashed out; spinning reels and a turning wheel stop and pay. |
-
-**Prizes** -- everything is **9,999 coins** (about $200,000 worth at the
-counter, so winning at the tables is how you get there). Tap a prize once to select it and
-again to buy it; an owned prize is equipped with one tap. Page with a rim drag.
-
-| Kind | What there is |
-|---|---|
-| Card backs | 28: CLASSIC (free), TEAM ROCKET, Poke, Great, Ultra and Master Ball, GAME CORNER, all 18 types, MOON STONE, SAFARI, GOLD. Used by High/Low and Blackjack. |
-| Avatars | 81 trainers from Red/Blue and Gold/Silver/Crystal: the Elite Four, gym leaders, Professors Oak and Elm, Gold, Kris, Silver, Team Rocket and many more. Shown on your trainer card. The eight rank avatars (RED, BLUE, GIRL, ACE M, ACE F, HIKER, SAILOR, YOUNGSTER) are earned by rank and are never sold here. |
-| Trainer-card backgrounds | 48: the free default, all 18 types, Kanto places (Pallet Town, Viridian Wood, Mt Moon, Lavender, Cinnabar, Seafoam, Safari Zone, Victory Road, Indigo), themes (Team Rocket, Game Corner, Poke Balls, Game Boy, Sunset, Night Sky, Sakura...), and **six animated ones** (LIVE FIELD, FOREST, BEACH, CAVE, MANSION and AURORA). The design fills the card's rim; inside it is softened so the card stays readable. |
-
-Your coins are saved with your wallet, so buying coins can never take the
-money without giving the coins. A prize is paid for before it is recorded, so a
-power cut at the wrong moment can cost coins but never hands out a free prize.
-
 ### Wild encounters, catching and the bag
 
 **EXPLORE** is its own stop immediately beside the pet on the horizontal axis.

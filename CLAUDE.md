@@ -266,6 +266,11 @@ enum in `i18n.h`, then add the translation at the *same index* in all 6 rows of
 `STRINGS[LANG_COUNT][STR_COUNT]` in `i18n.cpp`. The table is positional — a missing
 entry in one language shifts every string after it in that language.
 
+**Hidden features stay hidden.** Some of the game is deliberately undocumented,
+for players to stumble on. Never add a README, CREDITS, release-notes or
+installer-page mention of a feature the README does not already describe
+without asking the owner first -- and never "fix" its absence from the docs.
+
 **Balance changes must update the README.** `README.md` § "Game manual (the actual
 numbers)" documents exact drain rates, spawn odds and thresholds straight from the
 code. It is the project's spec, not decoration — changing a constant in `pet.h`/
