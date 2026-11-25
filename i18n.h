@@ -350,44 +350,44 @@ enum StrId : uint16_t {
   S_FR_LATER,      // ported (vunguyen2712)
   S_FR_WAIT,       // ported (vunguyen2712)
   S_FR_EGG,        // ported (vunguyen2712)
-  S_CAS_HELLO,     // the Rocket Game Corner / LAN practice
-  S_CAS_HEH,       // the Rocket Game Corner / LAN practice
-  S_CAS_LUCKY,     // the Rocket Game Corner / LAN practice
-  S_CAS_SECRET,    // the Rocket Game Corner / LAN practice
-  S_CAS_COINS_FMT, // the Rocket Game Corner / LAN practice
-  S_CAS_BET_FMT,   // the Rocket Game Corner / LAN practice
-  S_CAS_TITLE,     // the Rocket Game Corner / LAN practice
-  S_CAS_SLOTS,     // the Rocket Game Corner / LAN practice
-  S_CAS_HL,        // the Rocket Game Corner / LAN practice
-  S_CAS_BJ,        // the Rocket Game Corner / LAN practice
-  S_CAS_BUY,       // the Rocket Game Corner / LAN practice
-  S_CAS_PRIZES,    // the Rocket Game Corner / LAN practice
-  S_CAS_WIN_FMT,   // the Rocket Game Corner / LAN practice
-  S_CAS_STOP,      // the Rocket Game Corner / LAN practice
-  S_CAS_SPIN,      // the Rocket Game Corner / LAN practice
-  S_CAS_DEAL,      // the Rocket Game Corner / LAN practice
-  S_CAS_POT_FMT,   // the Rocket Game Corner / LAN practice
-  S_CAS_LOSE,      // the Rocket Game Corner / LAN practice
-  S_CAS_HIGHER,    // the Rocket Game Corner / LAN practice
-  S_CAS_LOWER,     // the Rocket Game Corner / LAN practice
-  S_CAS_CASHOUT,   // the Rocket Game Corner / LAN practice
-  S_CAS_HIT,       // the Rocket Game Corner / LAN practice
-  S_CAS_STAND,     // the Rocket Game Corner / LAN practice
-  S_CAS_DOUBLE,    // the Rocket Game Corner / LAN practice
-  S_CAS_BJWIN,     // the Rocket Game Corner / LAN practice
-  S_CAS_PUSH,      // the Rocket Game Corner / LAN practice
-  S_CAS_BUST,      // the Rocket Game Corner / LAN practice
-  S_CAS_WALLET_FMT, // the Rocket Game Corner / LAN practice
-  S_CAS_PACK_FMT,  // the Rocket Game Corner / LAN practice
-  S_CAS_BACKS,     // the Rocket Game Corner / LAN practice
-  S_CAS_AVATARS,   // the Rocket Game Corner / LAN practice
-  S_CAS_CARDS,     // the Rocket Game Corner / LAN practice
-  S_CAS_EQUIPPED,  // the Rocket Game Corner / LAN practice
-  S_CAS_OWNED,     // the Rocket Game Corner / LAN practice
-  S_CAS_AGAIN,     // the Rocket Game Corner / LAN practice
-  S_LAN_PRACTICE,  // the Rocket Game Corner / LAN practice
-  S_LAN_PRACTICE_HINT, // the Rocket Game Corner / LAN practice
-  S_LAN_NO_RIVALS, // the Rocket Game Corner / LAN practice
+  S_CAS_HELLO,     // the Game Corner / LAN practice
+  S_CAS_HEH,       // the Game Corner / LAN practice
+  S_CAS_LUCKY,     // the Game Corner / LAN practice
+  S_CAS_SECRET,    // the Game Corner / LAN practice
+  S_CAS_COINS_FMT, // the Game Corner / LAN practice
+  S_CAS_BET_FMT,   // the Game Corner / LAN practice
+  S_CAS_TITLE,     // the Game Corner / LAN practice
+  S_CAS_SLOTS,     // the Game Corner / LAN practice
+  S_CAS_HL,        // the Game Corner / LAN practice
+  S_CAS_BJ,        // the Game Corner / LAN practice
+  S_CAS_BUY,       // the Game Corner / LAN practice
+  S_CAS_PRIZES,    // the Game Corner / LAN practice
+  S_CAS_WIN_FMT,   // the Game Corner / LAN practice
+  S_CAS_STOP,      // the Game Corner / LAN practice
+  S_CAS_SPIN,      // the Game Corner / LAN practice
+  S_CAS_DEAL,      // the Game Corner / LAN practice
+  S_CAS_POT_FMT,   // the Game Corner / LAN practice
+  S_CAS_LOSE,      // the Game Corner / LAN practice
+  S_CAS_HIGHER,    // the Game Corner / LAN practice
+  S_CAS_LOWER,     // the Game Corner / LAN practice
+  S_CAS_CASHOUT,   // the Game Corner / LAN practice
+  S_CAS_HIT,       // the Game Corner / LAN practice
+  S_CAS_STAND,     // the Game Corner / LAN practice
+  S_CAS_DOUBLE,    // the Game Corner / LAN practice
+  S_CAS_BJWIN,     // the Game Corner / LAN practice
+  S_CAS_PUSH,      // the Game Corner / LAN practice
+  S_CAS_BUST,      // the Game Corner / LAN practice
+  S_CAS_WALLET_FMT, // the Game Corner / LAN practice
+  S_CAS_PACK_FMT,  // the Game Corner / LAN practice
+  S_CAS_BACKS,     // the Game Corner / LAN practice
+  S_CAS_AVATARS,   // the Game Corner / LAN practice
+  S_CAS_CARDS,     // the Game Corner / LAN practice
+  S_CAS_EQUIPPED,  // the Game Corner / LAN practice
+  S_CAS_OWNED,     // the Game Corner / LAN practice
+  S_CAS_AGAIN,     // the Game Corner / LAN practice
+  S_LAN_PRACTICE,  // the Game Corner / LAN practice
+  S_LAN_PRACTICE_HINT, // the Game Corner / LAN practice
+  S_LAN_NO_RIVALS, // the Game Corner / LAN practice
   S_PC_CARDS,      // trainer cards
   S_PC_COLLECTED_FMT, // trainer cards
   S_PC_EXCHANGE,   // trainer cards

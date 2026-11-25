@@ -1,7 +1,7 @@
 #pragma once
 #include <Arduino.h>
 
-// The Rocket Game Corner: a hidden casino behind the ARCADE button (hold it for
+// The Game Corner: a hidden casino behind the ARCADE button (hold it for
 // CASINO_HOLD_MS). GAME LOGIC ONLY -- no gfx, no touch -- so it links into the
 // headless tests beside pet.cpp. The screens live in ui_casino.ino.
 //
@@ -21,6 +21,12 @@
 #define CASINO_PRICE 9999
 #define COIN_DOLLARS 1          // Pokedollars per coin
 #define CASINO_HOLD_MS 5000     // hold ARCADE this long to find the casino
+// The reveal: once a press is too long to be a tap, the ARCADE row starts to
+// turn like a card, slowly at first, and lands on its GAME CORNER face at
+// CASINO_REVEAL_MS; it glitters there until the door opens at CASINO_HOLD_MS.
+#define CASINO_SPIN_START_MS 1500
+#define CASINO_REVEAL_MS 4400
+#define CASINO_SPIN_HALF_TURNS 5   // odd: it must finish face DOWN, i.e. on GAME CORNER
 
 // ---- cards -----------------------------------------------------------------
 // A card is 0..51: rank = c % 13 (0 = ACE .. 12 = KING), suit = c / 13.

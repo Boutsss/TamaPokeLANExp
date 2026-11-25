@@ -1,4 +1,4 @@
-// The Rocket Game Corner through the REAL sketch: the hidden door (a finger
+// The Game Corner through the REAL sketch: the hidden door (a finger
 // held on ARCADE, driven through the touch path in real time), buying coins
 // with the wallet, a spin, a blackjack hand, a High/Low cash-out, and the prize
 // shop -- an avatar that then counts as unlocked on the player card, and a
@@ -34,6 +34,9 @@ void casCoinsBtn(uint8_t i, int *x, int *y, int *w, int *h);
 void casTab(uint8_t i, int *x, int *y, int *w, int *h);
 void casTile(uint8_t i, int *x, int *y, int *w, int *h);
 const uint8_t *casSlotStops();
+bool casinoSpinning(); bool casinoSpinShowsCorner(); uint32_t casinoHeldMs();
+extern Arduino_Canvas *gfx;
+static uint16_t px(int x, int y) { return gfx->buffer()[y * 466 + x]; }
 const Blackjack &casBlackjack();
 const HighLow &casHighLow();
 uint8_t casinoView();
@@ -66,8 +69,33 @@ int main(){
   ck(!casinoOpen && !arcadeOpen && trainOpen, "two seconds on ARCADE opens nothing: not the arcade, not the casino");
   hold(233, uiTrainRowCenterY(1), 5600);
   ck(!casinoOpen, "five seconds on another row does not find the door");
+  // ---- the reveal: the ARCADE row turns over while it is held
+  {
+    int ry = uiTrainRowCenterY(3);
+    render();
+    uint16_t cream = px(233 - 110, ry);            // the ARCADE row's own face
+    g_touchX = 233; g_touchY = ry; g_touchDown = true; emuFireInterrupt();
+    pump(25);                                      // ~0.75 s
+    ck(!casinoSpinning(), "under 1.5 s the row does not turn: it could still be a tap");
+    bool sawArcade = false, sawCorner = false, early = false;
+    while (casinoHeldMs() < CASINO_REVEAL_MS + 100 && casinoHeldMs() > 0) {
+      pump(1);
+      if (!casinoSpinning()) continue;
+      if (casinoSpinShowsCorner()) sawCorner = true; else sawArcade = true;
+      if (casinoOpen) early = true;
+    }
+    ck(sawArcade && sawCorner, "held on, it turns: both faces come round");
+    ck(!early && trainOpen && !casinoOpen, "and nothing opens while it turns");
+    render();
+    ck(casinoSpinShowsCorner() && px(233 - 110, ry) != cream && px(233 - 110, ry) == 0x18C3,
+       "it comes to rest on its GAME CORNER face -- on the panel, not just in a flag");
+    g_touchDown = false; emuFireInterrupt(); pump(3);
+    ck(!casinoOpen && !casinoSpinning(), "let go before 5 s: nothing opens");
+    render();
+    ck(px(233 - 110, ry) == cream, "and the row is back to ARCADE");
+  }
   hold(233, uiTrainRowCenterY(3), 5600);
-  ck(casinoOpen && onScreen("casino"), "five seconds on ARCADE opens the ROCKET GAME CORNER");
+  ck(casinoOpen && onScreen("casino"), "five seconds on ARCADE opens the GAME CORNER");
   ck(!arcadeOpen, "and not the arcade itself");
 
   // ---- coins for money

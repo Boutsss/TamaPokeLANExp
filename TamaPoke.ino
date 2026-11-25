@@ -682,7 +682,7 @@ void friendsTap(int16_t x, int16_t y);
 void friendsSwipeDown();
 void friendsLoop(uint32_t now);
 void friendsOpenScreen();
-// The Rocket Game Corner (ui_casino.ino, casino.cpp): hold ARCADE five seconds.
+// The Game Corner (ui_casino.ino, casino.cpp): hold ARCADE five seconds.
 extern bool casinoOpen;
 extern uint8_t casShopPage;
 uint8_t casShopPages();
@@ -693,6 +693,8 @@ void casinoSwipeDown();
 void casinoOpenNow();
 void casinoClose();
 void casinoTouchPeek(bool pressed, int16_t x, int16_t y, bool onArcadeRow);
+bool casinoSpinning();
+void casinoDrawSpinRow(int x, int y, int w, int h, const char *arcadeLabel);
 void drawCardBackground(uint8_t bg, uint32_t t);
 // Trainer cards (ui_cards.ino, card.cpp): the player card's last page and the book.
 extern bool cardBookOpen;
@@ -8009,7 +8011,9 @@ void renderTrain() {
       gfx->fillRoundRect(bx + 2, by + 2, fw, bh - 4, 3, pct >= 100 ? UI_BAR_OK : UI_BAR_WARN);
   }
 
-  {   // the ARCADE row: no bar (it trains nothing), the four games named under it
+  if (casinoSpinning()) {   // held: the row turns over to reveal the GAME CORNER
+    casinoDrawSpinRow(TRAIN_X + 18, TRAIN_ROW_Y(3), TRAIN_W - 36, TRAIN_ROW_H, arcadeTitle());
+  } else {   // the ARCADE row: no bar (it trains nothing), the four games named under it
     int y = TRAIN_ROW_Y(3);
     bool ok = arcadeEnabled();
     gfx->fillRoundRect(TRAIN_X + 18, y, TRAIN_W - 36, TRAIN_ROW_H, 12, ok ? C565(0xff, 0xf1, 0xc4) : UI_TRACK);

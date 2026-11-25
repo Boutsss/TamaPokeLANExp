@@ -376,7 +376,7 @@ public:
   static constexpr uint32_t WALLET_CAP = 999999;
   uint32_t wallet = 0;      // spendable, clamped at WALLET_CAP
   uint32_t stepsTotal = 0;  // lifetime steps, uncapped and never spent -- display only
-  // The Rocket Game Corner's coins (casino.h). In the PLAYER checkpoint beside
+  // The Game Corner's coins (casino.h). In the PLAYER checkpoint beside
   // the wallet, so buying coins is one atomic write: the dollars leave and the
   // coins arrive together or not at all. Capped like the real Coin Case.
   uint16_t coins = 0;

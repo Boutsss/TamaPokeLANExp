@@ -135,7 +135,7 @@ int main(){
     tasksPage = 1; onSwipe(1);  if (!tasksOpen || tasksPage != 1) moved = true;
     if (moved) { printf("FAIL  tasks      a horizontal swipe paged or closed it\n"); bad++; }
     else printf("PASS  %-10s a horizontal swipe neither pages nor closes it\n", "tasks"); }
-  // The Rocket Game Corner's prize shop pages on the rim (82 avatars: 14 pages),
+  // The Game Corner's prize shop pages on the rim (82 avatars: 14 pages),
   // and paging must neither leave the shop nor close the casino.
   clearAll(); casinoOpenNow();
   { int x,y,w,h; casLobbyBtn(4,&x,&y,&w,&h); onTap(x+w/2, y+h/2); }

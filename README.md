@@ -476,7 +476,7 @@ arduino-cli upload -p /dev/cu.usbmodemXXXX --fqbn "$FQBN" .
 bash tools/flash.sh --monitor
 ```
 
-### The Rocket Game Corner (hidden)
+### The Game Corner (hidden)
 
 There is a casino behind the arcade. On the training menu, **press and hold the
 ARCADE row for five seconds** (a normal tap still opens the arcade). A Team

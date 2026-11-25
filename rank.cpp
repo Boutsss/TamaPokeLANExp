@@ -152,7 +152,7 @@ uint8_t rankAvatarNeeds(uint8_t avatar) {
 
 bool rankAvatarUnlocked(uint8_t avatar) {
   if (avatar >= AVATAR_COUNT) return false;
-  // The Rocket Game Corner's prizes are unlocked by buying them, not by rank.
+  // The Game Corner's prizes are unlocked by buying them, not by rank.
   if (avatar >= AVATAR_BASE_COUNT) return casinoOwns(PK_AVATAR, avatar - AVATAR_BASE_COUNT);
   if ((s_avGrant >> avatar) & 1) return true;
   return s_top >= AVATAR_NEEDS[avatar];

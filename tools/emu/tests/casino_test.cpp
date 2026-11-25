@@ -1,4 +1,4 @@
-// The Rocket Game Corner's rules, against the real casino.cpp: blackjack
+// The Game Corner's rules, against the real casino.cpp: blackjack
 // totals and payouts, High/Low's tie rule, the slot machine's long-run return
 // (computed over EVERY stop, not sampled), and the prize shop's ordering --
 // coins are spent BEFORE a prize is recorded, so a failed spend hands out

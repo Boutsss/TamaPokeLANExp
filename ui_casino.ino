@@ -1,4 +1,4 @@
-// ROCKET GAME CORNER -- the hidden casino. Hold the ARCADE row on the training
+// GAME CORNER -- the hidden casino. Hold the ARCADE row on the training
 // menu for CASINO_HOLD_MS (five seconds) and a Team Rocket grunt lets you in.
 //
 // Rules, coins and the prize shop live in casino.cpp (headless, tested by
@@ -984,16 +984,85 @@ void drawCardBackground(uint8_t bg, uint32_t t) {
 }
 
 // ---------------------------------------------------------------- the door, and the frame loop
+static int8_t casSpinHalf = -1;   // half-turns completed, for the rising chime
+
+// How long the finger has been on ARCADE (0 = not held).
+uint32_t casinoHeldMs() { return casHoldArmed ? millis() - casHoldAt : 0; }
+// The card's turn at a given hold time, in radians. Nothing until the press
+// can no longer be a tap, then an ease-in -- a slow start that builds -- to an
+// ODD number of half-turns, so it comes to rest showing GAME CORNER.
+float casinoSpinAngle(uint32_t held) {
+  if (held <= CASINO_SPIN_START_MS) return 0;
+  const float END = CASINO_SPIN_HALF_TURNS * 3.14159265f;
+  if (held >= CASINO_REVEAL_MS) return END;
+  float t = (float)(held - CASINO_SPIN_START_MS) / (float)(CASINO_REVEAL_MS - CASINO_SPIN_START_MS);
+  return END * t * t;
+}
+bool casinoSpinning() { return casinoHeldMs() > CASINO_SPIN_START_MS; }
+// Which face is toward the player right now: true = GAME CORNER.
+bool casinoSpinShowsCorner() { return cosf(casinoSpinAngle(casinoHeldMs())) < 0; }
+
 void casinoTouchPeek(bool pressed, int16_t x, int16_t y, bool onArcadeRow) {
-  if (!pressed || !onArcadeRow) { casHoldArmed = false; return; }
-  if (!casHoldArmed) { casHoldArmed = true; casHoldAt = millis(); return; }
-  if (millis() - casHoldAt >= CASINO_HOLD_MS) {
+  if (!pressed || !onArcadeRow) { casHoldArmed = false; casSpinHalf = -1; return; }
+  if (!casHoldArmed) { casHoldArmed = true; casHoldAt = millis(); casSpinHalf = -1; return; }
+  uint32_t held = millis() - casHoldAt;
+  // a rising note each half-turn: the suspense
+  int8_t half = (int8_t)(casinoSpinAngle(held) / 3.14159265f);
+  if (held > CASINO_SPIN_START_MS && half > casSpinHalf) {
+    casSpinHalf = half;
+    uint8_t step = (uint8_t)(half * (SFX_RISE_STEPS - 1) / CASINO_SPIN_HALF_TURNS);
+    sfxRise(step);
+  }
+  if (held >= CASINO_HOLD_MS) {
     casHoldArmed = false;
+    casSpinHalf = -1;
     casinoOpenNow();
   }
   (void)x; (void)y;
 }
 bool casinoHolding() { return casHoldArmed; }
+
+// The ARCADE row, turning. Drawn by renderTrain() in place of the plain row
+// for as long as casinoSpinning(). The card narrows to its edge and widens
+// again (|cos| of the angle) and lifts a little as it turns.
+void casinoDrawSpinRow(int x, int y, int w, int h, const char *arcadeLabel) {
+  uint32_t held = casinoHeldMs();
+  float a = casinoSpinAngle(held);
+  float c = cosf(a);
+  int cw = (int)(w * fabsf(c));
+  if (cw < 4) cw = 4;
+  int lift = (int)(6 * fabsf(sinf(a)));
+  int cx = x + w / 2, rx = cx - cw / 2, ry = y - lift;
+  bool corner = c < 0;
+  // its shadow stays on the panel while the card lifts
+  gfx->fillRoundRect(cx - cw / 2 + 3, y + 4, cw, h, 12, 0xC618);
+  if (!corner) {
+    gfx->fillRoundRect(rx, ry, cw, h, 12, C565(0xff, 0xf1, 0xc4));
+    gfx->drawRoundRect(rx, ry, cw, h, 12, UI_INK);
+    if (cw > (int)strlen(arcadeLabel) * 12 + 16) casText(cx, ry + h / 2 - 8, arcadeLabel, UI_INK, 2);
+  } else {
+    gfx->fillRoundRect(rx, ry, cw, h, 12, 0x18C3);
+    gfx->drawRoundRect(rx, ry, cw, h, 12, CAS_GOLD);
+    if (cw > 12) gfx->drawRoundRect(rx + 3, ry + 3, cw - 6, h - 6, 9, CAS_RED);
+    const char *gc = T(S_CAS_TITLE);
+    if (cw > (int)strlen(gc) * 12 + 16) casText(cx, ry + h / 2 - 8, gc, CAS_GOLD, 2);
+    if (cw > w - 8) {                     // fully round: a coin either side
+      casMotif(CM_COIN, rx + 22, ry + h / 2, 26, CAS_GOLD, UI_INK);
+      casMotif(CM_COIN, rx + cw - 22, ry + h / 2, 26, CAS_GOLD, UI_INK);
+    }
+  }
+  // revealed: it glitters until the door opens
+  if (held >= CASINO_REVEAL_MS) {
+    uint32_t t = millis();
+    for (uint8_t k = 0; k < 8; k++) {
+      uint32_t hsh = hash2(k, (int)(t / 120));
+      int sx = x + (int)(hsh % (uint32_t)w), sy = y - 10 + (int)((hsh >> 8) % (uint32_t)(h + 20));
+      if (sy > y && sy < y + h && sx > x + 8 && sx < x + w - 8) continue;   // around it, not on it
+      gfx->drawFastHLine(sx - 3, sy, 7, CAS_GOLD);
+      gfx->drawFastVLine(sx, sy - 3, 7, CAS_GOLD);
+    }
+  }
+}
 
 void casinoOpenNow() {
   casinoOpen = true;

@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include "avatar_names.h"
 
-// The Rocket Game Corner's cosmetic prizes: card backs and trainer-card
+// The Game Corner's cosmetic prizes: card backs and trainer-card
 // backgrounds. Every one is DRAWN, not stored: a name, a few RGB565 colours and
 // a motif/pattern that ui_casino.ino knows how to paint. That is why there can
 // be dozens of them for a few hundred bytes of flash.
