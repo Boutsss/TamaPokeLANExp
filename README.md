@@ -464,43 +464,6 @@ Bests, today's prizes and the one-time bonuses are saved (`arcHi`, 6 x 16-bit;
 
 &nbsp;
 
-## Hardware
-
-- Board: [ESP32-S3-Touch-AMOLED-1.75](https://www.waveshare.com/wiki/ESP32-S3-Touch-AMOLED-1.75)
-  — get the **Standard** (no case) or **-G** (GPS, also fits) version; **not the "-B"**
-  (ships with a protective case that won't fit). The separate "1.75**C**" is a different board.
-- Round 466×466 AMOLED, **CO5300** driver (QSPI, 80 MHz)
-- Capacitive touch **CST9217** (I2C, address 0x5A)
-- **AXP2101** (power management + battery + PWR button), **PCF85063** (RTC),
-  microSD slot, **ES8311** audio codec (→ amplifier → external speaker on the
-  MX1.25 connector)
-- Pins taken from the [official Waveshare repo](https://github.com/waveshareteam/ESP32-S3-Touch-AMOLED-1.75) (see `pin_config.h`)
-
-## Libraries (Arduino IDE / arduino-cli)
-
-| Library | Author | Use |
-|---|---|---|
-| GFX Library for Arduino (`Arduino_GFX`) | moononournation | CO5300 over QSPI + framebuffer in PSRAM |
-| SensorLib | Lewis He | CST9217 touch + PCF85063 RTC |
-| XPowersLib | Lewis He | AXP2101 PMU (battery, brightness, PWR button) |
-| ESP_I2S (bundled in the ESP32 core) | Espressif | I2S to the ES8311 codec |
-
-## IDE setup / build
-
-- Board: **ESP32S3 Dev Module** · Flash **16MB** · PSRAM **OPI PSRAM**
-  (required: the 466×466×16-bit framebuffer ≈ 434 KB lives in PSRAM) ·
-  Partition Scheme with FAT (e.g. `16M Flash (3MB APP/9MB FATFS)`) ·
-  USB CDC On Boot **Enabled**
-
-```bash
-FQBN="esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB"
-arduino-cli compile --fqbn "$FQBN" .
-arduino-cli upload -p /dev/cu.usbmodemXXXX --fqbn "$FQBN" .
-
-# or just, which finds the port itself and can open the console:
-bash tools/flash.sh --monitor
-```
-
 ### The Game Corner (hidden)
 
 There is a secret behind the arcade. On the training menu, **press and hold
@@ -641,6 +604,19 @@ shown under the EXPLORE button (`CHAIN PIDGEY x5`).
 **TMs unlock at level 40**, all at once, and nothing before — so the early game
 runs on level-up moves and cheap early attacks (SCRATCH, PECK, POISON STING,
 BUBBLE, ABSORB, SPARK, FURY ATTACK and the rest), never a borrowed TM.
+
+**Status moves** (v3.33). Six moves inflict an ailment outright instead of
+by chance: **THUNDER WAVE** (paralysis, 90% accurate), **SLEEP POWDER**
+(sleep, 75%), **HYPNOSIS** (sleep, 60%), **TOXIC** (poison, 90%), **WILL-O-WISP**
+(burn, 85%) and **CONFUSE RAY** (confusion, never misses). They are TMs like
+the rest, so they unlock at level 40, and who can learn which is the real
+games' list. A creature can only have one status at a time (confusion stacks
+on top of one). A Fire type cannot be burned, a Poison or Steel type
+poisoned, an Electric type paralysed, and a Ground type ignores THUNDER WAVE;
+otherwise status moves ignore the type chart, so CONFUSE RAY works on a
+Normal type. Asleep, a creature loses its turns for 2-4 turns, then wakes and
+acts. The hard-mode AI uses them when they can take hold, never on a foe that
+already has a status or that one more hit would finish.
 
 The first five gym leaders sit at levels **14–43**, so you fight the early
 ladder on what your species actually learns; TMs arrive as you enter the back
@@ -848,9 +824,20 @@ slot shows the creature, its level, a gold rim if it is shiny and a star if it
 is a favourite. Tap a slot to open its sheet; tap a party slot then BOX to
 move creatures in and out, exactly as before.
 
-**Name your boxes.** Tap a box's title (BOX 1, BOX 2...) to rename it with the
-keyboard -- up to 11 letters. An empty name goes back to "BOX n". Names are
-saved and travel in the save backup.
+**All 40 at a glance.** Tap a box's title (BOX 1, BOX 2...) to see every box,
+sixteen a page (drag the rim for more): each with its name or number and how
+full it is. Tap one to jump straight there.
+
+**Name your boxes.** On that overview, **RENAME** names the box you came
+from, with the keyboard -- up to 11 letters. An empty name goes back to
+"BOX n". Names are saved and travel in the save backup.
+
+**Move creatures between boxes.** Tap a creature in the box and press
+**MOVE** (beside STATS). You are back on the box with it picked up: tap any
+slot -- in this box, or in another after dragging the rim -- and it goes
+there. An empty slot takes it; a slot with another creature swaps the two.
+Tapping its own slot puts it back, and a swipe down cancels. While you move
+something the box shows every slot, whatever filter was on.
 
 It is stored in its own file on the board's flash, not in the save's settings
 area, which is far too small for 1200 creatures. Each write goes to a new copy
@@ -880,6 +867,7 @@ to open the FILTER sheet. Pick one chip to show only those creatures:
 | SHINY | shinies |
 | HOLDING | creatures holding an item |
 | any of the 18 types | that type; a dual type counts for both of its types |
+| SEARCH | opens the keyboard: type part of a name, and the box shows every creature whose species name or nickname contains it (capitals do not matter) |
 
 The **SORT** pill at the bottom of the sheet cycles through: SLOT (the box's
 own order), LEVEL, IV TOTAL, ATTACK, DEFENCE, SPEED, HP (each highest first),
@@ -1309,6 +1297,7 @@ legendary/shiny IV guarantees, which apply at hatch) ·
 runaway-ready state) · `WIPE` (factory reset → new game) · `BEEP` (audio test) ·
 `REG` (Pokédex) · `EGGS` (simulate 20 eggs) · `GAL` (gallery) · `CAREDAY` ·
 `PARTY` / `PARTY <dex>` / `PARTY CLEAR` (inspect and fill the party) ·
+`BOXADD <dex> [slot]` (a level-50 specimen into the PC box, slot 1-1200 or the first free) ·
 `FOCUS <slot>` (swap the creature you are raising with a party slot) ·
 `BAG` (list it) · `GIVE <key> [n]` (stock it) · `WILD` / `WILD HARD` (force an
 encounter) ·

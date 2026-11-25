@@ -510,6 +510,7 @@ On hardware, verify over the serial console (115200):
 - `TR <atk> <def> <spe>` set the training (this game's EVs); clamped to
   `trMaxFor(iv)`, so it cannot build a creature the player could not raise
 - `PARTY` / `PARTY <dex>` / `PARTY CLEAR` inspect, fill and empty the party
+- `BOXADD <dex> [slot]` a level-50 specimen into the PC box (slot 1-1200, else the first free)
 - `BATTLE <dex> [lvl]` start a fight (debug entry until gyms exist)
 - `EGG <dex> [shiny]` hatch a chosen species: the legendary (3 perfect IVs) and
   shiny (IV floor 20) guarantees fire only inside `hatch()`, so this is the only
@@ -1868,11 +1869,15 @@ less faithful, not more. Length in a gym comes from fighting six in a row.
 Note on (4): `MoveEntry` gained `ailment` + `ailChance`, and the pair is
 OPTIONAL in `dex_moves.py` -- only the 17 moves that inflict one spell it out,
 `gen_moves.py:unpack()` defaults the rest. Adding an ailment is a one-line edit.
-There is no dedicated status move (no THUNDER WAVE, no SLEEP POWDER), so
-ailments ride as secondary chances on damaging moves. `AIL_SLEEP` exists in the
-enum but nothing inflicts it yet -- adding TOXIC/THUNDER WAVE/SLEEP POWDER would
-mean new rows in `dex_moves.py` plus a re-run of `fetch_pokeapi.py`, which is now
-cheap since `tools/pokeapi_cache/` is warm.
+Six dedicated status moves landed in v3.33 (THUNDER WAVE, SLEEP POWDER,
+HYPNOSIS, TOXIC, WILL-O-WISP, CONFUSE RAY), APPENDED at indices 90-95. Their
+learners come from `tools/fetch_status_learnsets.py` (six `/move` requests,
+not a 1025-species refetch) into `dex_learnsets_tm.py`, which `gen_moves.py`
+merges AFTER each species' own rows -- so re-running `fetch_pokeapi.py`
+cannot drop them, and no existing learnset reorders. They are TM-style
+(level 0), gated at `TM_LEVEL`. `battle.cpp`'s `inflictAilment()` is now THE
+ailment rule for secondary chances and status moves alike; the type chart
+only blocks THUNDER WAVE vs Ground (as in the games). `status_test` covers it.
 
 Note on (3): there is no level-up "you learned a move" prompt, and there should
 not be -- 1907 of 2281 learnset entries are level 0, so it would almost never
