@@ -40,7 +40,7 @@ AIL_NONE = 0
 AIL_PARA = 1        # speed cut, and some turns are lost outright
 AIL_BURN = 2        # chip damage each turn, physical attack cut
 AIL_POISON = 3      # chip damage each turn
-AIL_SLEEP = 4       # loses its turn for a few turns (no move inflicts it yet)
+AIL_SLEEP = 4       # loses its turn for a few turns (SLEEP POWDER, HYPNOSIS)
 AIL_FREEZE = 5      # loses its turn until it thaws
 AIL_CONFUSE = 6     # may hit itself instead
 
@@ -218,6 +218,18 @@ MOVES = [
     # STAB; Darkrai is SpA 135 / Atk 90, so neither was usable to it. It learns
     # DARK PULSE by level-up at 27, so this is its real move, not a contrivance.
     ("DARK PULSE",   "dark-pulse",    'dark',     MC_SPEC,  80, 100, EF_NONE,      0, 0, 0, TG_FOE),  # LATER (Gen 4)
+
+    # The STATUS moves (v3.33). Until these, every ailment rode on a damaging
+    # move's secondary chance and AIL_SLEEP was inflicted by nothing. Each is a
+    # sure ailment if it hits (chance 100); the accuracy is the games'. Who can
+    # learn them comes from tools/fetch_status_learnsets.py (TM-style, so
+    # gated at TM_LEVEL like every other TM).
+    ("THUNDER WAVE", "thunder-wave",  'electric', MC_STATUS, 0,  90, EF_NONE,      0, 0, 0, TG_FOE, AIL_PARA, 100),
+    ("SLEEP POWDER", "sleep-powder",  'grass',    MC_STATUS, 0,  75, EF_NONE,      0, 0, 0, TG_FOE, AIL_SLEEP, 100),
+    ("HYPNOSIS",     "hypnosis",      'psychic',  MC_STATUS, 0,  60, EF_NONE,      0, 0, 0, TG_FOE, AIL_SLEEP, 100),
+    ("TOXIC",        "toxic",         'poison',   MC_STATUS, 0,  90, EF_NONE,      0, 0, 0, TG_FOE, AIL_POISON, 100),
+    ("WILL-O-WISP",  "will-o-wisp",   'fire',     MC_STATUS, 0,  85, EF_NONE,      0, 0, 0, TG_FOE, AIL_BURN, 100),
+    ("CONFUSE RAY",  "confuse-ray",   'ghost',    MC_STATUS, 0, 100, EF_NONE,      0, 0, 0, TG_FOE, AIL_CONFUSE, 100),
 ]
 
 # Accuracy drops (SAND ATTACK, SMOKESCREEN, FLASH) are deliberately left out:

@@ -101,4 +101,11 @@ MOVE_NAMES = {
     "soft-boiled": ("OVOCURACION", "SOFT-BOILED", "E-COQUE", "WEICHEI", "COVAUOVA", "OVO COZIDO"),
     "struggle": ("FORCEJEO", "STRUGGLE", "LUTTE", "VERZWEIFLER", "SCONTRO", "INSISTENCIA"),
     "dark-pulse": ("PULSO UMBRIO", "DARK PULSE", "VIBROBSCUR", "FINSTERAURA", "NEROPULSAR", "PULSO SOMBRIO"),
+    # the status moves (v3.33): ES/FR/DE/IT from PokeAPI (tools/fetch_status_learnsets.py prints them)
+    "thunder-wave": ("ONDA TRUENO", "THUNDER WAVE", "CAGE ECLAIR", "DONNERWELLE", "TUONONDA", "ONDA DE TROVAO"),
+    "sleep-powder": ("SOMNIFERO", "SLEEP POWDER", "POUDRE DODO", "SCHLAFPUDER", "SONNIFERO", "PO DO SONO"),
+    "hypnosis": ("HIPNOSIS", "HYPNOSIS", "HYPNOSE", "HYPNOSE", "IPNOSI", "HIPNOSE"),
+    "toxic": ("TOXICO", "TOXIC", "TOXIK", "TOXIN", "TOSSINA", "TOXICO"),
+    "will-o-wisp": ("FUEGO FATUO", "WILL-O-WISP", "FEU FOLLET", "IRRLICHT", "FUOCOFATUO", "FOGO-FATUO"),
+    "confuse-ray": ("RAYO CONFUSO", "CONFUSE RAY", "ONDE FOLIE", "KONFUSSTRAHL", "STORDIRAGGIO", "RAIO CONFUSO"),
 }

@@ -27,6 +27,19 @@ from dex_move_names import MOVE_NAME_LANGS, MOVE_NAMES
 def unpack(m):
     return tuple(m) + ((AIL_NONE, 0) if len(m) == 11 else ())
 from dex_learnsets import LEARNSETS
+# The status moves' TM-style entries (tools/fetch_status_learnsets.py), merged
+# in rather than written into dex_learnsets.py, so re-running fetch_pokeapi.py
+# cannot drop them -- nor this the other's.
+try:
+    from dex_learnsets_tm import LEARNSETS_TM
+except ImportError:
+    LEARNSETS_TM = {}
+# Appended AFTER each species' own rows, in their original order, so nothing a
+# species already learned moves in its table (the picker's order and every tie
+# in relearnFromLevel() stay exactly as they were).
+LEARNSETS = {n: list(LEARNSETS.get(n, [])) +
+                [r for r in LEARNSETS_TM.get(n, []) if r[0] not in {x[0] for x in LEARNSETS.get(n, [])}]
+             for n in set(LEARNSETS) | set(LEARNSETS_TM)}
 
 # Derived, not hardcoded: this file and dex.h must agree on how many species
 # there are, or LEARN_OFS is short and every lookup past the end reads garbage.

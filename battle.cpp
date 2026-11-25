@@ -3,6 +3,8 @@
 #include "types.h"
 #include "game_events.h"
 
+static bool inflictAilment(Combatant &def, uint8_t ail, struct TurnLog &log);   // below: THE ailment rule
+
 // ---------- building a combatant ----------
 
 static void fill(Combatant &c, int16_t dex, uint8_t lvl, uint16_t hp,
@@ -207,6 +209,17 @@ void battleAct(Combatant &atk, Combatant &def, uint8_t mv, TurnLog &log) {
   }
 
   if (m.cat == MC_STATUS) {
+    // A STATUS move that inflicts an ailment (THUNDER WAVE, SLEEP POWDER,
+    // HYPNOSIS, TOXIC, WILL-O-WISP, CONFUSE RAY). As in the games, a status
+    // move ignores the type chart -- CONFUSE RAY works on a Normal type --
+    // except THUNDER WAVE, which a Ground type is immune to. The rest is the
+    // same rule as a secondary ailment (inflictAilment: a Fire type cannot be
+    // burned, a Steel or Poison type poisoned, nobody gets a second status).
+    if (m.ailment != AIL_NONE) {
+      if (m.type == T_ELECTRIC && typeEffVsDex(m.type, def.dex) == 0) { log.immune = true; return; }
+      if (!inflictAilment(def, m.ailment, log)) log.missed = true;   // nothing to take hold of
+      return;
+    }
     if (m.effect == EF_HEAL) {
       heal(atk, (uint32_t)atk.maxHp * (m.param > 0 ? m.param : 50) / 100);
       log.healed = true;
@@ -240,31 +253,36 @@ void battleAct(Combatant &atk, Combatant &def, uint8_t mv, TurnLog &log) {
   if (m.effect == EF_DRAIN && m.param > 0) heal(atk, total * m.param / 100);
   if (m.effect == EF_RECHARGE) atk.recharge = true;
 
-  // --- secondary ailment. Never overwrites an existing one, and confusion is
-  // tracked separately so it can stack with a real status, as in the games.
+  // --- secondary ailment
   if (m.ailment != AIL_NONE && m.ailChance && !def.fainted() &&
-      random(100) < m.ailChance) {
-    if (m.ailment == AIL_CONFUSE) {
-      if (!def.confuseTurns) {
-        def.confuseTurns = 2 + random(3);
-        log.inflicted = AIL_CONFUSE;
-      }
-    } else if (def.ailment == AIL_NONE) {
-      // a type cannot be given the status it is made of
-      bool immune = (m.ailment == AIL_BURN && hasStab(def.dex, T_FIRE)) ||
-                    (m.ailment == AIL_FREEZE && hasStab(def.dex, T_ICE)) ||
-                    (m.ailment == AIL_POISON && hasStab(def.dex, T_POISON)) ||
-                    (m.ailment == AIL_PARA && hasStab(def.dex, T_ELECTRIC));
-      if (!immune) {
-        def.ailment = m.ailment;
-        if (m.ailment == AIL_SLEEP) def.ailTurns = 2 + random(3);
-        log.inflicted = m.ailment;
-      }
-    }
-  }
+      random(100) < m.ailChance)
+    inflictAilment(def, m.ailment, log);
   checkBerry(def, log.defItem);
   checkBerry(atk, log.atkItem);
   log.targetFainted = def.fainted();
+}
+
+// THE ailment rule, for a damaging move's secondary chance and a status move
+// alike. Never overwrites an existing status; confusion is tracked separately
+// so it can stack with a real one, as in the games; and a type cannot be given
+// the status it is made of. True if it took hold.
+static bool inflictAilment(Combatant &def, uint8_t ail, TurnLog &log) {
+  if (ail == AIL_CONFUSE) {
+    if (def.confuseTurns) return false;
+    def.confuseTurns = 2 + random(3);
+    log.inflicted = AIL_CONFUSE;
+    return true;
+  }
+  if (def.ailment != AIL_NONE) return false;
+  bool immune = (ail == AIL_BURN && hasStab(def.dex, T_FIRE)) ||
+                (ail == AIL_FREEZE && hasStab(def.dex, T_ICE)) ||
+                (ail == AIL_POISON && (hasStab(def.dex, T_POISON) || hasStab(def.dex, T_STEEL))) ||
+                (ail == AIL_PARA && hasStab(def.dex, T_ELECTRIC));
+  if (immune) return false;
+  def.ailment = ail;
+  if (ail == AIL_SLEEP) def.ailTurns = 2 + random(3);
+  log.inflicted = ail;
+  return true;
 }
 
 // ---------- end of turn ----------
@@ -323,6 +341,26 @@ uint8_t aiChooseMove(const Combatant &self, const Combatant &foe, bool smart) {
         sc = 26 - (stacked * 12 / hit);
         // and never set up when one more hit would finish you
         if (self.hp * 3 < self.maxHp) sc -= 40;
+      } else if (m.ailment != AIL_NONE) {
+        // A status move is worth a turn only if it can take hold: the foe has
+        // no status yet (or no confusion, for CONFUSE RAY) and its type is not
+        // immune. Sleep is the strongest, then paralysis, then the chip damage
+        // ones; all discounted by accuracy, and none worth it when one more
+        // hit would finish the foe.
+        bool canTake = m.ailment == AIL_CONFUSE ? !foe.confuseTurns : foe.ailment == AIL_NONE;
+        bool typeImmune = (m.ailment == AIL_BURN && hasStab(foe.dex, T_FIRE)) ||
+                          (m.ailment == AIL_POISON && (hasStab(foe.dex, T_POISON) || hasStab(foe.dex, T_STEEL))) ||
+                          (m.ailment == AIL_PARA && hasStab(foe.dex, T_ELECTRIC)) ||
+                          (m.type == T_ELECTRIC && typeEffVsDex(m.type, foe.dex) == 0);
+        if (!canTake || typeImmune) sc = -50;
+        else {
+          sc = m.ailment == AIL_SLEEP ? 60 : m.ailment == AIL_PARA ? 45 : m.ailment == AIL_CONFUSE ? 35 : 40;
+          sc = sc * (m.acc ? m.acc : 100) / 100;
+          uint16_t hit = 0;
+          for (uint8_t k = 0; k < n; k++)
+            if (MOVE_TBL[legal[k]].cat != MC_STATUS) { uint16_t d = battleDamage(self, foe, legal[k], false, 236); if (d > hit) hit = d; }
+          if (hit >= foe.hp) sc = -10;
+        }
       } else {
         sc = 5;
       }
