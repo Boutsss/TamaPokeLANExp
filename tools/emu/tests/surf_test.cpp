@@ -39,10 +39,18 @@ extern uint16_t trnCombo;
 static int bad=0;
 static void ck(bool ok,const char*w){printf("%s  %s\n",ok?"PASS":"FAIL",w); if(!ok)bad++;}
 static void pump(int n){ for(int i=0;i<n;i++){ std::this_thread::sleep_for(std::chrono::milliseconds(25)); loop(); } }
-static uint32_t regionHash() {   // the surfer's patch of the panel
-  uint32_t h = 2166136261u;
-  for (int y = 200; y < 330; y++) for (int x = 100; x < 200; x++) h = (h ^ gfx->buffer()[y * 466 + x]) * 16777619u;
-  return h;
+// What colour dominates the surfer's box (above the board, clear of the spray
+// and the clouds). The sea and the sky are blue and white, so a creature's own
+// orange or green shows up plainly -- and animation cannot fake it.
+static int countDominant(int py, int which) {
+  int n = 0;
+  for (int y = py - 70; y < py - 8; y++) for (int x = 118; x < 184; x++) {
+    uint16_t c = gfx->buffer()[y * 466 + x];
+    int r = (c >> 11) << 3, g = ((c >> 5) & 63) << 2, bl = (c & 31) << 3;
+    if (which == 0 && r > bl + 60 && r > g) n++;          // orange/red
+    if (which == 1 && g > r + 30 && g > bl + 30) n++;     // green
+  }
+  return n;
 }
 enum { STAR = 1, SHELL = 2, ROCK = 3 };
 
@@ -115,17 +123,23 @@ int main(){
   ck(arcOver, "the last life ends the session");
   arcGame = 0xFF; arcOver = false;
 
-  // ---- the surfer is YOUR creature
+  // ---- the surfer is YOUR creature: CHARIZARD surfs orange, BULBASAUR green
   arcStart(5); arcSkipIntro(); for (auto &k : surfK) k = 0;
-  surfGoal = surfPetY = 280;
-  render(); uint32_t a = regionHash();
+  surfGoal = surfPetY = 300;
+  render();
+  int orange = countDominant(300, 0), green = countDominant(300, 1);
+  printf("      CHARIZARD surfing: %d orange px, %d green px\n", orange, green);
+  ck(orange > 60 && green < 10, "the surfer is the creature you raise (CHARIZARD: orange)");
   arcFinish(); arcGame = 0xFF; arcOver = false;
-  pet.dbgHatchAs(9, false);
-  for (int i = 0; i < 5; i++) render();
+  pet.dbgHatchAs(1, false);
+  pet.sleeping = false; pet.energy = 100;
+  pump(4);   // the main loop streams the new creature's sprite (ensureMon)
   arcStart(5); arcSkipIntro(); for (auto &k : surfK) k = 0;
-  surfGoal = surfPetY = 280;
-  render(); uint32_t b = regionHash();
-  ck(a != b, "change the creature you raise and the surfer changes with it");
+  surfGoal = surfPetY = 300;
+  render();
+  orange = countDominant(300, 0); green = countDominant(300, 1);
+  printf("      BULBASAUR surfing: %d orange px, %d green px\n", orange, green);
+  ck(green > 40, "change the creature you raise and the surfer changes with it (BULBASAUR: green)");
   arcFinish(); arcGame = 0xFF; arcOver = false;
 
   // ---- vertical swipes steer, they do not leave
