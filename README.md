@@ -3,7 +3,7 @@
 [![Flash in browser](https://img.shields.io/badge/flash-in%20browser-FF6B00?logo=googlechrome&logoColor=white)](https://reallyjustsomeguy.github.io/TamaPokeLANExp/web/)
 [![MakerWorld](https://img.shields.io/badge/MakerWorld-3D%20case-00AE42?logo=bambulab&logoColor=white)](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)
 ![Board](https://img.shields.io/badge/board-ESP32--S3%20round%20AMOLED-E7352C?logo=espressif&logoColor=white)
-![Firmware](https://img.shields.io/badge/firmware-v3.34-8A2BE2)
+![Firmware](https://img.shields.io/badge/firmware-v3.35-8A2BE2)
 ![Code](https://img.shields.io/badge/code-MIT-blue)
 ![Languages](https://img.shields.io/badge/languages-6-FFCB05)
 [![Stars](https://img.shields.io/github/stars/DylanPDao/TamaPoke?style=flat&logo=github&color=yellow)](https://github.com/DylanPDao/TamaPoke/stargazers)
@@ -278,7 +278,15 @@ While **awake**, per minute:
   sprite pack is on the card, so evolving can never hand you a creature the
   device cannot draw.
 
-Each creature also knows up to **4 moves**, from a pool of 77. Two kinds:
+Each creature also knows up to **4 moves**, from a pool of **254**: the original
+hand-picked set plus (v3.33) every Gen 1-7 move this battle engine can play the
+way the games do -- 159 of them, from STONE EDGE and ENERGY BALL to CALM MIND,
+BULLET SEED, AQUA JET, GIGA DRAIN and SPORE. Moves whose rules the engine does
+not have (weather, entry hazards, switching, Protect, two-turn moves, fixed or
+variable damage, OHKOs, abilities) were left out rather than played wrongly,
+and a flinch chance (the fang moves) is not modelled. Who learns what, and at
+which level, is the real games' data. A creature's existing moves never change
+on updating: new moves only ever join the list it can choose from. Two kinds:
 
 - **Level-up moves** are gated: Charizard learns FLAMETHROWER at 34, WING ATTACK
   at 36, DRAGON RAGE at 54. A hatchling starts with **only** what its species

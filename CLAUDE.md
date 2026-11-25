@@ -1869,6 +1869,22 @@ less faithful, not more. Length in a gym comes from fighting six in a row.
 Note on (4): `MoveEntry` gained `ailment` + `ailChance`, and the pair is
 OPTIONAL in `dex_moves.py` -- only the 17 moves that inflict one spell it out,
 `gen_moves.py:unpack()` defaults the rest. Adding an ailment is a one-line edit.
+**The Gen 1-7 moves (v3.33):** `tools/pick_moves.py` read every move from
+PokeAPI (cached under `tools/pokeapi_cache/moves/`) and kept the 159 the engine
+plays faithfully -- plain damage, a crit-rate quirk, priority > 0, 2-5 hits,
+recoil, drain, a CHANCE of an ailment or of one stage change (a damaging
+`EF_STAGE` now carries its chance in `param`; `battle.cpp` applies it to the
+foe, or to the user for SUPERPOWER and friends), stat-only status moves, sure
+ailments and a 50% self-heal. It wrote `dex_moves_more.py` ONCE: that file is
+APPEND-ONLY like the base list (it refuses to overwrite), because position is
+the saved ID. `MOVE_COUNT` is 255 on purpose, one short of 256: several loops
+and every stored move are `uint8_t`. More moves past that need a 16-bit move ID
+-- a save, link and backup format change. `fetch_more_learnsets.py` gives them
+real levels through `fetch_pokeapi.learn_rows()` (the one level rule), into
+`dex_learnsets_more.py`, appended after each species' own rows by
+`gen_moves.py`. `LEARNABLE_MAX` (255) sizes the move picker: it was 64, and MEW
+alone can now learn 152. `moves_more_test` covers it.
+
 Six dedicated status moves landed in v3.33 (THUNDER WAVE, SLEEP POWDER,
 HYPNOSIS, TOXIC, WILL-O-WISP, CONFUSE RAY), APPENDED at indices 90-95. Their
 learners come from `tools/fetch_status_learnsets.py` (six `/move` requests,

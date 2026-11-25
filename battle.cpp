@@ -249,6 +249,15 @@ void battleAct(Combatant &atk, Combatant &def, uint8_t mv, TurnLog &log) {
   log.hits = hits;
   log.damage = total;
 
+  // A damaging move's stage change: param is its CHANCE (ROCK TOMB 100, ENERGY
+  // BALL 10). Onto the foe only if it is still standing; onto the user
+  // (SUPERPOWER, CLOSE COMBAT, OVERHEAT) whatever happened to the foe.
+  if (m.effect == EF_STAGE && (m.target == TG_SELF || !def.fainted()) &&
+      random(100) < (m.param ? m.param : 100)) {
+    applyStages(m.target == TG_SELF ? atk : def, m.statMask, m.stages);
+    log.stageMask = m.statMask;
+    log.stageDelta = m.stages;
+  }
   if (m.effect == EF_RECOIL && m.param > 0) hurt(atk, total / m.param ? total / m.param : 1);
   if (m.effect == EF_DRAIN && m.param > 0) heal(atk, total * m.param / 100);
   if (m.effect == EF_RECHARGE) atk.recharge = true;
@@ -354,7 +363,11 @@ uint8_t aiChooseMove(const Combatant &self, const Combatant &foe, bool smart) {
                           (m.type == T_ELECTRIC && typeEffVsDex(m.type, foe.dex) == 0);
         if (!canTake || typeImmune) sc = -50;
         else {
-          sc = m.ailment == AIL_SLEEP ? 60 : m.ailment == AIL_PARA ? 45 : m.ailment == AIL_CONFUSE ? 35 : 40;
+          // Worth a share of the foe's HP -- the same units an attack is scored
+          // in (its damage), so a status move competes fairly with a strong
+          // attack rather than against a fixed number.
+          int pct = m.ailment == AIL_SLEEP ? 45 : m.ailment == AIL_PARA ? 35 : m.ailment == AIL_CONFUSE ? 25 : 30;
+          sc = (int32_t)foe.maxHp * pct / 100;
           sc = sc * (m.acc ? m.acc : 100) / 100;
           uint16_t hit = 0;
           for (uint8_t k = 0; k < n; k++)

@@ -24,7 +24,7 @@ import time
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(__file__))
-from dex_moves import MOVES
+from dex_moves import MOVES_BASE as MOVES   # its own list; the Gen 1-7 additions: fetch_more_learnsets.py
 
 # The python.org macOS builds ship no CA bundle, so a plain urlopen against
 # HTTPS dies with CERTIFICATE_VERIFY_FAILED. certifi comes with those same
@@ -102,6 +102,45 @@ def fetch(num):
     return slim
 
 
+def learn_rows(num, d, wanted, missing=None):
+    """One species' rows for the moves in `wanted`: (slug, level), level 0 for
+    a TM-only move. THE level rule -- fetch_more_learnsets.py asks this too."""
+    rows = []
+    for m in d['moves']:
+        if m['name'] not in wanted:
+            continue
+        if missing is not None: missing.discard(m['name'])
+        # A move's LEVEL GATE wins over its TM entry. The old rule took the
+        # lowest of the two and scored a TM as 0, so anything ever sold as a
+        # TM lost its gate -- Charizard's Flamethrower is TM38 in gen 1, so
+        # it came out ungated, and 1907 of 2281 rows collapsed to level 0.
+        #
+        # Levels are read from ONE version group, not min()'d across all of
+        # them: evolved forms relearn their basics at level 1 on evolving in
+        # some games, and the minimum flattened Charizard's whole set to 1.
+        # FireRed/LeafGreen is the pick -- Kanto, all 151, properly gated.
+        lvlup = [lvl for meth, lvl, vg in m['details']
+                 if meth == 'level-up' and vg == level_vg(num) and lvl > 0]
+        if not lvlup:   # not in that game (or only at level 1): any game
+            lvlup = [lvl for meth, lvl, _vg in m['details']
+                     if meth == 'level-up' and lvl > 1]
+        is_tm = any(meth == 'machine' for meth, _lvl, _vg in m['details'])
+        has_lvl1 = any(meth == 'level-up' and lvl <= 1
+                       for meth, lvl, _vg in m['details'])
+        if lvlup:
+            lv = min(lvlup)
+        elif has_lvl1:
+            lv = 1      # a starting move
+        elif is_tm:
+            lv = 0      # TM only: no gate, taught on demand
+        else:
+            lv = None
+        if lv is not None:
+            rows.append((m['name'], lv))
+    rows.sort(key=lambda r: (r[1], r[0]))
+    return rows
+
+
 def main():
     wanted = {slug for _name, slug, *_ in MOVES if slug}  # None = not learnable
     stats, learn = {}, {}
@@ -113,39 +152,7 @@ def main():
         stats[num] = (s['hp'], s['attack'], s['defense'], s['speed'],
                       s['special-attack'], s['special-defense'])
 
-        rows = []
-        for m in d['moves']:
-            if m['name'] not in wanted:
-                continue
-            missing.discard(m['name'])
-            # A move's LEVEL GATE wins over its TM entry. The old rule took the
-            # lowest of the two and scored a TM as 0, so anything ever sold as a
-            # TM lost its gate -- Charizard's Flamethrower is TM38 in gen 1, so
-            # it came out ungated, and 1907 of 2281 rows collapsed to level 0.
-            #
-            # Levels are read from ONE version group, not min()'d across all of
-            # them: evolved forms relearn their basics at level 1 on evolving in
-            # some games, and the minimum flattened Charizard's whole set to 1.
-            # FireRed/LeafGreen is the pick -- Kanto, all 151, properly gated.
-            lvlup = [lvl for meth, lvl, vg in m['details']
-                     if meth == 'level-up' and vg == level_vg(num) and lvl > 0]
-            if not lvlup:   # not in that game (or only at level 1): any game
-                lvlup = [lvl for meth, lvl, _vg in m['details']
-                         if meth == 'level-up' and lvl > 1]
-            is_tm = any(meth == 'machine' for meth, _lvl, _vg in m['details'])
-            has_lvl1 = any(meth == 'level-up' and lvl <= 1
-                           for meth, lvl, _vg in m['details'])
-            if lvlup:
-                lv = min(lvlup)
-            elif has_lvl1:
-                lv = 1      # a starting move
-            elif is_tm:
-                lv = 0      # TM only: no gate, taught on demand
-            else:
-                lv = None
-            if lv is not None:
-                rows.append((m['name'], lv))
-        rows.sort(key=lambda r: (r[1], r[0]))
+        rows = learn_rows(num, d, wanted, missing)
         learn[num] = rows
         if num % 25 == 0:
             print('  ...%d/%d' % (num, DEX_COUNT))

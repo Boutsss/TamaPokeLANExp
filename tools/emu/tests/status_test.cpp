@@ -52,7 +52,7 @@ static uint8_t unlockAt(int16_t dex, uint8_t mv) {
 int main() {
   // ---- the table only grew
   ck(MV_DARK_PULSE == 89 && MV_STRUGGLE < MV_DARK_PULSE, "every older move kept its index (DARK PULSE is still 89)");
-  ck(MV_THUNDER_WAVE == 90 && MV_CONFUSE_RAY == 95 && MOVE_COUNT == 96, "the six status moves are 90..95, at the end");
+  ck(MV_THUNDER_WAVE == 90 && MV_CONFUSE_RAY == 95 && MOVE_COUNT >= 96, "the six status moves are 90..95, after every older move");
 
   Combatant d;
   TurnLog l = landed(25, 19, MV_THUNDER_WAVE, &d);

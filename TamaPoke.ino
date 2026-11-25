@@ -72,7 +72,7 @@ struct RimPage {
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
-#define FW_VERSION "3.34"
+#define FW_VERSION "3.35"
 
 Arduino_DataBus *bus = new Arduino_ESP32QSPI(
   LCD_CS, LCD_SCLK, LCD_SDIO0, LCD_SDIO1, LCD_SDIO2, LCD_SDIO3);
@@ -301,6 +301,9 @@ bool uiOnRim(int16_t x, int16_t y);
 float uiRimAngle(int16_t x, int16_t y);
 void uiDrawRimBar();
 void uiChrome();
+// Room for every move one species can learn (MEW: 152 since the Gen 1-7 moves).
+// It was 64, which would have cut the move picker short without a word.
+#define LEARNABLE_MAX 255
 uint8_t learnableList(uint8_t *out, uint8_t max);
 uint8_t pickCandidates();
 // Declared here because renderMonSheet() and the sheet's tap handlers use both
@@ -2834,7 +2837,7 @@ void onTap(int16_t x, int16_t y) {
     return;
   }
   if (movePickOpen) {
-    uint8_t all[64];
+    uint8_t all[LEARNABLE_MAX];
     uint8_t n = learnableList(all, sizeof(all));
     for (uint8_t i = 0; i < MOVE_PICK_PER_PAGE; i++) {
       uint8_t idx = movePickPage * MOVE_PICK_PER_PAGE + i;
@@ -3303,7 +3306,7 @@ static RimPage uiRimTarget(uint16_t *pages) {
     case SCR_CARDBOOK: p = &cardBookPage; n = cardBookPages(); break;
     case SCR_CARD:    p = &cardPage;    n = CARD_PAGES; break;
     case SCR_MOVEPICK: {
-      uint8_t all[64];
+      uint8_t all[LEARNABLE_MAX];
       uint8_t k = learnableList(all, sizeof(all));
       p = &movePickPage;
       n = k ? (uint8_t)((k + MOVE_PICK_PER_PAGE - 1) / MOVE_PICK_PER_PAGE) : 1;
@@ -4465,7 +4468,7 @@ void renderMovePick() {
   gfx->setCursor(CX - strlen(T(S_MOVE_PICK)) * 6, 40);
   gfx->print(T(S_MOVE_PICK));
 
-  uint8_t all[64];
+  uint8_t all[LEARNABLE_MAX];
   uint8_t n = learnableList(all, sizeof(all));
   uint8_t pages = n ? (n + MOVE_PICK_PER_PAGE - 1) / MOVE_PICK_PER_PAGE : 1;
   if (movePickPage >= pages) movePickPage = 0;

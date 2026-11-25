@@ -109,3 +109,10 @@ MOVE_NAMES = {
     "will-o-wisp": ("FUEGO FATUO", "WILL-O-WISP", "FEU FOLLET", "IRRLICHT", "FUOCOFATUO", "FOGO-FATUO"),
     "confuse-ray": ("RAYO CONFUSO", "CONFUSE RAY", "ONDE FOLIE", "KONFUSSTRAHL", "STORDIRAGGIO", "RAIO CONFUSO"),
 }
+# The Gen 1-7 moves (tools/pick_moves.py): official ES/FR/DE/IT from PokeAPI,
+# accents folded; PT has no official names and uses the English one.
+try:
+    from dex_moves_more import MORE_NAMES   # noqa: E402
+    MOVE_NAMES.update(MORE_NAMES)
+except ImportError:
+    pass

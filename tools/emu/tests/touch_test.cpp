@@ -96,6 +96,7 @@ static void click(int x, int y) {
 
 void uiButtonAt(int i, int *cx, int *cy, int *half);
 
+uint8_t aiChooseMove(const Combatant &self, const Combatant &foe, bool smart);
 int main(int argc, char **argv) {
   if (argc > 1) emuSetTimeScale((uint32_t)atoi(argv[1]));
   printf("--- time scale x%u ---\n", emuTimeScale());
@@ -381,9 +382,17 @@ int main(int argc, char **argv) {
   while (battleOpen && taps < 200) {
     taps++;
     if (btlMsgCount) { click(233, 320); continue; }
+    // Tap the move the hard AI would choose, not blindly slot 1: since the
+    // Gen 1-7 moves a level 100 CHARIZARD leads with FLARE BLITZ, whose recoil
+    // into Brock's resisting rocks knocks it out if spammed.
     int slot = -1;
-    for (int i = 0; i < MOVE_SLOTS; i++) if (btlYou.moves[i]) { slot = i; break; }
+    uint8_t want = aiChooseMove(btlYou, btlFoe, true);
+    for (int i = 0; i < MOVE_SLOTS; i++) if (btlYou.moves[i] == want) { slot = i; break; }
+    if (slot < 0) for (int i = 0; i < MOVE_SLOTS; i++) if (btlYou.moves[i]) { slot = i; break; }
     if (slot < 0) break;
+    // The fight opens on FIGHT / BAG / PARTY / RUN: FIGHT first. (Tapping slot
+    // 1 always worked only because it is the same cell as FIGHT.)
+    if (btlMenu == 0) { click(BTL_CELL_X(0) + 40, BTL_CELL_Y(0) + 20); continue; }
     click(BTL_CELL_X(slot) + 40, BTL_CELL_Y(slot) + 20);
     if (btlFoeAt > sawFoeAt) sawFoeAt = btlFoeAt;
   }

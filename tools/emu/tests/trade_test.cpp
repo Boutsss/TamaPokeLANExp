@@ -143,7 +143,8 @@ int main(){
   // ---- untrusted bytes are clamped, a bad dex refused
   {
     PartyMon m = pmon(25, "PIKA");
-    m.level = 250; m.ivAtk = 99; m.moves[0] = 250; m.held = 250; m.persona = 99; m.joy = 200;
+    // move 255 is past MOVE_COUNT (254 moves exist since v3.33: 250 is a real one now)
+    m.level = 250; m.ivAtk = 99; m.moves[0] = 255; m.held = 250; m.persona = 99; m.joy = 200;
     m.nick[sizeof(m.nick) - 1] = 'X';
     ck(tradeSanitize(m) && m.level == MAX_LEVEL && m.ivAtk == 31 && m.moves[0] == 0 &&
        m.held == 0 && m.persona == 0 && m.joy == 100 && m.nick[sizeof(m.nick) - 1] == 0,

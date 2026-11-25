@@ -235,4 +235,15 @@ MOVES = [
 # Accuracy drops (SAND ATTACK, SMOKESCREEN, FLASH) are deliberately left out:
 # accuracy stages are a whole second stage system for one marginal effect.
 
+# The Gen 1-7 moves the engine can play (v3.33), APPENDED after everything
+# above: tools/pick_moves.py chose and wrote them once, and that file is
+# append-only too. MOVES_BASE is the hand-picked list on its own, which the
+# picker reads to know what is already here.
+MOVES_BASE = MOVES
+try:
+    from dex_moves_more import MORE_MOVES   # noqa: E402 (it reads the constants above)
+except ImportError:   # before pick_moves.py has written it
+    MORE_MOVES = []
+MOVES = MOVES_BASE + MORE_MOVES
+
 SLUG_TO_NAME = {slug: name for name, slug, *_ in MOVES if slug}

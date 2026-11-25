@@ -37,9 +37,16 @@ except ImportError:
 # Appended AFTER each species' own rows, in their original order, so nothing a
 # species already learned moves in its table (the picker's order and every tie
 # in relearnFromLevel() stay exactly as they were).
-LEARNSETS = {n: list(LEARNSETS.get(n, [])) +
-                [r for r in LEARNSETS_TM.get(n, []) if r[0] not in {x[0] for x in LEARNSETS.get(n, [])}]
-             for n in set(LEARNSETS) | set(LEARNSETS_TM)}
+# ...and the Gen 1-7 moves' rows (tools/fetch_more_learnsets.py), after those.
+try:
+    from dex_learnsets_more import LEARNSETS_MORE
+except ImportError:
+    LEARNSETS_MORE = {}
+def _append(base, extra):
+    have = {x[0] for x in base}
+    return list(base) + [r for r in extra if r[0] not in have]
+LEARNSETS = {n: _append(_append(LEARNSETS.get(n, []), LEARNSETS_TM.get(n, [])), LEARNSETS_MORE.get(n, []))
+             for n in set(LEARNSETS) | set(LEARNSETS_TM) | set(LEARNSETS_MORE)}
 
 # Derived, not hardcoded: this file and dex.h must agree on how many species
 # there are, or LEARN_OFS is short and every lookup past the end reads garbage.
