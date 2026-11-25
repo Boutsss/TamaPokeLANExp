@@ -76,7 +76,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "RULETA", "ROJO", "NEGRO", "IMPAR", "PAR", "TEAM ROCKET",
      "VERDE",
      "TODOS", "FAVORITOS", "VARIOCOLOR", "CON OBJETO", "NIVEL", "IV TOTAL", "ATAQUE", "DEFENSA", "VELOCIDAD", "PS", "N. POKEDEX", "NOMBRE", "CASILLA", "FILTRO", "FAVORITO: QUITALO PARA SOLTAR", "%u ENCONTRADOS", "ORDEN: %s",
-     "LUZ %u", },
+     "LUZ %u",
+     "DATOS", "AT.E", "DF.E", "IV TOTAL %u/124", "LLEVA: %s", "CARACTER: %s", "LAZO %u  MEDALLAS %u", "ENT %u/%u", },
   // ---------------- EN ----------------
   {
     "Evolving!", "Yum yum!", "It likes it!", "It's hungry!", "Needs a bath!",
@@ -144,7 +145,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "ROULETTE", "RED", "BLACK", "ODD", "EVEN", "TEAM ROCKET",
      "GREEN",
      "ALL", "FAVOURITES", "SHINY", "HOLDING", "LEVEL", "IV TOTAL", "ATTACK", "DEFENCE", "SPEED", "HP", "DEX NO.", "NAME", "SLOT", "FILTER", "FAVOURITE: UNSTAR TO RELEASE", "%u FOUND", "SORT: %s",
-     "LIGHT %u", },
+     "LIGHT %u",
+     "STATS", "SP.A", "SP.D", "IV TOTAL %u/124", "HOLDS: %s", "PERSONALITY: %s", "BOND %u  MEDALS %u", "TR %u/%u", },
   // ---------------- FR ----------------
   {
     "Il evolue!", "Miam miam!", "Il aime ca!", "Il a faim!", "Besoin d'un bain!",
@@ -211,7 +213,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "ROULETTE", "ROUGE", "NOIR", "IMPAIR", "PAIR", "TEAM ROCKET",
      "VERT",
      "TOUS", "FAVORIS", "CHROMATIQUE", "OBJET TENU", "NIVEAU", "IV TOTAL", "ATTAQUE", "DEFENSE", "VITESSE", "PV", "N. POKEDEX", "NOM", "CASE", "FILTRE", "FAVORI: RETIRE L'ETOILE", "%u TROUVES", "TRI: %s",
-     "LUM %u", },
+     "LUM %u",
+     "STATS", "AT.S", "DF.S", "IV TOTAL %u/124", "TIENT: %s", "CARACTERE: %s", "LIEN %u  MEDAILLES %u", "ENT %u/%u", },
   // ---------------- DE ----------------
   {
     "Entwickelt sich!", "Mampf mampf!", "Gefaellt ihm!", "Hat Hunger!", "Braucht ein Bad!",
@@ -278,7 +281,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "ROULETTE", "ROT", "SCHWARZ", "UNGERADE", "GERADE", "TEAM ROCKET",
      "GRUEN",
      "ALLE", "FAVORITEN", "SCHILLERND", "MIT ITEM", "LEVEL", "DV GESAMT", "ANGRIFF", "VERTEIDIGUNG", "INITIATIVE", "KP", "DEX-NR.", "NAME", "FACH", "FILTER", "FAVORIT: STERN WEG ZUM FREILASSEN", "%u GEFUNDEN", "SORTIERT: %s",
-     "HELL %u", },
+     "HELL %u",
+     "WERTE", "SP.A", "SP.V", "IV SUMME %u/124", "TRAEGT: %s", "WESEN: %s", "BAND %u  ORDEN %u", "TR %u/%u", },
   // ---------------- IT ----------------
   {
     "Si evolve!", "Gnam gnam!", "Gli piace!", "Ha fame!", "Vuole un bagno!",
@@ -345,7 +349,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "ROULETTE", "ROSSO", "NERO", "DISPARI", "PARI", "TEAM ROCKET",
      "VERDE",
      "TUTTI", "PREFERITI", "CROMATICI", "CON OGGETTO", "LIVELLO", "IV TOTALE", "ATTACCO", "DIFESA", "VELOCITA", "PS", "N. POKEDEX", "NOME", "POSTO", "FILTRO", "PREFERITO: TOGLI LA STELLA", "%u TROVATI", "ORDINE: %s",
-     "LUCE %u", },
+     "LUCE %u",
+     "STATS", "AT.S", "DF.S", "IV TOTALE %u/124", "TIENE: %s", "CARATTERE: %s", "LEGAME %u  MEDAGLIE %u", "ALL %u/%u", },
   // ---------------- PT ----------------
   {
     "Evoluindo!", "Nham nham!", "Ele gosta!", "Esta com fome!", "Precisa de banho!",
@@ -412,7 +417,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "ROLETA", "VERMELHO", "PRETO", "IMPAR", "PAR", "EQUIPE ROCKET",
      "VERDE",
      "TODOS", "FAVORITOS", "BRILHANTE", "COM ITEM", "NIVEL", "IV TOTAL", "ATAQUE", "DEFESA", "VELOCIDADE", "PS", "N. POKEDEX", "NOME", "CASA", "FILTRO", "FAVORITO: TIRE A ESTRELA", "%u ACHADOS", "ORDEM: %s",
-     "LUZ %u", },
+     "LUZ %u",
+     "DADOS", "AT.E", "DF.E", "IV TOTAL %u/124", "SEGURA: %s", "PERSONALIDADE: %s", "LACO %u  MEDALHAS %u", "TR %u/%u", },
 };
 
 // Nombres de medalla en sus tres longitudes [idioma][medalla].

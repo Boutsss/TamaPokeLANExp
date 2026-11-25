@@ -424,6 +424,14 @@ enum StrId : uint16_t {
   S_BF_FOUND_FMT,  // box filters and favourites
   S_BF_SORT_FMT,   // box filters and favourites
   S_BRI_FMT,       // max brightness level, e.g. "LIGHT 7"
+  S_MS_BTN,        // the STATS page (ui_monstats.ino)
+  S_MS_SPA,        // the STATS page (ui_monstats.ino)
+  S_MS_SPD,        // the STATS page (ui_monstats.ino)
+  S_MS_IVTOT,        // the STATS page (ui_monstats.ino)
+  S_MS_HELD,        // the STATS page (ui_monstats.ino)
+  S_MS_NATURE,        // the STATS page (ui_monstats.ino)
+  S_MS_BOND,        // the STATS page (ui_monstats.ino)
+  S_MS_TR,        // the STATS page (ui_monstats.ino)
   STR_COUNT
 };
 

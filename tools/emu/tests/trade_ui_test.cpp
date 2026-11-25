@@ -112,7 +112,7 @@ int main(){
 
   // ---- a full party AND box: no DONE, both keep theirs
   run(4000);
-  for (int i=0;i<PARTY_SLOTS;i++) party.replaceAt(i, pm(10, "CAT"));
+  for (int i=0;i<PARTY_BANKED;i++) party.replaceAt(i, pm(10, "CAT"));
   for (int i=0;i<BOX_SLOTS;i++) party.box[i] = pm(13, "WEED");
   party.boxSave();
   peerGot = peerGave = false;
@@ -121,12 +121,12 @@ int main(){
   P.tradeAccept();
   run(3000);
   ck(countDex(7) == 0 && !peerGave, "with no room here nothing arrives, and the peer keeps SQUIRTLE");
-  ck(countDex(10) == PARTY_SLOTS, "and ours is not taken either");
+  ck(countDex(10) == PARTY_BANKED, "and ours is not taken either");
   ck(peerGot, "(the peer did store ours: a duplicate, never a loss)");
 
   // ---- the flash write FAILS: no DONE until a store actually lands
   pairUp();
-  party.releaseAt(5);
+  party.releaseAt(PARTY_BANKED - 1);   // one party slot free
   P.tradeOffer(pm(152, "CHIK"));
   offerAndAccept(0);
   nvsFailWritesAfter(0);

@@ -206,6 +206,8 @@ void startLinkBattle();
 extern uint8_t playerPage;
 extern bool gymHard, pickOpen;
 extern uint8_t partyDetail;
+extern uint8_t monStats;
+enum : uint8_t { MS_NONE_ = 0, MS_LIVE_, MS_PARTY_, MS_BOX_ };
 extern bool boxOpen; extern uint8_t boxSwapFrom;
 extern bool btlNewBadge; extern uint32_t btlWinUntil;
 extern uint8_t pickTrainer, pickPage;
@@ -457,11 +459,12 @@ static int shotMode(const char *screen, const char *out, int lvl, int iv, int de
     pet.lastLearnLevel = 0;
     pet.checkLearnGates();
   }
-  else if (!strcmp(screen, "party") || !strcmp(screen, "partyfull")) {
+  else if (!strcmp(screen, "party") || !strcmp(screen, "partyfull") ||
+           !strcmp(screen, "partysheet") || !strcmp(screen, "monstats")) {
     partyOpen = true;
     static const int fill[] = { 6, 25, 149, 94, 143, 131 };
     static const char *nk[] = { "EMBER", "SPARK", "", "SPOOK", "", "" };
-    int n = !strcmp(screen, "partyfull") ? 6 : 3;
+    int n = !strcmp(screen, "partyfull") ? PARTY_BANKED : 3;   // slot 1 is the live pet
     for (int i = 0; i < n; i++) {
       PartyMon m;
       m.dex = fill[i]; m.level = 40 + i * 7; m.shiny = (i == 2);
@@ -470,6 +473,12 @@ static int shotMode(const char *screen, const char *out, int lvl, int iv, int de
       party.replaceAt(i, m);
     }
     if (!strcmp(screen, "partyfull")) partyPick = true;
+    if (!strcmp(screen, "partysheet") || !strcmp(screen, "monstats")) {
+      party.slots[0].held = IT_LEFTOVERS; party.slots[0].ivAtk = 31; party.slots[0].trAtk = 60;
+      party.slots[0].persona = 1; party.slots[0].stateVersion = 1; party.slots[0].bond = 64;
+      partyDetail = 1;
+    }
+    if (!strcmp(screen, "monstats")) monStats = MS_PARTY_;
   }
   render();
   writePPM(out);

@@ -143,7 +143,7 @@ int16_t galleryDetail = 0;  // dex en vista detalle, 0 = rejilla
 bool screenOff = false;       // pulsacion corta del boton PWR
 bool cardOpen = false;        // ficha del bicho (deslizar vertical)
 bool kbOpen = false;
-enum : uint8_t { KB_PET = 0, KB_TRAINER };
+enum : uint8_t { KB_PET = 0, KB_TRAINER, KB_BOX };
 uint8_t kbTarget = KB_PET;          // teclado para renombrar al bicho
 char nameBuf[12] = "";
 uint8_t nameLen = 0;
@@ -273,7 +273,7 @@ enum : uint8_t {
   SCR_STARTER = 0, SCR_REGION, SCR_GALLERY, SCR_DEXPICK, SCR_MOVEPICK, SCR_BOX,
   SCR_PARTY, SCR_KEYBOARD, SCR_CARD, SCR_PLAYER, SCR_CLOCK, SCR_GYM, SCR_GYMPICK,
   SCR_EXPLORE, SCR_MART, SCR_LAN, SCR_PICK, SCR_BATTLE, SCR_WIN, SCR_LEARN, SCR_TRAIN, SCR_MENU,
-  SCR_BAGSCR, SCR_GAME, SCR_MAIN, SCR_TASKS, SCR_DAYCARE, SCR_DCPICK, SCR_TOWER, SCR_CHAL, SCR_ARCADE, SCR_TRADE, SCR_TRADEPICK, SCR_FRIENDS, SCR_CASINO, SCR_CASSHOP, SCR_CARDBOOK, SCR_BOXFILTER, SCR_COUNT
+  SCR_BAGSCR, SCR_GAME, SCR_MAIN, SCR_TASKS, SCR_DAYCARE, SCR_DCPICK, SCR_TOWER, SCR_CHAL, SCR_ARCADE, SCR_TRADE, SCR_TRADEPICK, SCR_FRIENDS, SCR_CASINO, SCR_CASSHOP, SCR_CARDBOOK, SCR_BOXFILTER, SCR_MONSTATS, SCR_COUNT
 };
 extern const char *const SCREEN_NAME[SCR_COUNT];   // const is internal linkage in C++
 
@@ -336,7 +336,7 @@ const char *const SCREEN_NAME[SCR_COUNT] = {
   "starter", "region", "gallery", "dexpick", "movepick", "box",
   "party", "keyboard", "card", "player", "clock", "gym", "gympick",
   "explore", "mart", "lan", "pick", "battle", "win", "learn", "train", "menu",
-  "bag", "minigame", "main", "tasks", "daycare", "dcpick", "tower", "challenge", "arcade", "trade", "tradepick", "friends", "casino", "casshop", "cardbook", "boxfilter"
+  "bag", "minigame", "main", "tasks", "daycare", "dcpick", "tower", "challenge", "arcade", "trade", "tradepick", "friends", "casino", "casshop", "cardbook", "boxfilter", "monstats"
 };
 
 // Badge art for a region, or nullptr when that region has none yet.
@@ -500,6 +500,10 @@ uint8_t btlMyAct = 0;        // host: our own action, latched until theirs lands
 // but never the thing you hit by aiming at the middle. The gap between them is
 // wider than before, not narrower.
 #define PDET_BTN_Y 336
+#define MSTATS_BTN_X (CX - 80)  // STATS, between the moves and the buttons
+#define MSTATS_BTN_Y 288
+#define MSTATS_BTN_W 160
+#define MSTATS_BTN_H UI_TAP_MIN
 #define PDET_BTN_H 48
 #define PDET_L_X 70
 #define PDET_L_W 180
@@ -727,6 +731,10 @@ void friendsOpenFromPlayer();
 void cardsFriendsPoll(uint32_t now);
 // Box filters and favourites (ui_boxfilter.ino, box_filter.cpp).
 extern bool boxFilterOpen;
+extern uint8_t monStats;           // ui_monstats.ino: 0, or which creature the STATS page shows
+enum : uint8_t { MS_NONE = 0, MS_LIVE, MS_PARTY, MS_BOX };
+bool monSheetStatsAt(int16_t x, int16_t y);
+void renderMonStats();
 extern uint8_t boxFilter, boxSort;
 uint8_t boxPages();
 int boxIndexAt(uint8_t pos);
@@ -1587,7 +1595,7 @@ void handleSerial() {
     // FOCUS <slot>: swap the creature on the main screen with a party slot,
     // which is the console half of the RAISE THIS ONE button.
     int s = -1;
-    if (sscanf(line.c_str() + 6, "%d", &s) == 1 && s >= 0 && s < PARTY_SLOTS &&
+    if (sscanf(line.c_str() + 6, "%d", &s) == 1 && s >= 0 && s < PARTY_BANKED &&
         !party.slots[s].empty()) {
       focusSwap((uint8_t)s);
       Serial.printf("raising %s Lv.%u\n", DEX_TBL[pet.speciesId].name, pet.level());
@@ -1721,8 +1729,8 @@ void handleSerial() {
         Serial.println(party.add(m) ? "added" : "party full");
       }
     }
-    Serial.printf("party %u/%u:", party.count(), PARTY_SLOTS);
-    for (int i = 0; i < PARTY_SLOTS; i++) {
+    Serial.printf("party %u/%u (+ the one you raise):", party.count(), PARTY_BANKED);
+    for (int i = 0; i < PARTY_BANKED; i++) {
       const PartyMon &m = party.slots[i];
       if (m.empty()) Serial.print(" -");
       else Serial.printf(" %s%s(nv%u)", DEX_TBL[m.dex].name, m.shiny ? "*" : "", m.level);
@@ -1966,6 +1974,7 @@ void onSwipeV(int dir) {
   if (tasksOpen) { tasksOpen = false; return; }
   if (battleOpen) return;   // no swiping out of a fight
   const bool back = dir > 0;
+  if (monStats) { if (back) monStats = 0; return; }   // the STATS page, wherever it sits
 
   // Modals and sheets: down backs out, up has nowhere deeper to go.
   if (pickOpen)     { if (back) pickOpen = false; return; }
@@ -2120,13 +2129,13 @@ void renderMonSheet(const PartyMon &m, bool fromBox) {
   for (int i = 0; i < MOVE_SLOTS; i++)
     drawMoveRow(78 + i * 52, m.moves[i], false, m.dex);
 
-  char st[40];
-  snprintf(st, sizeof(st), "ATK %u  DEF %u  SPD %u  HP %u",
-           party.atkOf(m), party.defOf(m), party.speOf(m), party.vitOf(m));
+  // STATS: the full page, the same one the creature you raise gets
+  gfx->fillRoundRect(MSTATS_BTN_X, MSTATS_BTN_Y, MSTATS_BTN_W, MSTATS_BTN_H, 12, 0xFF98);   // pale gold
+  gfx->drawRoundRect(MSTATS_BTN_X, MSTATS_BTN_Y, MSTATS_BTN_W, MSTATS_BTN_H, 12, UI_INK);
   gfx->setTextColor(UI_INK);
-  gfx->setTextSize(1);
-  gfx->setCursor(CX - (int)strlen(st) * 3, 300);
-  gfx->print(st);
+  gfx->setTextSize(2);
+  gfx->setCursor(CX - (int)strlen(T(S_MS_BTN)) * 6, MSTATS_BTN_Y + MSTATS_BTN_H / 2 - 7);
+  gfx->print(T(S_MS_BTN));
 
   // Which creature you are RAISING is now a choice you can make at any time.
   // It is a true exchange -- the one on the main screen takes the slot this one
@@ -2167,19 +2176,19 @@ void renderMonSheet(const PartyMon &m, bool fromBox) {
     const char *lk = boxFavLockLine();
     gfx->setTextColor(UI_BAR_WARN);
     gfx->setTextSize(1);
-    gfx->setCursor(CX - (int)strlen(lk) * 3, PDET_BTN_Y - (leftOk ? 14 : 28));
+    gfx->setCursor(CX - (int)strlen(lk) * 3, PDET_BTN_Y + PDET_BTN_H + (leftOk ? 6 : 18));
     gfx->print(lk);
   }
   if (!leftOk) {
     const char *why = fromBox ? T(S_PARTY_FULL) : T(S_FOCUS_NOW);
     gfx->setTextColor(UI_BAR_WARN);
     gfx->setTextSize(1);
-    gfx->setCursor(CX - (int)strlen(why) * 3, PDET_BTN_Y - 14);
+    gfx->setCursor(CX - (int)strlen(why) * 3, PDET_BTN_Y + PDET_BTN_H + 6);
     gfx->print(why);
   }
   gfx->setTextColor(UI_INK_SOFT);
   gfx->setTextSize(2);
-  gfx->setCursor(CX - strlen(T(S_BACK)) * 6, 404);
+  gfx->setCursor(CX - strlen(T(S_BACK)) * 6, 410);
   gfx->print(T(S_BACK));
 
   // Asked before it happens, because nothing gets this creature back: it is not
@@ -2332,17 +2341,27 @@ bool monSheetConfirmTap(int16_t x, int16_t y, bool fromBox) {
 
 // The six party/box slots on a RING rather than a 2x3 grid; the geometry is
 // declared with the other party layout constants above.
-void partySlotPos(int i, int *cx, int *cy) {
-  float a = (-120.0f + 60.0f * (float)i) * 0.01745329f;   // clockwise from top-left
+static void partyRingPos(int p, int *cx, int *cy) {
+  float a = (-120.0f + 60.0f * (float)p) * 0.01745329f;   // clockwise from top-left
   if (cx) *cx = CX + (int)(cosf(a) * PSLOT_RING);
   if (cy) *cy = PSLOT_CY + (int)(sinf(a) * PSLOT_RING);
+}
+// The party is the creature you raise + five banked. The live pet is slot 1,
+// top-left; banked slot i (0..4) is the ring position after it.
+void partySlotPos(int i, int *cx, int *cy) { partyRingPos(i + 1, cx, cy); }
+void partyLivePos(int *cx, int *cy) { partyRingPos(0, cx, cy); }
+bool partyLiveAt(int16_t x, int16_t y) {
+  int sx, sy;
+  partyLivePos(&sx, &sy);
+  int dx = x - sx, dy = y - sy;
+  return dx * dx + dy * dy <= PSLOT_R * PSLOT_R;
 }
 
 // Which slot a tap landed in, or -1. The draw path and both tap paths ask this
 // one function; the grid they replace had its rectangle written out in three
 // places, which is how the party screen's controls drifted apart before.
 int partySlotAt(int16_t x, int16_t y) {
-  for (int i = 0; i < PARTY_SLOTS; i++) {
+  for (int i = 0; i < PARTY_BANKED; i++) {
     int sx, sy;
     partySlotPos(i, &sx, &sy);
     int dx = x - sx, dy = y - sy;
@@ -2384,6 +2403,7 @@ void partyTap(int16_t x, int16_t y) {
       return;
     }
     if (monSheetFavTap(x, y, party.slots[partyDetail - 1], false)) return;
+    if (monSheetStatsAt(x, y)) { monStats = MS_PARTY; sfxPlay(SFX_TAP); return; }
     if (monSheetBtn(x, y, false)) {          // RELEASE -- ask first, always; never a favourite
       if (!monReleasable(party.slots[partyDetail - 1])) { sfxPlay(SFX_DENY); return; }
       releaseConfirm = true;
@@ -2425,7 +2445,16 @@ void partyTap(int16_t x, int16_t y) {
     sfxPlay(SFX_TAP);
     return;
   }
-  for (int i = 0; i < PARTY_SLOTS; i++) {
+  if (partyLiveAt(x, y)) {
+    // The creature you are raising: its STATS. It is never the one replaced to
+    // make room, and a box creature swaps with it through RAISE THIS ONE on a
+    // party sheet, not from here.
+    if (partyPick || boxSel || pet.awaitingStarter()) { sfxPlay(SFX_DENY); return; }
+    monStats = MS_LIVE;
+    sfxPlay(SFX_TAP);
+    return;
+  }
+  for (int i = 0; i < PARTY_BANKED; i++) {
     if (partySlotAt(x, y) != i) continue;
     if (boxSel) {                    // a box creature is waiting for a slot
       party.swapPartyBox(i, boxSel - 1);
@@ -2479,6 +2508,7 @@ void onSwipe(int dir) {
   if (arcadeOpen) { arcadeSwipe(dir); return; }
   if (tasksOpen) return;   // pages on the rim (uiRimTarget); horizontal does nothing here
   if (battleOpen) return;   // no swiping out of a fight
+  if (monStats) { monStats = 0; return; }   // the STATS page closes first, wherever it sits
 
   int t = uiTileIndex();
   if (t >= 0) {
@@ -2795,6 +2825,8 @@ void onTap(int16_t x, int16_t y) {
     movePickOpen = false;   // tap anywhere else = back to the moves page
     return;
   }
+  if (kbOpen && partyOpen) { keyboardTap(x, y); return; }   // naming a PC box
+  if (monStats && partyOpen) { monStats = 0; sfxPlay(SFX_TAP); return; }   // any tap: back to the sheet
   if (partyOpen) {
     partyTap(x, y);
     return;
@@ -3105,6 +3137,8 @@ uint8_t uiCurrentScreen() {
   if (pet.awaitingStarter()) return starterRegionDone ? SCR_STARTER : SCR_REGION;
   if (galleryOpen) return galleryPick ? SCR_DEXPICK : SCR_GALLERY;
   if (movePickOpen) return SCR_MOVEPICK;
+  if (kbOpen && partyOpen) return SCR_KEYBOARD;   // naming a PC box: on top of it
+  if (monStats && partyOpen) return SCR_MONSTATS;
   if (partyOpen) return boxOpen ? (boxFilterOpen ? SCR_BOXFILTER : SCR_BOX) : SCR_PARTY;
   if (bagOpen) return SCR_BAGSCR;
   if (kbOpen) return SCR_KEYBOARD;
@@ -3620,6 +3654,8 @@ void render() {
     renderMovePick();
     return;
   }
+  if (kbOpen && partyOpen) { renderKeyboard(); return; }   // naming a PC box
+  if (monStats && partyOpen) { renderMonStats(); return; }
   if (partyOpen) {
     if (boxOpen) {
       if (boxDetail) renderBoxDetail();
@@ -8304,6 +8340,13 @@ bool boxPillAt(int16_t x, int16_t y) {
   return y >= BOX_PILL_Y && y < BOX_PILL_Y + BOX_PILL_H && x >= CX - BOX_PILL_W / 2 && x <= CX + BOX_PILL_W / 2;
 }
 void boxPillCentre(int *x, int *y) { if (x) *x = CX; if (y) *y = BOX_PILL_Y + BOX_PILL_H / 2; }
+// The title band, which renames the box shown -- only on the plain view, where
+// the page IS a box (a filtered page spans many boxes and has no one name).
+#define BOX_NAME_Y0 18
+#define BOX_NAME_Y1 62
+bool boxNameAt(int16_t x, int16_t y) {
+  return !boxFiltered() && !boxSwapFrom && y >= BOX_NAME_Y0 && y < BOX_NAME_Y1 && x >= CX - 120 && x <= CX + 120;
+}
 
 #define GAL_CELL 80   // the square drawThumb() centres a sprite in (gallery, box)
 static void drawBoxCell(uint8_t i, const PartyMon *m) {
@@ -8354,7 +8397,7 @@ void renderBox() {
     boxFoundLine(head, sizeof(head), shown);
     snprintf(sub, sizeof(sub), "%s  %u/%u", boxFilterName(boxFilter), (unsigned)(boxPage + 1), (unsigned)boxPages());
   } else {
-    snprintf(head, sizeof(head), "%s %u", T(S_BOX_BTN), (unsigned)(boxPage + 1));
+    party.boxNameOf(boxPage % BOX_BOXES, head, sizeof(head));
     snprintf(sub, sizeof(sub), T(S_BOX_FMT), (unsigned)party.boxCount(), (unsigned)BOX_SLOTS);
   }
   gfx->setTextColor(UI_INK);
@@ -8416,6 +8459,7 @@ void boxTap(int16_t x, int16_t y) {
       return;
     }
     if (monSheetFavTap(x, y, party.box[boxDetail - 1], true)) return;
+    if (monSheetStatsAt(x, y)) { monStats = MS_BOX; sfxPlay(SFX_TAP); return; }
     if (monSheetBtn(x, y, false)) {         // RELEASE -- ask first, always; never a favourite
       if (!monReleasable(party.box[boxDetail - 1])) { sfxPlay(SFX_DENY); return; }
       releaseConfirm = true;
@@ -8424,6 +8468,11 @@ void boxTap(int16_t x, int16_t y) {
     }
     boxDetail = 0;                          // anywhere else backs out
     releaseConfirm = false;
+    sfxPlay(SFX_TAP);
+    return;
+  }
+  if (boxNameAt(x, y)) {                    // the title: rename this box
+    openKeyboardFor(KB_BOX);
     sfxPlay(SFX_TAP);
     return;
   }
@@ -8473,9 +8522,46 @@ void boxTap(int16_t x, int16_t y) {
 
 // ---------- party ----------
 
+static void drawPartyMonAt(int cx, int cy, const PartyMon &m);
 void drawPartySlot(int i, const PartyMon &m) {
   int cx, cy;
   partySlotPos(i, &cx, &cy);
+  drawPartyMonAt(cx, cy, m);
+}
+
+// Slot 1: the creature on the main screen, ringed in green with a heart so it
+// reads as the one you are caring for. An egg shows as an egg.
+void drawPartyLive() {
+  int cx, cy;
+  partyLivePos(&cx, &cy);
+  if (pet.awaitingStarter()) { drawPartyMonAt(cx, cy, PartyMon()); return; }
+  if (pet.isEgg()) {
+    gfx->fillCircle(cx, cy, PSLOT_R, UI_WHITE);
+    // an egg from two circles: an ink edge, then the cream shell inside it
+    gfx->fillCircle(cx, cy - 2, 19, UI_INK);
+    gfx->fillCircle(cx, cy - 16, 15, UI_INK);
+    gfx->fillCircle(cx, cy - 2, 17, 0xF77B);
+    gfx->fillCircle(cx, cy - 16, 13, 0xF77B);
+    gfx->fillCircle(cx - 6, cy - 14, 4, UI_BAR_OK);
+    gfx->fillCircle(cx + 7, cy - 2, 3, UI_BAR_OK);
+    gfx->setTextColor(UI_INK);
+    gfx->setTextSize(1);
+    gfx->setCursor(cx - 9, cy + 22);
+    gfx->print("EGG");
+  } else {
+    drawPartyMonAt(cx, cy, pet.toPartyMon());
+  }
+  gfx->drawCircle(cx, cy, PSLOT_R, UI_BAR_OK);
+  gfx->drawCircle(cx, cy, PSLOT_R - 1, UI_BAR_OK);
+  gfx->drawCircle(cx, cy, PSLOT_R - 2, UI_BAR_OK);
+  // a small heart on the rim: the one you are raising
+  int hx = cx - 33, hy = cy - 33;
+  gfx->fillCircle(hx - 4, hy, 5, UI_BAR_BAD);
+  gfx->fillCircle(hx + 4, hy, 5, UI_BAR_BAD);
+  gfx->fillTriangle(hx - 9, hy + 1, hx + 9, hy + 1, hx, hy + 11, UI_BAR_BAD);
+}
+
+static void drawPartyMonAt(int cx, int cy, const PartyMon &m) {
   gfx->fillCircle(cx, cy, PSLOT_R, m.empty() ? UI_TRACK : UI_WHITE);
   gfx->drawCircle(cx, cy, PSLOT_R, UI_INK);
   gfx->drawCircle(cx, cy, PSLOT_R - 1, UI_INK);
@@ -8487,7 +8573,7 @@ void drawPartySlot(int i, const PartyMon &m) {
     return;
   }
   const uint8_t *th = thumbs.get(m.dex);
-  if (th) drawThumb(th, cx - 24, cy - 44, 1, false);
+  if (th) drawThumb(th, cx - GAL_CELL / 2, cy - 44, 1, false);   // drawThumb centres in a GAL_CELL square
   const DexEntry &d = DEX_TBL[m.dex];
   const char *nm = m.nick[0] ? m.nick : d.name;
   gfx->setTextColor(d.accent);
@@ -8533,7 +8619,7 @@ void renderParty() {
   gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
 
   char head[24];
-  snprintf(head, sizeof(head), T(S_PARTY_FMT), party.count());
+  snprintf(head, sizeof(head), T(S_PARTY_FMT), party.count() + (pet.awaitingStarter() ? 0 : 1));
   gfx->setTextColor(UI_INK);
   gfx->setTextSize(3);
   gfx->setCursor(CX - (int)strlen(head) * 9, 42);
@@ -8568,7 +8654,8 @@ void renderParty() {
     gfx->print(T(S_PARTY_FULL));
   }
 
-  for (int i = 0; i < PARTY_SLOTS; i++) drawPartySlot(i, party.slots[i]);
+  drawPartyLive();
+  for (int i = 0; i < PARTY_BANKED; i++) drawPartySlot(i, party.slots[i]);
 
   // exit: an explicit button, always in the same place
   const char *ex = partyPick ? T(S_PARTY_LETGO) : T(S_CLOSE);
@@ -8597,7 +8684,8 @@ static const char KB_KEYS[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ.-";  // 28 + DEL + OK 
 void openKeyboardFor(uint8_t target) {
   kbTarget = target;
   kbOpen = true;
-  const char *cur = (target == KB_TRAINER) ? pet.trainerName : pet.nick;
+  const char *cur = (target == KB_TRAINER) ? pet.trainerName
+                  : (target == KB_BOX) ? party.boxNames[boxPage % BOX_BOXES] : pet.nick;
   strncpy(nameBuf, cur, sizeof(nameBuf) - 1);
   nameBuf[sizeof(nameBuf) - 1] = 0;
   nameLen = strlen(nameBuf);
@@ -8637,6 +8725,11 @@ void renderKeyboard() {
   gfx->flush();
 }
 
+// A key's centre: 0..27 letters (KB_KEYS), 28 delete, 29 OK. For tests.
+void kbKeyCentre(int i, int *x, int *y) {
+  if (x) *x = KB_X + (i % KB_COLS) * KB_W + KB_W / 2;
+  if (y) *y = KB_Y + (i / KB_COLS) * KB_H + KB_H / 2;
+}
 void keyboardTap(int16_t x, int16_t y) {
   int col = (x - KB_X) / KB_W, row = (y - KB_Y) / KB_H;
   if (col < 0 || col >= KB_COLS || row < 0 || row >= 5) return;
@@ -8646,6 +8739,7 @@ void keyboardTap(int16_t x, int16_t y) {
     if (nameLen) nameBuf[--nameLen] = 0;
   } else if (i == 29) {  // OK
     if (kbTarget == KB_TRAINER) pet.renameTrainer(nameBuf);
+    else if (kbTarget == KB_BOX) party.setBoxName(boxPage % BOX_BOXES, nameBuf);   // empty = "BOX n" again
     else pet.rename(nameBuf);
     kbOpen = false;
   } else if (nameLen < sizeof(nameBuf) - 1) {

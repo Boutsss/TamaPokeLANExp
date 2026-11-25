@@ -126,12 +126,16 @@ int main() {
   pty.begin();
   bool aligned = true;
   for (int i = 0; i < PARTY_SLOTS; i++) {
-    if (pty.slots[i].dex != 1 + i * 20 || pty.slots[i].level != 40 + i) aligned = false;
+    // the sixth moved to the box (the creature you raise is party slot 1)
+    PartyMon m = pty.slots[i];
+    if (i >= PARTY_BANKED)
+      for (uint16_t k = 0; k < BOX_SLOTS; k++) if (pty.box[k].dex == 1 + i * 20) m = pty.box[k];
+    if (m.dex != 1 + i * 20 || m.level != 40 + i) aligned = false;
     printf("     slot %d: dex=%d lvl=%u nick=%s\n",
            i, pty.slots[i].dex, pty.slots[i].level, pty.slots[i].nick);
   }
   ck(aligned, "legacy party blob migrates with slots still aligned");
-  ck(pty.count() == PARTY_SLOTS, "all 6 legacy members survive");
+  ck(pty.count() == PARTY_BANKED && pty.boxCount() >= 1, "all 6 legacy members survive (five in the party, one boxed)");
 
   // The MOVE PICKER had its own gate and so its own opinion: it checked
   // learnLevel() alone, and a TM is stored as level 0, so a level 22 Charmeleon

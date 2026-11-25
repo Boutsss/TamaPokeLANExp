@@ -8,7 +8,13 @@
 // Only the two endings the player CHOOSES bank a pet -- farewell and release.
 // A runaway does not: it is the game's one punishing outcome, and letting a
 // neglected pet come back as a team member would take the sting out of it.
-#define PARTY_SLOTS 6
+#define PARTY_SLOTS 6      // the STORED record count: never shrink a stored layout
+// The party is the creature you are raising PLUS five banked: the live pet is
+// party slot 1 on screen, and slots[0..4] are slots 2..6. slots[5] stays in the
+// stored layout (shrinking it would reinterpret every save) and is kept EMPTY:
+// Party::begin() moves anything found there into a free slot or the box.
+#define PARTY_BANKED (PARTY_SLOTS - 1)
+#define BOX_NAME_LEN 12   // 11 characters, the shared keyboard's limit
 // The PC BOX: storage beyond the six that fight. 40 boxes of 30 -- 1200 slots,
 // the Sword/Shield PC -- held in RAM (PSRAM on the board) and kept in a FILE
 // on the board's own FAT partition (box_store.h), because 1200 records are
@@ -103,9 +109,16 @@ public:
   // (the box screen's filtered, sorted list) recomputes when it moves.
   uint32_t boxGen = 0;
 
+  // Each PC box's name, NUL-terminated; empty = the default ("BOX n"). NVS
+  // "boxnm", so it travels in the backup like any other key.
+  char boxNames[BOX_BOXES][BOX_NAME_LEN] = {};
+  void boxNameOf(uint8_t b, char *out, size_t n) const;   // the custom name or "BOX n"
+  bool setBoxName(uint8_t b, const char *name);           // "" restores the default
+
   void begin();                 // load the party (NVS) and the box (its file)
+  void reshelveSixth();         // slots[5] -> a free slot or the box (see PARTY_BANKED)
   uint8_t count() const;
-  bool isFull() const { return count() >= PARTY_SLOTS; }
+  bool isFull() const { return count() >= PARTY_BANKED; }
   int firstFree() const;        // index of the first empty slot, -1 if full
   bool add(const PartyMon &m);  // into the first free slot; false if full
   void replaceAt(uint8_t i, const PartyMon &m);

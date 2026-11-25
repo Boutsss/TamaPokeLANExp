@@ -16,6 +16,7 @@ void Party::begin() {
   // is missing, so without this a reload after a wipe would keep showing the
   // old party out of RAM.
   for (auto &s : slots) s = PartyMon();
+  memset(boxNames, 0, sizeof(boxNames));
   // Checked so a failure is at least visible. The panel's warning comes from
   // Pet::saveHealthy(), which shares this namespace and so fails with it.
   if (!prefs.begin("tamapoke", false))
@@ -27,6 +28,13 @@ void Party::begin() {
   // reliably catch it, since a stray byte is often a valid Pokedex number.
   // So migrate by length: copy each old record into the front of the new one
   // and leave moves[] zeroed for the learnset to fill in.
+  {
+    // Box names: a shorter blob (fewer boxes) reads into the front; each name
+    // is forced to end in a NUL so nothing off flash can run past its row.
+    size_t nl = prefs.getBytesLength("boxnm");
+    if (nl && nl <= sizeof(boxNames)) prefs.getBytes("boxnm", boxNames, nl);
+    for (auto &nm : boxNames) nm[BOX_NAME_LEN - 1] = 0;
+  }
   size_t stored = prefs.getBytesLength("party");
   if (stored == sizeof(slots)) {
     prefs.getBytes("party", slots, sizeof(slots));
@@ -62,6 +70,31 @@ void Party::begin() {
     if (!itemIsHeld(s.held)) s.held = ITEM_NONE;
   }
   loadBox();
+  reshelveSixth();
+}
+
+// The live pet became party slot 1, so only five banked fit. A save from
+// before that can hold a sixth: it goes to a free party slot, else to the box
+// -- written and READ BACK before it leaves slots[5], so it is never in
+// neither place. With the box full too it simply stays, still saved, and the
+// next boot tries again.
+void Party::reshelveSixth() {
+  PartyMon &six = slots[PARTY_SLOTS - 1];
+  if (six.empty()) return;
+  for (int i = 0; i < PARTY_BANKED; i++)
+    if (slots[i].empty()) {
+      slots[i] = six;
+      six = PartyMon();
+      save();
+      return;
+    }
+  int b = boxFirstFree();
+  if (b < 0) { Serial.println("party: a sixth banked creature has nowhere to go -- kept"); return; }
+  box[b] = six;
+  if (!boxSave() || !boxStoreSlotIs((uint16_t)b, six)) { box[b] = PartyMon(); return; }
+  six = PartyMon();
+  save();
+  Serial.printf("party: the sixth banked creature moved to box slot %d\n", b + 1);
 }
 
 // The box: allocated once, read from its file, and the old 18-slot NVS box
@@ -256,7 +289,7 @@ void Party::boxReleaseAt(uint16_t i) {
 }
 
 void Party::swapPartyBox(uint8_t partyIdx, uint16_t boxIdx) {
-  if (partyIdx >= PARTY_SLOTS || boxIdx >= BOX_SLOTS) return;
+  if (partyIdx >= PARTY_BANKED || boxIdx >= BOX_SLOTS) return;
   PartyMon t = slots[partyIdx];
   slots[partyIdx] = box[boxIdx];
   box[boxIdx] = t;
@@ -266,13 +299,13 @@ void Party::swapPartyBox(uint8_t partyIdx, uint16_t boxIdx) {
 
 uint8_t Party::count() const {
   uint8_t n = 0;
-  for (auto &s : slots)
-    if (!s.empty()) n++;
+  for (int i = 0; i < PARTY_BANKED; i++)
+    if (!slots[i].empty()) n++;
   return n;
 }
 
 int Party::firstFree() const {
-  for (int i = 0; i < PARTY_SLOTS; i++)
+  for (int i = 0; i < PARTY_BANKED; i++)
     if (slots[i].empty()) return i;
   return -1;
 }
@@ -323,4 +356,20 @@ uint16_t Party::spaOf(const PartyMon &m) const {
 }
 uint16_t Party::spdOf(const PartyMon &m) const {
   return m.empty() ? 0 : calcStat(DEX_TBL[m.dex].bSpD, m.ivDef, m.level, m.trDef);
+}
+
+// ---- box names
+void Party::boxNameOf(uint8_t b, char *out, size_t n) const {
+  if (b < BOX_BOXES && boxNames[b][0]) snprintf(out, n, "%s", boxNames[b]);
+  else snprintf(out, n, "BOX %u", (unsigned)(b + 1));
+}
+bool Party::setBoxName(uint8_t b, const char *name) {
+  if (b >= BOX_BOXES) return false;
+  snprintf(boxNames[b], BOX_NAME_LEN, "%s", name ? name : "");
+  for (char *c = boxNames[b]; *c; c++) if ((uint8_t)*c < 32 || (uint8_t)*c > 126) *c = '?';   // the font is ASCII only
+  if (prefs.putBytes("boxnm", boxNames, sizeof(boxNames)) != sizeof(boxNames)) {
+    logKeyFailure("party", "boxnm");
+    return false;
+  }
+  return true;
 }

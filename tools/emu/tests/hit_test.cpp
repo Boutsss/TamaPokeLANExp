@@ -47,6 +47,7 @@ int uiCareArcTop(int i);
 int uiHeaderNameBottom();
 void partySlotPos(int i, int *cx, int *cy);
 int partySlotAt(int16_t x, int16_t y);
+void partyLivePos(int *cx, int *cy); bool partyLiveAt(int16_t x, int16_t y);
 bool partyHubAt(int16_t x, int16_t y);
 void boxCellPos(uint8_t i, int *cx, int *cy); int boxCellAt(int16_t x, int16_t y);
 bool boxPillAt(int16_t x, int16_t y); void boxPillCentre(int *x, int *y);
@@ -277,16 +278,20 @@ int main(){
     printf("      party ring: 6 slots, measured %d px across\n", (r + 1) * 2);
     ck((r + 1) * 2 >= FINGER, "a party slot is at least a finger across");
 
+    // Six positions: slot 1 is the creature you raise (partyLivePos), then
+    // the five banked. Each must answer as ITSELF and nothing else.
+    auto posOf = [](int k, int *x, int *y) { if (k == 0) partyLivePos(x, y); else partySlotPos(k - 1, x, y); };
     int overlap = 0, offGlass = 0, wrongOwner = 0, hubClash = 0;
     for (int i = 0; i < PARTY_SLOTS; i++) {
       int ax, ay;
-      partySlotPos(i, &ax, &ay);
+      posOf(i, &ax, &ay);
       if (uiSafeHalfWidth(ay) < abs(ax - 233) + r) offGlass++;
-      if (partySlotAt((int16_t)ax, (int16_t)ay) != i) wrongOwner++;
+      if (i == 0 ? (!partyLiveAt((int16_t)ax, (int16_t)ay) || partySlotAt((int16_t)ax, (int16_t)ay) >= 0)
+                 : (partySlotAt((int16_t)ax, (int16_t)ay) != i - 1 || partyLiveAt((int16_t)ax, (int16_t)ay))) wrongOwner++;
       if (partyHubAt((int16_t)ax, (int16_t)ay)) hubClash++;
       for (int j = i + 1; j < PARTY_SLOTS; j++) {
         int bx2, by2;
-        partySlotPos(j, &bx2, &by2);
+        posOf(j, &bx2, &by2);
         int dx = ax - bx2, dy = ay - by2;
         if (dx * dx + dy * dy < (2 * r) * (2 * r)) overlap++;
       }

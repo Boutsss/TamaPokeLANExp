@@ -43,7 +43,7 @@ const SaveField SAVE_FIELDS[] = {
   // the Poke Mart: 1 pedometer step = $1
   { "wlt", SK_U32 },    { "stps", SK_U32 },
   // the banked creatures, and what you are carrying
-  { "party", SK_BYTES }, { "box", SK_BYTES }, { "bag", SK_BYTES },
+  { "party", SK_BYTES }, { "box", SK_BYTES }, { "boxnm", SK_BYTES }, { "bag", SK_BYTES },
   // remembered LAN opponents -- its own key, same reasoning as the box
   { "rivals", SK_BYTES },
   // settings, so a restored device plays the way it did

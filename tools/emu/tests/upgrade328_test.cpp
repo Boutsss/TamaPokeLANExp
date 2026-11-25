@@ -95,15 +95,19 @@ static void checkAll(const char *how) {
   CK(p.ivAtk == 31 && p.ivDef == 20 && p.ivSpe == 25 && p.ivHp == 28, "with its IVs 31/20/25/28");
   CK(p.trAtk == 40 && p.trDef == 30 && p.trSpe == 20, "and its training 40/30/20");
   CK(p.held == ITEM_NONE, "and holds nothing (the reused pad byte reads as empty)");
-  bool partyOk = party.count() == PARTY_SLOTS;
-  for (int i = 0; i < PARTY_SLOTS; i++) {
-    const PartyMon &s = party.slots[i];
-    partyOk = partyOk && s.dex == PARTY_DEX[i] && s.level == 50 && s.ivAtk == 20 &&
-              s.ivHp == 20 && s.trAtk == 50 && s.trSpe == 50 && s.held == ITEM_NONE;
-  }
-  CK(partyOk, "all six party members, in order, at Lv50 with IV 20 / tr 50, holding nothing");
+  // v3.28 banked SIX. The creature you raise is party slot 1 now, so five stay
+  // in the party and the sixth moves to the box -- kept, never dropped.
+  auto memberOk = [](const PartyMon &s, int i) {
+    return s.dex == PARTY_DEX[i] && s.level == 50 && s.ivAtk == 20 &&
+           s.ivHp == 20 && s.trAtk == 50 && s.trSpe == 50 && s.held == ITEM_NONE;
+  };
+  bool partyOk = party.count() == PARTY_BANKED && party.slots[PARTY_SLOTS - 1].empty();
+  for (int i = 0; i < PARTY_BANKED; i++) partyOk = partyOk && memberOk(party.slots[i], i);
+  bool sixthBoxed = false;
+  for (uint16_t i = 0; i < BOX_SLOTS; i++) if (memberOk(party.box[i], PARTY_SLOTS - 1)) sixthBoxed = true;
+  CK(partyOk && sixthBoxed, "all six party members, Lv50 with IV 20 / tr 50, holding nothing: five in order, the sixth moved to the box");
   const PartyMon &b = party.box[0];
-  CK(party.boxCount() == 1 && b.dex == 143 && b.level == 12 && !strcmp(b.nick, "SNOOZE"),
+  CK(party.boxCount() == 2 && b.dex == 143 && b.level == 12 && !strcmp(b.nick, "SNOOZE"),
      "the boxed SNORLAX 'SNOOZE' Lv12 is still in the box");
   CK(b.ivAtk == 17 && b.ivDef == 25 && b.ivSpe == 24 && b.ivHp == 9 && b.moves[0] == 1,
      "with its IVs and moveset");

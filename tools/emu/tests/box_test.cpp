@@ -28,9 +28,11 @@ int main(){
     seed.end(); }
   Party p; p.begin();
   bool kept = true;
-  for (int i=0;i<PARTY_SLOTS;i++) if (p.slots[i].dex != 1+i*20) kept=false;
-  ck(kept, "a pre-box save keeps its whole party");
-  ck(p.boxCount()==0, "and comes up with an empty box, not garbage");
+  for (int i=0;i<PARTY_BANKED;i++) if (p.slots[i].dex != 1+i*20) kept=false;
+  // the sixth: the creature you raise is party slot 1 now, so it went to the box
+  ck(kept && p.box[0].dex == 1+5*20 && p.slots[5].empty(), "a pre-box save keeps its whole party (the sixth moved to the box)");
+  ck(p.boxCount()==1, "and comes up with nothing else in the box, not garbage");
+  p.box[0] = PartyMon(); p.boxSave();   // an empty box for what follows
 
   // deposit: party slot 0 <-> empty box slot 0
   int16_t was = p.slots[0].dex;
