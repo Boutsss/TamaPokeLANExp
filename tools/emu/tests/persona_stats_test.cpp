@@ -9,6 +9,7 @@
 #include "persona.h"
 #include "battle.h"
 #include <cstdio>
+#include <cstring>
 uint32_t g_seed = 77; FakeSerial Serial; FakeESP ESP; FakeWire Wire;
 volatile int g_touchX = 0, g_touchY = 0; volatile bool g_touchDown = false; bool wasPressed = false;
 uint32_t millis() { return 0; } void FakeESP::restart() { exit(0); }
@@ -26,12 +27,43 @@ static uint16_t statOf(const PartyMon &m, uint8_t s) {
 }
 
 int main() {
-  bool shape = true;
-  for (uint8_t t = 1; t < PT_COUNT; t++) {
-    uint8_t bo = personaBoon(t), ba = personaBane(t);
-    if (bo >= PS_COUNT || ba >= PS_COUNT || bo == ba) shape = false;
+  // The games' table, written out rather than derived, so the n/5, n%5 rule in
+  // persona.cpp is checked against the real natures and not against itself.
+  struct { uint8_t nat, boon, bane; const char *name; } REAL[] = {
+    { NAT_LONELY, PS_ATK, PS_DEF, "LONELY" }, { NAT_BRAVE, PS_ATK, PS_SPE, "BRAVE" },
+    { NAT_ADAMANT, PS_ATK, PS_SPA, "ADAMANT" }, { NAT_NAUGHTY, PS_ATK, PS_SPD, "NAUGHTY" },
+    { NAT_BOLD, PS_DEF, PS_ATK, "BOLD" }, { NAT_RELAXED, PS_DEF, PS_SPE, "RELAXED" },
+    { NAT_IMPISH, PS_DEF, PS_SPA, "IMPISH" }, { NAT_LAX, PS_DEF, PS_SPD, "LAX" },
+    { NAT_TIMID, PS_SPE, PS_ATK, "TIMID" }, { NAT_HASTY, PS_SPE, PS_DEF, "HASTY" },
+    { NAT_JOLLY, PS_SPE, PS_SPA, "JOLLY" }, { NAT_NAIVE, PS_SPE, PS_SPD, "NAIVE" },
+    { NAT_MODEST, PS_SPA, PS_ATK, "MODEST" }, { NAT_MILD, PS_SPA, PS_DEF, "MILD" },
+    { NAT_QUIET, PS_SPA, PS_SPE, "QUIET" }, { NAT_RASH, PS_SPA, PS_SPD, "RASH" },
+    { NAT_CALM, PS_SPD, PS_ATK, "CALM" }, { NAT_GENTLE, PS_SPD, PS_DEF, "GENTLE" },
+    { NAT_SASSY, PS_SPD, PS_SPE, "SASSY" }, { NAT_CAREFUL, PS_SPD, PS_SPA, "CAREFUL" },
+    { NAT_HARDY, PS_NONE, PS_NONE, "HARDY" }, { NAT_DOCILE, PS_NONE, PS_NONE, "DOCILE" },
+    { NAT_SERIOUS, PS_NONE, PS_NONE, "SERIOUS" }, { NAT_BASHFUL, PS_NONE, PS_NONE, "BASHFUL" },
+    { NAT_QUIRKY, PS_NONE, PS_NONE, "QUIRKY" },
+  };
+  bool real = true;
+  for (auto &r : REAL) {
+    uint8_t c = personaCode(r.nat);
+    if (personaBoon(c) != r.boon || personaBane(c) != r.bane || strcmp(personaName(c), r.name)) {
+      real = false; printf("      %s: boon %u bane %u name %s\n", r.name, personaBoon(c), personaBane(c), personaName(c));
+    }
   }
-  ck(shape, "every personality has a boon and a different bane, both battle stats (never HP)");
+  ck(real, "all 25 natures: the real names and the real raised/lowered stats");
+  // the legacy seven read as the nature with exactly their old boon and bane
+  const uint8_t OLD[8][2] = { {0,0}, {PS_DEF,PS_SPE}, {PS_SPD,PS_SPE}, {PS_SPE,PS_DEF}, {PS_SPA,PS_ATK},
+                              {PS_DEF,PS_SPA}, {PS_ATK,PS_SPD}, {PS_SPA,PS_DEF} };
+  bool legacy = true;
+  for (uint8_t t = 1; t < PT_NATURE0; t++)
+    if (personaBoon(t) != OLD[t][0] || personaBane(t) != OLD[t][1] || !personaValid(t)) legacy = false;
+  ck(legacy, "a creature saved with an old trait keeps exactly its old stats");
+  ck(!strcmp(personaName(PT_GLUTTON), "RELAXED") && !strcmp(personaName(PT_ENERGETIC), "NAUGHTY"),
+     "and is shown as that nature (GLUTTON -> RELAXED, ENERGETIC -> NAUGHTY)");
+  ck(personaLike(PT_GLUTTON) == PL_FOOD && personaLike(PT_CUDDLY) == PL_CUDDLE && personaLike(PT_PICKY) == PL_BERRY,
+     "and still loves what it loved");
+  ck(!personaValid(PT_END) && !personaValid(255), "codes past the last nature are no nature");
   ck(personaBoon(PT_NONE) == PS_NONE && personaStat(PT_NONE, PS_ATK, 200) == 200, "no personality: neutral");
 
   Pet p; p.dbgHatchAs(6, false); p.ageMinutes = 49UL * MINUTES_PER_LEVEL;
@@ -40,7 +72,7 @@ int main() {
   uint16_t neutral[PS_COUNT], hp0 = p.vitStat();
   for (uint8_t s = 0; s < PS_COUNT; s++) neutral[s] = statOf(p, s);
   bool petOk = true, partyOk = true, hpOk = true;
-  for (uint8_t t = 1; t < PT_COUNT; t++) {
+  for (uint8_t t = 1; t < PT_END; t++) {
     p.persona = t;
     PartyMon m = p.toPartyMon();
     for (uint8_t s = 0; s < PS_COUNT; s++) {

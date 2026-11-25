@@ -42,10 +42,15 @@ int main() {
 
   // ---- the roll
   {
-    bool all[PT_COUNT] = {};
-    for (int i = 0; i < 200; i++) { p.dbgHatchAs(4, false); if (personaValid(p.persona)) all[p.persona] = true; }
-    bool every = true; for (int t = 1; t < PT_COUNT; t++) every = every && all[t];
-    ck(every, "hatching rolls every one of the seven traits, and only valid ones");
+    bool all[PT_END] = {}, legacy = false;
+    for (int i = 0; i < 1000; i++) {
+      p.dbgHatchAs(4, false);
+      if (personaValid(p.persona)) all[p.persona] = true;
+      if (p.persona < PT_NATURE0) legacy = true;
+    }
+    bool every = true; for (int t = PT_NATURE0; t < PT_END; t++) every = every && all[t];
+    ck(every, "hatching rolls every one of the 25 natures, and only valid ones");
+    ck(!legacy, "and never writes a legacy trait code");
     Pet scratch; scratch.dbgHatchAs(4, false);
     ck(scratch.persona == PT_NONE, "a scratch Pet (a battle foe) never spends a roll");
   }
@@ -87,7 +92,7 @@ int main() {
     };
     uint8_t base[4]; night(PT_NONE, base);
     bool same = true, sleepyOk = true;
-    for (uint8_t t = 1; t < PT_COUNT; t++) {
+    for (uint8_t t = 1; t < PT_END; t++) {
       uint8_t r[4]; night(t, r);
       if (r[0] != base[0] || r[1] != base[1] || r[2] != base[2]) same = false;
       if (r[3] < base[3]) sleepyOk = false;
@@ -104,7 +109,7 @@ int main() {
     };
     uint8_t e0 = nap(PT_NONE);
     bool slower = false;
-    for (uint8_t t = 1; t < PT_COUNT; t++) if (nap(t) < e0) slower = true;
+    for (uint8_t t = 1; t < PT_END; t++) if (nap(t) < e0) slower = true;
     ck(!slower, "asleep, no trait refills energy slower than none");
     ck(nap(PT_SLEEPY) > e0, "and SLEEPY really does refill faster");
   }

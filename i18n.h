@@ -191,20 +191,38 @@ enum StrId : uint16_t {
   S_DC_NONE,        // daycare: the picker has nobody to show
   S_DC_SAVEFAIL,    // daycare: the breed did not save
   S_EVO_BOND_FMT,  // card: a friendship evolution waiting on the bond, "BOND 32/50"
-  S_PT_GLUTTON,    // trait
-  S_PT_SLEEPY,     // trait
-  S_PT_PLAYFUL,    // trait
-  S_PT_TIDY,       // trait
-  S_PT_CUDDLY,     // trait
-  S_PT_ENERGETIC,  // trait
-  S_PT_PICKY,      // trait (keep the 7 in PT_ order)
+  S_NAT_HARDY,     // nature (keep the 25 in NAT_ order)
+  S_NAT_LONELY,    // nature (keep the 25 in NAT_ order)
+  S_NAT_BRAVE,     // nature (keep the 25 in NAT_ order)
+  S_NAT_ADAMANT,   // nature (keep the 25 in NAT_ order)
+  S_NAT_NAUGHTY,   // nature (keep the 25 in NAT_ order)
+  S_NAT_BOLD,      // nature (keep the 25 in NAT_ order)
+  S_NAT_DOCILE,    // nature (keep the 25 in NAT_ order)
+  S_NAT_RELAXED,   // nature (keep the 25 in NAT_ order)
+  S_NAT_IMPISH,    // nature (keep the 25 in NAT_ order)
+  S_NAT_LAX,       // nature (keep the 25 in NAT_ order)
+  S_NAT_TIMID,     // nature (keep the 25 in NAT_ order)
+  S_NAT_HASTY,     // nature (keep the 25 in NAT_ order)
+  S_NAT_SERIOUS,   // nature (keep the 25 in NAT_ order)
+  S_NAT_JOLLY,     // nature (keep the 25 in NAT_ order)
+  S_NAT_NAIVE,     // nature (keep the 25 in NAT_ order)
+  S_NAT_MODEST,    // nature (keep the 25 in NAT_ order)
+  S_NAT_MILD,      // nature (keep the 25 in NAT_ order)
+  S_NAT_QUIET,     // nature (keep the 25 in NAT_ order)
+  S_NAT_BASHFUL,   // nature (keep the 25 in NAT_ order)
+  S_NAT_RASH,      // nature (keep the 25 in NAT_ order)
+  S_NAT_CALM,      // nature (keep the 25 in NAT_ order)
+  S_NAT_GENTLE,    // nature (keep the 25 in NAT_ order)
+  S_NAT_SASSY,     // nature (keep the 25 in NAT_ order)
+  S_NAT_CAREFUL,   // nature (keep the 25 in NAT_ order)
+  S_NAT_QUIRKY,    // nature (keep the 25 in NAT_ order)
   S_PTL_GLUTTON,   // what the trait loves
   S_PTL_SLEEPY,    // loves
   S_PTL_PLAYFUL,   // loves
   S_PTL_TIDY,      // loves
   S_PTL_CUDDLY,    // loves
   S_PTL_ENERGETIC, // loves
-  S_PTL_PICKY,     // loves (keep the 7 in PT_ order)
+  S_PTL_PICKY,     // loves (keep the 7 in PL_ order)
   S_PT_LOVES_FMT,  // card: "<trait> - loves <thing>"
   S_CHAIN_FMT,     // explore: a live shiny chain, "CHAIN PIDGEY x5"
   S_TW_TITLE,      // tower: screen title

@@ -3,7 +3,7 @@
 [![Flash in browser](https://img.shields.io/badge/flash-in%20browser-FF6B00?logo=googlechrome&logoColor=white)](https://boutsss.github.io/TamaPokeLANExp/web/)
 [![MakerWorld](https://img.shields.io/badge/MakerWorld-3D%20case-00AE42?logo=bambulab&logoColor=white)](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)
 ![Board](https://img.shields.io/badge/board-ESP32--S3%20round%20AMOLED-E7352C?logo=espressif&logoColor=white)
-![Firmware](https://img.shields.io/badge/firmware-v3.35-8A2BE2)
+![Firmware](https://img.shields.io/badge/firmware-v3.36-8A2BE2)
 ![Code](https://img.shields.io/badge/code-MIT-blue)
 ![Languages](https://img.shields.io/badge/languages-6-FFCB05)
 [![Stars](https://img.shields.io/github/stars/DylanPDao/TamaPoke?style=flat&logo=github&color=yellow)](https://github.com/DylanPDao/TamaPoke/stargazers)
@@ -952,34 +952,50 @@ becomes your **next egg**. The parents are not used up or changed.
 A queued egg whose region pack has left the card waits in the queue instead of
 hatching as a number.
 
-### Personalities
+### Personalities (natures)
 
-Every creature rolls **one of seven traits** when it hatches or is caught, and
-keeps it for life — banked, revived or raised again. It is on the stats card
-with what it loves. Its favourite care shows a heart and is worth more; a few
-traits also nudge its **awake** needs by about ¼ point a minute.
+Every creature rolls **one of the 25 natures from the main series** when it
+hatches or is caught — ADAMANT, MODEST, JOLLY and the rest, by their real names
+— and keeps it for life: banked, revived or raised again. A nature raises one
+battle stat by **10%** and lowers another by **10%**, exactly as in the games
+(HP is never touched; HARDY, DOCILE, SERIOUS, BASHFUL and QUIRKY change
+nothing). On the STATS page and the card the boosted stat is written in
+**blue** and the lowered one in **red**, and the line spells it out ("ADAMANT
++ATK -SP.A"). It applies in every fight. Names follow each language's games
+(Portuguese uses the English names, as the games were never released in it).
 
-| Trait | Loves | Extra | Awake nudge | Boon (+10%) | Bane (−10%) |
+| Raises \ Lowers | ATK | DEF | SPD | SP.A | SP.D |
 |---|---|---|---|---|---|
-| Glutton | food (berries, candy) | +6 joy | food −¼/min | DEF | SPD |
-| Sleepy | being put to bed | +8 joy; asleep, energy refills +8/min instead of +6 | energy −¼/min | SP.D | SPD |
-| Playful | the ball game, play | its joy **doubled** | joy −¼/min | SPD | DEF |
-| Tidy | a bath | +10 joy, +2 bond | joy −1/min while poop is out | SP.A | ATK |
-| Cuddly | being petted | +5 joy, +1 bond | — | DEF | SP.A |
-| Energetic | training | +8 joy, +1 bond | food −¼/min, energy +¼/min | ATK | SP.D |
-| Picky | its favourite berry | +10 joy, +2 bond; any other berry fills 5 less | — | SP.A | DEF |
+| **ATK** | Hardy | Lonely | Brave | Adamant | Naughty |
+| **DEF** | Bold | Docile | Relaxed | Impish | Lax |
+| **SPD** | Timid | Hasty | Serious | Jolly | Naive |
+| **SP.A** | Modest | Mild | Quiet | Bashful | Rash |
+| **SP.D** | Calm | Gentle | Sassy | Careful | Quirky |
 
-**Boon and bane (v3.33).** Like the main series' natures, each trait raises one
-battle stat by **10%** and lowers another by **10%**; HP is never touched. On
-the STATS page and the card the boosted stat is written in **blue** and the
-lowered one in **red**, and the personality line spells it out ("ENERGETIC
-+ATK -SP.D"), so there is nothing to memorise. It applies in every fight. A
-creature that already had a trait simply gains its effect on updating; one
-banked before personalities existed has no trait and stays neutral.
+**What it loves.** A nature also has one favourite kind of care, mostly by the
+stat it raises. Its favourite shows a heart and is worth more, and a few also
+nudge its **awake** needs by about ¼ point a minute. It is on the card ("JOLLY -
+loves play").
+
+| Loves | Natures | Extra | Awake nudge |
+|---|---|---|---|
+| training | Hardy, Lonely, Brave, Adamant, Naughty, Serious | +8 joy, +1 bond | food −¼/min, energy +¼/min |
+| food (berries, candy) | Relaxed, Lax | +6 joy | food −¼/min |
+| being put to bed | Calm, Sassy, Bashful | +8 joy; asleep, energy refills +8/min instead of +6 | energy −¼/min |
+| the ball game, play | Timid, Hasty, Jolly, Naive | its joy **doubled** | joy −¼/min |
+| a bath | Modest, Quiet | +10 joy, +2 bond | joy −1/min while poop is out |
+| being petted | Bold, Docile, Impish, Gentle | +5 joy, +1 bond | — |
+| its favourite berry | Mild, Rash, Careful, Quirky | +10 joy, +2 bond; any other berry fills 5 less | — |
+
+**Upgrading from v3.33–v3.35 changes nobody's stats.** The seven old traits
+each read as the nature with exactly the same boost and drop, and keep what
+they loved: Glutton → RELAXED, Sleepy → SASSY, Playful → HASTY, Tidy → MODEST,
+Cuddly → IMPISH, Energetic → NAUGHTY, Picky → MILD. A creature banked before
+personalities existed has none and stays neutral.
 
 **Nights are never harder.** Asleep — screen off at night, or the board switched
 off — no trait changes food, joy or hygiene at all; the only thing a trait does
-asleep is Sleepy's faster energy refill. A creature from before this update
+asleep is the bedtime-lovers' faster energy refill. A creature from before this update
 rolls its trait the first time it loads.
 
 ### Held items, Pokédex rewards and the charms
