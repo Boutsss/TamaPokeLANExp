@@ -48,6 +48,8 @@ int uiHeaderNameBottom();
 void partySlotPos(int i, int *cx, int *cy);
 int partySlotAt(int16_t x, int16_t y);
 bool partyHubAt(int16_t x, int16_t y);
+void boxCellPos(uint8_t i, int *cx, int *cy); int boxCellAt(int16_t x, int16_t y);
+bool boxPillAt(int16_t x, int16_t y); void boxPillCentre(int *x, int *y);
 #include "badges.h"
 #include "trainers.h"
 bool badgeArtExists(uint8_t region, uint8_t i);
@@ -302,6 +304,37 @@ int main(){
     hy /= PARTY_SLOTS;
     ck(partyHubAt(233, (int16_t)hy) && partySlotAt(233, (int16_t)hy) < 0,
        "the hub owns the middle of the ring outright");
+  }
+
+  // THE PC BOX GRID: 30 cells a page, 6 x 5. Every centre answers as its own
+  // cell, the cells tile with no dead pixels between them (a miss would fall
+  // through to nothing, but it reads as a broken tap), each is at least
+  // UI_TAP_MIN across, every corner stays on the glass, and the FILTER pill
+  // below never overlaps a cell.
+  {
+    int wrong = 0, gaps = 0, off = 0, minW = 999, pillClash = 0;
+    int x0, y0, x1, y1; boxCellPos(0, &x0, &y0); boxCellPos(29, &x1, &y1);
+    for (int i = 0; i < 30; i++) {
+      int cx, cy; boxCellPos(i, &cx, &cy);
+      if (boxCellAt(cx, cy) != i) wrong++;
+      int w = 0; while (w < 120 && boxCellAt((int16_t)(cx + w + 1), (int16_t)cy) == i) w++;
+      int l = 0; while (l < 120 && boxCellAt((int16_t)(cx - l - 1), (int16_t)cy) == i) l++;
+      if (w + l + 1 < minW) minW = w + l + 1;
+      for (int dx = -1; dx <= 1; dx += 2) for (int dy = -1; dy <= 1; dy += 2) {
+        int px = cx + dx * 27, py = cy + dy * 27;
+        if ((px - 233) * (px - 233) + (py - 233) * (py - 233) > 231 * 231) off++;
+      }
+    }
+    for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++)
+      if (boxCellAt((int16_t)x, (int16_t)y) < 0) gaps++;
+    for (int y = 0; y < 466; y++) for (int x = 0; x < 466; x++)
+      if (boxPillAt((int16_t)x, (int16_t)y) && boxCellAt((int16_t)x, (int16_t)y) >= 0) pillClash++;
+    int px, py; boxPillCentre(&px, &py);
+    ck(wrong == 0, "every PC box cell centre answers as its own cell");
+    ck(gaps == 0, "the box cells tile with no dead pixels between them");
+    ck(minW >= 44, "each box cell is at least UI_TAP_MIN across");
+    ck(off == 0, "every box cell's corners stay on the glass");
+    ck(pillClash == 0 && boxPillAt((int16_t)px, (int16_t)py), "the FILTER pill answers at its centre and overlaps no cell");
   }
 
   // THE EGG REGION PILL. Missing it fell through to pet.eggTap(), and three

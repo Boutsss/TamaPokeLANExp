@@ -5,6 +5,7 @@
 #include "Preferences.h"
 #include "pet.h"
 #include "party.h"
+#include "box_store.h"
 #include "dex.h"
 #include <cstdio>
 #include <cstring>
@@ -95,28 +96,30 @@ int main(){
   // box did not, and nothing noticed because the record had never grown.
   {
     const size_t oldStride = sizeof(PartyMon) - 12;   // any earlier, shorter layout
-    uint8_t old[oldStride * BOX_SLOTS];
+    uint8_t old[oldStride * BOX_LEGACY_SLOTS];
     memset(old, 0, sizeof(old));
-    for (int i=0;i<BOX_SLOTS;i++) {
+    for (int i=0;i<BOX_LEGACY_SLOTS;i++) {
       PartyMon m = mk(30+i, 25+i);
       memcpy(old + i*oldStride, &m, oldStride);   // the leading fields only
     }
+    boxStoreWipe();                                // the 18-slot era: no PC box file yet
     Preferences seed; seed.begin("tamapoke", false);
     seed.putBytes("box", old, sizeof(old));
     seed.end();
     Party g; g.begin();
     bool all = true;
-    for (int i=0;i<BOX_SLOTS;i++) if (g.box[i].dex != 30+i) all=false;
-    ck(g.boxCount()==BOX_SLOTS, "a box written at an older, shorter stride is not lost");
+    for (int i=0;i<BOX_LEGACY_SLOTS;i++) if (g.box[i].dex != 30+i) all=false;
+    ck(g.boxCount()==BOX_LEGACY_SLOTS, "a box written at an older, shorter stride is not lost");
     ck(all, "and every record lands at the right offset");
     ck(!g.box[0].hasCareState(),
        "a migrated record admits it predates care state rather than faking it");
-    // Migration must REWRITE at the current layout, or it runs on every boot
+    // Migration must move it into the PC box ONCE, or it runs on every boot
     // and no appended field can ever be trusted.
-    Preferences chk; chk.begin("tamapoke", false);
-    ck(chk.getBytesLength("box") == sizeof(g.box),
-       "and it is rewritten in the current layout, once");
+    Preferences chk; chk.begin("tamapoke", true);
+    ck(!chk.isKey("box"), "and it moves into the PC box file, once (the old key is gone)");
     chk.end();
+    Party h; h.begin();
+    ck(h.boxCount()==BOX_LEGACY_SLOTS && h.box[17].dex == 47, "and reads back from the file");
   }
 
   printf("%s\n", bad?"FAILURES":"all good");

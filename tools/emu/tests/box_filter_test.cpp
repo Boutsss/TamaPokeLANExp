@@ -25,9 +25,9 @@ static PartyMon mon(int16_t dex, uint8_t lvl, uint8_t iv) {
   p.ivAtk = p.ivDef = p.ivSpe = p.ivHp = iv; p.relearnFromLevel();
   return p.toPartyMon();
 }
-static bool seq(const uint8_t *v, uint8_t n, const Party &q, const int16_t *dex, uint8_t m) {
+static bool seq(const uint16_t *v, uint16_t n, const Party &q, const int16_t *dex, uint8_t m) {
   if (n != m) return false;
-  for (uint8_t i = 0; i < n; i++) if (q.box[v[i]].dex != dex[i]) return false;
+  for (uint16_t i = 0; i < n; i++) if (q.box[v[i]].dex != dex[i]) return false;
   return true;
 }
 
@@ -41,7 +41,7 @@ int main(){
   q.box[5] = mon(4, 10, 10); q.box[5].fav = PM_FAV;
   q.box[7] = mon(130, 60, 5);
   q.box[9] = mon(16, 30, 12);
-  uint8_t v[BOX_SLOTS], n;
+  static uint16_t v[BOX_SLOTS]; uint16_t n;
 
   n = boxView(q, BF_ALL, BS_SLOT, v);
   ck(n == BOX_SLOTS && v[0] == 0 && v[17] == 17, "the plain view is every slot, empties included, in order");
@@ -65,7 +65,7 @@ int main(){
   for (uint8_t s : sorts) {
     n = boxView(q, BF_ALL, s, v);
     bool mono = n == 6;
-    for (uint8_t i = 1; i < n; i++) {
+    for (uint16_t i = 1; i < n; i++) {
       uint16_t a, b;
       switch (s) {
         case BS_ATK: a = q.atkOf(q.box[v[i-1]]); b = q.atkOf(q.box[v[i]]); break;

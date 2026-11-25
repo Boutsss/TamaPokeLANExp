@@ -47,6 +47,9 @@ static void ck(bool ok,const char*w){printf("%s  %s\n",ok?"PASS":"FAIL",w); if(!
 void partySlotPos(int i, int *cx, int *cy);
 static int SLOT_X(int i){ int x, y; partySlotPos(i, &x, &y); return x; }
 static int SLOT_Y(int i){ int x, y; partySlotPos(i, &x, &y); return y; }
+void boxCellPos(uint8_t i, int *cx, int *cy);
+static int CELL_X(int i){ int x, y; boxCellPos(i, &x, &y); return x; }
+static int CELL_Y(int i){ int x, y; boxCellPos(i, &x, &y); return y; }
 bool monSheetBtn(int16_t,int16_t,bool);
 #define SHEET_L_X 160
 #define SHEET_R_X 320
@@ -133,7 +136,7 @@ int main(){
     party.box[0]=mon(133,25,"EEVEE");
     party.boxSave();
     partyOpen=true; boxOpen=true;
-    boxTap(SLOT_X(0), SLOT_Y(0));
+    boxTap(CELL_X(0), CELL_Y(0));
     ck(boxDetail==1, "tapping a box slot opens its sheet");
     ck(party.count()==0, "rather than moving the creature on one tap");
 
@@ -154,7 +157,7 @@ int main(){
     party.box[0]=mon(143,40,"SNORLAX");
     party.boxSave();
     partyOpen=true; boxOpen=true;
-    boxTap(SLOT_X(0), SLOT_Y(0));
+    boxTap(CELL_X(0), CELL_Y(0));
     boxTap(SHEET_L_X, SHEET_BTN_Y);              // TO PARTY
     ck(party.count()==1 && party.slots[0].dex==143, "TO PARTY withdraws it");
     ck(party.boxCount()==0, "and the box slot is freed");

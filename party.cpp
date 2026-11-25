@@ -96,43 +96,51 @@ void Party::loadBox() {
 void Party::migrateLegacyBox() {
   size_t stored = prefs.getBytesLength("box");
   if (!stored) return;
-  PartyMon old[BOX_LEGACY_SLOTS];
-  for (auto &m : old) m = PartyMon();
-  if (stored % BOX_LEGACY_SLOTS == 0 && stored / BOX_LEGACY_SLOTS <= 128) {
-    size_t stride = stored / BOX_LEGACY_SLOTS;
-    uint8_t *raw = (uint8_t *)malloc(stored);
-    if (!raw) return;
-    if (prefs.getBytes("box", raw, stored) == stored)
-      for (int i = 0; i < BOX_LEGACY_SLOTS; i++)
-        memcpy(&old[i], raw + i * stride, stride < sizeof(PartyMon) ? stride : sizeof(PartyMon));
-    free(raw);
+  // Two shapes are understood: the 18 slots at the stride of whichever build
+  // wrote them (an older, shorter PartyMon), or MORE slots at our own stride
+  // (a build with a bigger box). Anything else is left alone, never guessed at.
+  size_t stride, count;
+  if (stored % BOX_LEGACY_SLOTS == 0 && stored / BOX_LEGACY_SLOTS <= sizeof(PartyMon)) {
+    stride = stored / BOX_LEGACY_SLOTS; count = BOX_LEGACY_SLOTS;
+  } else if (stored % sizeof(PartyMon) == 0) {
+    stride = sizeof(PartyMon); count = stored / sizeof(PartyMon);
+    if (count > BOX_SLOTS) count = BOX_SLOTS;
   } else {
     Serial.printf("box: old box key has an unknown size (%u), left alone\n", (unsigned)stored);
     return;
   }
+  uint8_t *raw = (uint8_t *)malloc(stored);
+  int16_t *placed = (int16_t *)malloc(count * sizeof(int16_t));
+  if (!raw || !placed || prefs.getBytes("box", raw, stored) != stored) { free(raw); free(placed); return; }
   uint16_t moved = 0;
-  int16_t placed[BOX_LEGACY_SLOTS];
-  for (int i = 0; i < BOX_LEGACY_SLOTS; i++) {
+  for (size_t i = 0; i < count; i++) {
     placed[i] = -1;
-    PartyMon m = old[i];
+    PartyMon m;
+    memcpy(&m, raw + i * stride, stride);
     if (m.dex < 1 || m.dex > DEX_COUNT) continue;
     m.nick[sizeof(m.nick) - 1] = 0;
     if (!itemIsHeld(m.held)) m.held = ITEM_NONE;
-    int at = box[i].empty() ? i : boxFirstFree();
-    if (at < 0) { Serial.println("box: no room to migrate the old box -- kept for next boot"); loadBoxFileOnly(); return; }
+    int at = box[i].empty() ? (int)i : boxFirstFree();
+    if (at < 0) {
+      Serial.println("box: no room to migrate the old box -- kept for next boot");
+      free(raw); free(placed); loadBoxFileOnly(); return;
+    }
     box[at] = m;
     placed[i] = (int16_t)at;
     moved++;
   }
-  if (moved && !boxSave()) { loadBoxFileOnly(); return; }    // nothing removed: next boot retries
+  free(raw);
+  if (moved && !boxSave()) { free(placed); loadBoxFileOnly(); return; }   // nothing removed: next boot retries
   // Each one READ BACK from the file before the old key goes.
-  for (int i = 0; i < BOX_LEGACY_SLOTS; i++)
+  for (size_t i = 0; i < count; i++)
     if (placed[i] >= 0 && !boxStoreSlotIs((uint16_t)placed[i], box[placed[i]])) {
       Serial.println("box: migration not confirmed on flash -- old box kept");
+      free(placed);
       return;
     }
+  free(placed);
   prefs.remove("box");
-  Serial.printf("box: moved %u from the old 18-slot box into the PC box\n", (unsigned)moved);
+  Serial.printf("box: moved %u from the old box into the PC box\n", (unsigned)moved);
 }
 
 void Party::loadBoxFileOnly() {

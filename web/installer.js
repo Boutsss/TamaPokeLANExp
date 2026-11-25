@@ -639,7 +639,8 @@ async function captureSave() {
   readQueue = [];
   await writeLine('EXPORT');
   const lines = [];
-  const deadline = Date.now() + 20000;
+  // A full 1200-slot PC box makes the export ~1400 lines; give it time.
+  const deadline = Date.now() + 60000;
   while (Date.now() < deadline) {
     const line = await readLine(deadline - Date.now());
     if (line === null) throw new Error('the board did not finish the export');

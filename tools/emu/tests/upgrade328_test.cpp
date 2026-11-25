@@ -24,6 +24,7 @@
 #include "Preferences.h"
 #include "pet.h"
 #include "party.h"
+#include "box_store.h"
 #include "inventory.h"
 #include "items.h"
 #include "save.h"
@@ -116,7 +117,7 @@ static void checkAll(const char *how) {
 int main() {
   // --- 1. install WITHOUT erase: the store v3.28 left on the board
   ck(loadNvs(fixture("v328.nvs")), "the v3.28 NVS fixture loads");
-  ck(nvs().count("box") && nvs()["box"].size() == 48u * BOX_SLOTS,
+  ck(nvs().count("box") && nvs()["box"].size() == 48u * BOX_LEGACY_SLOTS,
      "it really is the old 48-byte record (so the migration is exercised)");
   checkAll("first boot on v3.28 storage");
 
@@ -134,7 +135,7 @@ int main() {
   {
     Pet p; p.begin(); party.begin(); bag.begin();
     ck(p.saveNow() && party.save() && party.boxSave(), "the upgraded save writes back");
-    ck(nvs()["box"].size() == sizeof(PartyMon) * BOX_SLOTS, "in the new record size");
+    ck(!nvs().count("box"), "the old box key is gone: its creatures moved into the PC box file");
   }
   checkAll("second boot, after writing the new layout");
 
@@ -149,8 +150,15 @@ int main() {
   {
     std::vector<uint8_t> out(SAVE_TRANSFER_MAX);
     size_t n = saveExport(out.data(), out.size());
-    ck(n > blob.size(), "re-exporting it is not smaller than what came in");
+    // Not byte-for-byte comparable any more: v3.28 sent all 18 box slots,
+    // empties included, and the PC box sends occupied slots only. What matters
+    // is that it carries the same save -- so restore it and check it all again.
+    ck(n > 0, "this branch exports it");
+    out.resize(n);
+    nvs().clear(); boxStoreWipe();
+    ck(saveImport(out.data(), out.size()), "and takes its own export back");
   }
+  checkAll("restored from this branch's re-export");
 
   printf("%s\n", bad ? "FAILURES" : "all good");
   return bad ? 1 : 0;

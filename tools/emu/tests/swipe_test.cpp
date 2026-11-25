@@ -72,16 +72,17 @@ static void clearAll(){
 // moved from the horizontal swipe to the RIM, which is what freed the
 // horizontal axis to mean one thing. The bug this guards is unchanged: a paged
 // screen that CLOSES instead of paging.
-static void check(const char *name, bool *open, uint8_t *page){
+template <typename P>
+static void check(const char *name, bool *open, P *page){
   *page = 0;
   onRim(1);
   if (!*open) { printf("FAIL  %-10s closed while paging\n", name); bad++; return; }
-  if (*page != 1) { printf("FAIL  %-10s did not advance a page (page=%u)\n", name, *page); bad++; return; }
+  if (*page != 1) { printf("FAIL  %-10s did not advance a page (page=%u)\n", name, (unsigned)*page); bad++; return; }
   // and it must CLAMP at the far end rather than closing or wrapping
-  uint8_t n = uiRimPages();
-  for (int i = 0; i < n + 3; i++) onRim(1);
+  unsigned n = uiRimPages();
+  for (unsigned i = 0; i < n + 3; i++) onRim(1);
   if (!*open) { printf("FAIL  %-10s closed when paged off the end\n", name); bad++; return; }
-  if (*page != n - 1) { printf("FAIL  %-10s did not clamp at the last page (%u of %u)\n", name, *page, n); bad++; return; }
+  if (*page != n - 1) { printf("FAIL  %-10s did not clamp at the last page (%u of %u)\n", name, (unsigned)*page, n); bad++; return; }
   printf("PASS  %-10s pages on the rim and clamps at both ends\n", name);
 }
 uint8_t learnableFor(int16_t dex, uint8_t lvl, uint8_t *out, uint8_t max);

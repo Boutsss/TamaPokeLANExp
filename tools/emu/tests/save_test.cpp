@@ -28,6 +28,7 @@ int main(){
   // both ladders, a Pokedex with holes in it, a named trainer
   Pet pet;
   pet.begin();
+  party.begin();
   pet.dbgHatchAs(6,true);
   pet.ageMinutes = 72UL*MINUTES_PER_LEVEL;
   pet.ivAtk=31; pet.ivDef=7; pet.ivSpe=22; pet.ivHp=19;
@@ -48,7 +49,7 @@ int main(){
     m.moves[0]=1+i; m.moves[1]=9;
     m.held = (i % 2) ? IT_ORAN_BERRY : IT_FOCUS_SASH;
     party.replaceAt(i,m); }
-  for (int i=0;i<BOX_SLOTS;i++){ PartyMon m; m.dex=1+i*3; m.level=10+i;
+  for (int i=0;i<BOX_SLOTS;i++){ PartyMon m; m.dex=1+(i*3)%DEX_COUNT; m.level=10+i%90;
     m.ivAtk=m.ivDef=m.ivSpe=m.ivHp=11;
     m.held = (i % 2) ? IT_QUICK_CLAW : IT_SITRUS_BERRY;
     party.box[i]=m; }

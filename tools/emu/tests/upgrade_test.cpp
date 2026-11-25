@@ -16,6 +16,7 @@
 #include "Preferences.h"
 #include "pet.h"
 #include "party.h"
+#include "box_store.h"
 #include "save.h"
 #include <cstdio>
 #include <cstring>
@@ -198,15 +199,19 @@ int main(){
       snprintf(m.nick, sizeof(m.nick), "DRAGO");
       memcpy(bigp.data(), &m, sizeof(m));
       pr2.putBytes("party", bigp.data(), bigp.size());
-      std::vector<uint8_t> bigb2(sizeof(PartyMon) * (BOX_SLOTS + 5), 0);
+      std::vector<uint8_t> bigb2(sizeof(PartyMon) * (BOX_LEGACY_SLOTS + 5), 0);
       PartyMon b; b.dex = 6; b.level = 100;
       memcpy(bigb2.data(), &b, sizeof(b));
+      b.dex = 9;                                     // and one PAST the old 18
+      memcpy(bigb2.data() + sizeof(PartyMon) * (BOX_LEGACY_SLOTS + 4), &b, sizeof(b));
+      boxStoreWipe();
       pr2.putBytes("box", bigb2.data(), bigb2.size());
       pr2.end();
       Party pq; pq.begin();
       ck(pq.slots[0].dex == 149 && pq.slots[0].level == 100,
          "a party written by a build with MORE slots keeps its first six");
-      ck(pq.box[0].dex == 6, "and so does the box");
+      ck(pq.box[0].dex == 6 && pq.box[BOX_LEGACY_SLOTS + 4].dex == 9,
+         "and so does the box -- every slot of it, the extra ones included");
     }
 
     Pet q; q.begin();

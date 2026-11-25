@@ -28,6 +28,7 @@ extern bool partyOpen, boxOpen, boxFilterOpen, partyPick, releaseConfirm;
 extern uint8_t boxPage, partyDetail, boxFilter, boxSort, boxSwapFrom; extern uint16_t boxDetail;
 int boxIndexAt(uint8_t pos);
 void partySlotPos(int i, int *cx, int *cy);
+void boxCellPos(uint8_t i, int *cx, int *cy); void boxPillCentre(int *x, int *y);
 void bfChip(uint8_t i, int *x, int *y, int *w, int *h);
 void bfSortBtn(int *x, int *y, int *w, int *h);
 void monSheetCentres(int *left, int *star, int *right, int *cy);
@@ -42,7 +43,8 @@ static PartyMon mon(int16_t dex, uint8_t lvl) {
   Pet p; p.dbgHatchAs(dex, false); p.ageMinutes = (uint32_t)(lvl - 1) * MINUTES_PER_LEVEL;
   p.relearnFromLevel(); return p.toPartyMon();
 }
-static void tapSlot(uint8_t pos) { int x, y; partySlotPos(pos, &x, &y); boxTap(x, y); render(); }
+static void tapSlot(uint8_t pos) { int x, y; boxCellPos(pos, &x, &y); boxTap(x, y); render(); }
+static void tapPill() { int x, y; boxPillCentre(&x, &y); boxTap(x, y); render(); }
 static void tapChip(uint8_t f) { int x, y, w, h; bfChip(f, &x, &y, &w, &h); boxTap(x + w / 2, y + h / 2); render(); }
 static int L, S, R, BY;
 
@@ -55,26 +57,26 @@ int main(){
   monSheetCentres(&L, &S, &R, &BY);
   for (int i = 0; i < PARTY_SLOTS; i++) party.releaseAt(i);
   for (int i = 0; i < BOX_SLOTS; i++) party.box[i] = PartyMon();
-  // eight FIRE creatures spread through the box, and some others
+  // forty FIRE creatures spread through the box (more than one page of 30), and some others
   const int16_t fire[] = { 4, 5, 6, 37, 38, 58, 77, 126 };
-  for (int k = 0; k < 8; k++) party.box[k * 2] = mon(fire[k], 10 + k * 5);
+  for (int k = 0; k < 40; k++) party.box[k * 2] = mon(fire[k % 8], 10 + (k % 8) * 5 + k / 8);
   party.box[1] = mon(9, 50); party.box[3] = mon(130, 70);
   party.boxSave();
 
-  // ---- the hub opens FILTER
+  // ---- the FILTER pill opens the sheet
   partyOpen = true; boxOpen = true; boxPage = 0; render();
   ck(onScreen("box"), "on the box");
-  boxTap(233, 224); render();
-  ck(boxFilterOpen && onScreen("boxfilter"), "the hub opens the FILTER sheet");
+  tapPill();
+  ck(boxFilterOpen && onScreen("boxfilter"), "the FILTER pill opens the sheet");
   tapChip(BF_TYPE0 + T_FIRE);
   ck(!boxFilterOpen && boxFilter == BF_TYPE0 + T_FIRE, "a chip filters and closes the sheet");
-  ck(uiRimPages() == 2, "eight matches: two pages on the rim");
+  ck(uiRimPages() == 2, "forty matches: two pages of 30 on the rim");
   bool allFire = true;
   for (uint8_t p = 0; p < 2; p++) {
     boxPage = p;
-    for (uint8_t i = 0; i < 6; i++) { int idx = boxIndexAt(i); if (idx >= 0 && DEX_TBL[party.box[idx].dex].type1 != T_FIRE) allFire = false; }
+    for (uint8_t i = 0; i < 30; i++) { int idx = boxIndexAt(i); if (idx >= 0 && DEX_TBL[party.box[idx].dex].type1 != T_FIRE) allFire = false; }
   }
-  ck(allFire, "the ring shows only FIRE creatures");
+  ck(allFire, "the grid shows only FIRE creatures");
   boxPage = 1;
   int want = boxIndexAt(1);
   tapSlot(1);
@@ -82,18 +84,18 @@ int main(){
   boxDetail = 0; render();
 
   // ---- sort
-  boxTap(233, 224); render();
+  tapPill();
   { int x, y, w, h; bfSortBtn(&x, &y, &w, &h); boxTap(x + w / 2, y + h / 2); boxTap(x + w / 2, y + h / 2); render(); }
   ck(boxFilterOpen && boxSort == BS_IV, "SORT cycles and keeps the sheet open");
   { int x, y, w, h; bfSortBtn(&x, &y, &w, &h); boxTap(x + w / 2, y + h / 2); boxTap(x + w / 2, y + h / 2); boxTap(x + w / 2, y + h / 2); }
   onSwipeV(1); render();
   ck(!boxFilterOpen && boxOpen && boxSort == BS_SPE, "down closes the sheet, not the box");
   boxSort = BS_LEVEL; boxPage = 0; render();
-  ck(party.box[boxIndexAt(0)].level >= party.box[boxIndexAt(1)].level, "sorted by LEVEL: best first on the ring");
+  ck(party.box[boxIndexAt(0)].level >= party.box[boxIndexAt(1)].level, "sorted by LEVEL: best first in the grid");
 
   // ---- an armed swap needs the empty slots: it shows the plain box
   boxSwapFrom = 1; render();
-  ck(uiRimPages() == BOX_SLOTS / 6 && boxIndexAt(1) == 1, "with a party creature waiting to come in, the plain box shows");
+  ck(uiRimPages() == BOX_BOXES && boxIndexAt(1) == 1, "with a party creature waiting to come in, the plain box shows");
   boxSwapFrom = 0;
   boxFilter = BF_ALL; boxSort = BS_SLOT; boxPage = 0; render();
 
@@ -117,7 +119,7 @@ int main(){
   boxDetail = 0; boxOpen = false; render();
 
   // ---- the filter finds favourites
-  boxOpen = true; boxTap(233, 224); render(); tapChip(BF_FAV);
+  boxOpen = true; render(); tapPill(); tapChip(BF_FAV);
   ck(boxIndexAt(0) == 0 && boxIndexAt(1) == -1, "FAVOURITES finds exactly the starred one");
   boxFilter = BF_ALL; boxOpen = false; render();
 
