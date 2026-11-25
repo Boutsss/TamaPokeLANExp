@@ -24,10 +24,11 @@ This project is not affiliated with or endorsed by any of those companies.
 
 | Resource | Source | Use in the project |
 |---|---|---|
-| **All sprites** (idle, walk, sleep, eat, hurt, attack…) | [PMD Sprite Collaboration (PMDCollab/SpriteCollab)](https://github.com/PMDCollab/SpriteCollab) | Mystery-Dungeon-style animated sprites used everywhere: main screen, stat card, minigame, and the Pokédex grid + detail view |
+| **Creature sprites** (idle, walk, sleep, eat, hurt, attack…) | [PMD Sprite Collaboration (PMDCollab/SpriteCollab)](https://github.com/PMDCollab/SpriteCollab) | Mystery-Dungeon-style animated sprites used everywhere: main screen, stat card, minigame, and the Pokédex grid + detail view |
 | **Base stats and learnsets** | [PokéAPI](https://pokeapi.co) | Real stats and level-up moves for all 386 |
 | **Gym badges** (all three regions) | [SteGriff/pokemon-badges](https://github.com/SteGriff/pokemon-badges) | `badges.h`, via `tools/gen_badges.py` — Stephen Griffiths 2011, **CC BY 3.0**, traced from Bulbapedia |
 | **Gym leader teams** (Johto, Hoenn) | [pret/pokecrystal](https://github.com/pret/pokecrystal), [pret/pokeemerald](https://github.com/pret/pokeemerald) | Verified against the games' own trainer tables by `tools/verify_rosters.py` — no art is taken, only the team data |
+| **Armored Mewtwo** (standing and walking frames) | [Pokémon 3D forum thread](https://forum.pokemon3d.net/threads/11097/), by the artist who posted it | An alternate look for Mewtwo: the sheet is reduced to its original pixels, given a purple glow and packed by `tools/gen_armored.py`. Its terms of use have not been confirmed yet — check the thread before redistributing it |
 
 The **SpriteCollab** sprites are the work of its community of artists under their
 own terms (Creative Commons Attribution-NonCommercial 4.0). Per-species/per-author
