@@ -72,7 +72,7 @@ struct RimPage {
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
-#define FW_VERSION "3.40"
+#define FW_VERSION "3.41"
 
 Arduino_DataBus *bus = new Arduino_ESP32QSPI(
   LCD_CS, LCD_SCLK, LCD_SDIO0, LCD_SDIO1, LCD_SDIO2, LCD_SDIO3);
@@ -4581,11 +4581,20 @@ static void btlSfxFor(const TurnLog &lg) {
 
 // The TurnLog's notes (battle.h BN_*), in order. Each string takes the name of
 // whoever the note is about; the few with no %s simply ignore it.
+// The host keeps what it narrated, so the guest can say the same (LinkResult).
+static uint8_t btlShipNote[LINK_RESULT_NOTES], btlShipSide[LINK_RESULT_NOTES], btlShipN = 0;
+
 static void btlNotes(const Combatant &actor, const Combatant &target, const TurnLog &lg) {
   for (uint8_t i = 0; i < lg.noteN; i++) {
     uint8_t bn = lg.note[i];
     if (bn == BN_NONE || bn >= BN_COUNT) continue;
-    btlSay(T((StrId)(S_BN_PROTECTED + (bn - 1))), lg.noteWho[i] ? target.name : actor.name);
+    const Combatant &who = lg.noteWho[i] ? target : actor;
+    btlSay(T((StrId)(S_BN_PROTECTED + (bn - 1))), who.name);
+    if (btlLink && btlLinkHost && btlShipN < LINK_RESULT_NOTES) {
+      btlShipNote[btlShipN] = bn;
+      btlShipSide[btlShipN] = (&who == &btlYou) ? 0 : 1;
+      btlShipN++;
+    }
   }
 }
 
@@ -4968,6 +4977,13 @@ static void btlApplyResult() {
   btlMsgCount = 0;
   if (r.hostMove) btlSay(T(S_BTL_USED), btlFoe.name, moveName(r.hostMove));
   if (r.guestMove) btlSay(T(S_BTL_USED), btlYou.name, moveName(r.guestMove));
+  // the host's notes, about its creature (our foe) or ours, and its field
+  gField.weather = r.weather; gField.terrain = r.terrain; gField.trickRoom = r.trickRoom;
+  for (uint8_t i = 0; i < r.noteN && i < LINK_RESULT_NOTES; i++) {
+    uint8_t bn = r.note[i];
+    if (bn == BN_NONE || bn >= BN_COUNT) continue;          // never index the table with junk off the air
+    btlSay(T((StrId)(S_BN_PROTECTED + (bn - 1))), r.noteSide[i] ? btlYou.name : btlFoe.name);
+  }
   if (r.guestDmg) { btlHitUntil[0] = now + BTL_HIT_MS; sfxPlay(SFX_HIT); }
   if (r.hostDmg) { btlHitUntil[1] = now + BTL_HIT_MS; sfxPlay(SFX_HIT); }
   if (btlYou.fainted()) {
@@ -5033,6 +5049,9 @@ static void btlShipResult(uint16_t yourMove, uint16_t theirMove,
   r.guestDmg = (hp0Foe > btlFoe.hp) ? hp0Foe - btlFoe.hp : 0;
   r.hostIdx = btlSquadAt; r.guestIdx = btlFoeAt;
   if (btlYou.fainted() || btlFoe.fainted()) r.flags |= 0x04;
+  r.weather = gField.weather; r.terrain = gField.terrain; r.trickRoom = gField.trickRoom;
+  r.noteN = btlShipN;
+  for (uint8_t i = 0; i < btlShipN; i++) { r.note[i] = btlShipNote[i]; r.noteSide[i] = btlShipSide[i]; }
   lan.sendResult((const uint8_t *)&r, (uint8_t)sizeof(r));
 }
 
@@ -5267,6 +5286,7 @@ static void btlResolve(uint16_t yourMove) {
     btlSay(T(S_BTL_USED), clawUser.name, itemEntry(IT_QUICK_CLAW).name);
   }
   btlTurn = BtlTurn();
+  btlShipN = 0;
   btlTurn.youFirst = youFirst;
   btlTurn.ma = youFirst ? yourMove : foeMove;
   btlTurn.mb = youFirst ? foeMove : yourMove;
@@ -5311,7 +5331,6 @@ static void btlTurnFinish() {
   // whoever actually lost health flinches, whichever side dealt it
   if (btlYou.hp < hp0You) btlHitUntil[0] = now + BTL_HIT_MS;
   if (btlFoe.hp < hp0Foe) btlHitUntil[1] = now + BTL_HIT_MS;
-  if (btlLink && btlLinkHost) btlShipResult(yourMove, foeMove, hp0You, hp0Foe);
   if (!btlYou.fainted() && !btlFoe.fainted()) {
     battleEndTurn(btlYou, &btlFoe, lg);
     if (lg.damage || lg.noteN) btlNarrate(btlYou, btlYou, lg);
@@ -5320,6 +5339,8 @@ static void btlTurnFinish() {
   }
   battleEndRound(lg);
   btlNotes(btlYou, btlYou, lg);
+  // after the end of turn, so the guest's numbers include the chip damage too
+  if (btlLink && btlLinkHost) btlShipResult(yourMove, foeMove, hp0You, hp0Foe);
   // Someone went down. The replacement is NOT swapped in here -- that made the
   // change instant and read as a jump cut. Flag it, let the sprite drop out of
   // frame, and swap when the player dismisses the message.

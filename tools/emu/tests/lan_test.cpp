@@ -13,6 +13,7 @@
 #include "battle.h"
 #include "link.h"
 #include <cstdio>
+#include <cstring>
 uint32_t g_seed=5; FakeSerial Serial; FakeESP ESP; FakeWire Wire;
 volatile int g_touchX=0,g_touchY=0; volatile bool g_touchDown=false;
 void FakeESP::restart(){exit(0);}
@@ -27,6 +28,7 @@ extern Combatant btlYou, btlFoe;
 extern Combatant btlSquad[];
 extern uint8_t btlSquadN, btlSquadAt, btlFoeAt, btlMenu, btlMsgCount;
 extern uint8_t btlMyAct, btlFoeSquadN;
+extern char btlMsg[][40];
 extern Combatant btlFoeSquad[];
 extern uint16_t squadMask;
 extern bool btlWild, lanQuitConfirm;
@@ -157,6 +159,24 @@ int main(){
   render();
   ck(btlYou.hp==hpNow, "so a second frame does not replay the turn");
 
+  // --- v3.40: the host's narration and its field come with the numbers
+  {
+    LinkResult w{};
+    w.hostHp = btlFoe.hp; w.guestHp = btlYou.hp; w.hostIdx = btlFoeAt; w.guestIdx = btlSquadAt;
+    w.weather = W_RAIN;
+    w.noteN = 3;
+    w.note[0] = BN_RAIN;   w.noteSide[0] = 0;     // the host's creature made it rain
+    w.note[1] = BN_SPIKES; w.noteSide[1] = 1;     // spikes laid around the guest's
+    w.note[2] = 250;       w.noteSide[2] = 0;     // junk off the air
+    memcpy(lan.result,&w,sizeof(w)); lan.resultN=sizeof(w); lan.resultNew=true;
+    btlMsgCount = 0;
+    render();
+    bool spikesNamed = false;
+    for (uint8_t i = 0; i < btlMsgCount; i++) if (strstr(btlMsg[i], btlYou.name) && strstr(btlMsg[i], "pikes")) spikesNamed = true;
+    ck(gField.weather == W_RAIN, "the guest's field takes the host's weather");
+    ck(spikesNamed, "and it reads the host's notes, naming its own creature where the host meant it");
+    ck(btlMsgCount == 2, "a junk note off the air is skipped, not looked up");
+  }
   // --- the rival's next creature arrives when the host says so
   r.hostIdx = 1; r.hostHp = 60;
   memcpy(lan.result,&r,sizeof(r)); lan.resultNew=true;

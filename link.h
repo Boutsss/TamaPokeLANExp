@@ -155,6 +155,7 @@ struct LinkMon {
 //
 // Every field is ABSOLUTE, not a delta. That is what lets a guest which missed
 // a turn recover from the next one instead of drifting.
+#define LINK_RESULT_NOTES 12
 struct LinkResult {
   uint16_t hostHp, guestHp;
   uint8_t hostAil, guestAil;
@@ -162,7 +163,14 @@ struct LinkResult {
   uint16_t hostDmg, guestDmg;
   uint8_t hostIdx, guestIdx;   // which squad member is out on each side
   uint8_t flags;               // bit0 crit, bit1 super, bit2 a faint happened
+  // v3.40: what the guest needs to narrate the turn like the host did -- the
+  // battle.h BN_ notes in order, each about the host's creature (side 0) or the
+  // guest's (1) -- and the field, absolute like everything above.
+  uint8_t weather, terrain, trickRoom;
+  uint8_t noteN;
+  uint8_t note[LINK_RESULT_NOTES], noteSide[LINK_RESULT_NOTES];
 };
+static_assert(sizeof(LinkResult) <= LINK_MAX_PAYLOAD, "a turn result must fit one packet");
 
 #include "party.h"      // PartyMon: what a trade moves
 
