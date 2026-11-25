@@ -192,10 +192,12 @@ int main() {
 
   // --- the PLAYER's progress, which the first fix did not cover -------------
   //
-  // Badges, the Pokedex, the streak and the records were ~25 more keys written
-  // one after another. A cut between the badge arrays and the dex bitmap leaves
-  // a badge won with no record of the creature that earned it: issue #3's exact
-  // shape, one layer out.
+  // Badges, the Pokedex, the streak and the records were once ~25 keys written
+  // one after another, and a cut between the badge arrays and the dex bitmap
+  // left a badge won with no record of the creature that earned it. Since v3.50
+  // a save is ONLY the two checkpoints, so the one cut left is BETWEEN them:
+  // the creature's record lands and the player's does not. Badges and the
+  // Pokedex are both in the player's record, so they must come back both old.
   {
     nvs().clear();
     Pet pet;
@@ -203,33 +205,41 @@ int main() {
     pet.dbgHatchAs(25, false);
     pet.saveNow();                       // baseline: no badges, empty dex
 
+    // A save is exactly two writes now, and no legacy key survives one.
+    nvsFailWritesAfter(1000);
+    pet.saveNow();
+    int used = 1000 - nvsWriteBudget();
+    nvsResumeWrites();
+    ck(used == 2, "a save is exactly two NVS writes: the creature's record and the player's");
+    ck(pet.legacyKeyCount() == 0, "and leaves no legacy key on flash");
+
     const int16_t FAR_DEX = 400;         // nowhere near the live creature
     pet.badgesX[0] = 0x0F;               // four Johto badges
     pet.dexReg[(FAR_DEX - 1) >> 3] |= 1 << ((FAR_DEX - 1) & 7);
+    pet.fullness = 33;                   // a creature-side change, to see that record land
 
-    // Two checkpoint writes, then twenty-one legacy ones: badgX is the 20th and
-    // badhX the 21st (avt2 joined the run in v3.45), so this stops with the
-    // badges written and dexreg still
-    // holding the baseline. The exact count is not the point -- the companion
-    // assertion below is what proves the cut landed where it was meant to.
-    nvsFailWritesAfter(2 + 21);
+    const char *petOld = newerSlot("petA", "petB"), *plyOld = newerSlot("plyA", "plyB");
+    std::vector<uint8_t> plyBefore = slotBytes(plyOld);
+    nvsFailWritesAfter(1);               // the creature's record lands, the player's does not
     pet.saveNow();
     nvsResumeWrites();
 
-    // PROVE THE MECHANISM ENGAGED. Without this the assertion after it would
-    // pass just as happily with the player checkpoint removed, and if a key is
-    // ever added to the legacy run and the cut moves, this fails loudly rather
-    // than the test quietly proving nothing. CLAUDE.md § "A test that proves the
-    // transcription rather than the firmware" is a list of what that costs.
-    bool legacyBadge = slotBytes("badgX").size() >= 2 && nvs()["badgX"][0] == 0x0F;
-    bool legacyDex = dexBitSet(slotBytes("dexreg"), FAR_DEX);
-    ck(legacyBadge && !legacyDex,
-       "the cut really did land between the badge keys and the Pokedex");
+    // PROVE THE CUT LANDED WHERE IT WAS MEANT TO: the creature's record moved
+    // on, the player's newest record is byte for byte the one from before.
+    ck(strcmp(newerSlot("petA", "petB"), petOld) != 0 && !strcmp(newerSlot("plyA", "plyB"), plyOld) &&
+       slotBytes(plyOld) == plyBefore,
+       "the cut really did land between the creature's record and the player's");
 
     Pet loaded;
     loaded.begin();
-    ck(loaded.badgesX[0] == 0x0F && loaded.isRegistered(FAR_DEX),
-       "the player checkpoint keeps badges and the Pokedex in step across a cut");
+    ck(loaded.fullness == 33, "the creature's record that landed is the one loaded");
+    ck(loaded.badgesX[0] == 0 && !loaded.isRegistered(FAR_DEX),
+       "and the player's badges and Pokedex come back together, both from before the cut");
+
+    pet.saveNow();                       // the retry lands both
+    Pet again;
+    again.begin();
+    ck(again.badgesX[0] == 0x0F && again.isRegistered(FAR_DEX), "the next save brings both forward together");
   }
 
   // Growing the dex, the region table or the gym ladder must not shift anything

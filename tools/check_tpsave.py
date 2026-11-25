@@ -9,7 +9,8 @@ and encoding the PC box back must reproduce the firmware's own pmNN bytes.
 A second copy of the format written by the same hand would only prove the two
 copies agree; this compares against the C++.
 """
-import os, subprocess, sys, tempfile
+import os, re, subprocess, sys, tempfile
+from collections import OrderedDict
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(HERE, 'debugger'))
@@ -22,14 +23,35 @@ def ck(ok, what):
     print(('PASS  ' if ok else 'FAIL  ') + what)
     if not ok: bad += 1
 
-def main():
-    cmds = ['EGG 6', 'PARTY 25', 'PARTY 26', 'BOXADD 7 1', 'BOXADD 143 30', 'BOXADD 150 1200', 'EXPORT', 'WIPE']
+def emu(cmds, then=None):
+    """Runs the REAL firmware in the emulator on a fresh save and returns the
+    bytes of the last EXPORT it printed. `then`, if given, is a second boot on
+    the SAME save -- an IMPORT restarts the board (exit, in the emulator), so a
+    restore and the export that checks it are two boots, as on hardware."""
     with tempfile.TemporaryDirectory() as d:
         env = dict(os.environ, SDL_VIDEODRIVER='dummy')
         out = subprocess.run([EMU, '--save', os.path.join(d, 'f.nvs'), '--wipe'], input='\n'.join(cmds) + '\n',
-                             capture_output=True, text=True, env=env, timeout=120, cwd=d).stdout
-    lines = [l.strip() for l in out.splitlines() if l.startswith('IMPORT ')]
-    raw = bytes.fromhex(''.join(l[7:] for l in lines))
+                             capture_output=True, text=True, env=env, timeout=180, cwd=d).stdout
+        if then:
+            out = subprocess.run([EMU, '--save', os.path.join(d, 'f.nvs')], input='\n'.join(then) + '\n',
+                                 capture_output=True, text=True, env=env, timeout=180, cwd=d).stdout
+    # An EXPORT block is 'IMPORT <hex>' lines; the firmware ALSO prints status
+    # lines like 'IMPORT OK', which are not data and end a block.
+    hexline = re.compile(r'^IMPORT [0-9A-Fa-f]+$')
+    blocks, cur = [], []
+    for l in out.splitlines():
+        if hexline.match(l.strip()):
+            cur.append(l.strip())
+        elif cur:
+            blocks.append(cur); cur = []
+    if cur:
+        blocks.append(cur)
+    return bytes.fromhex(''.join(l[7:] for l in blocks[-1])) if blocks else b''
+
+def main():
+    cmds = ['EGG 6', 'LVL 30', 'IV 31 20 25 28', 'TR 40 30 20', 'PARTY 25', 'PARTY 26',
+            'BOXADD 7 1', 'BOXADD 143 30', 'BOXADD 150 1200', 'EXPORT', 'WIPE']
+    raw = emu(cmds)
     s = tpsave.decode_save(raw, dex_h_path=os.path.join(ROOT, 'dex.h'))
     ck(s['ok'], 'the firmware export parses (%s)' % (s.get('error') or '%d fields' % s.get('field_count', 0)))
     if not s['ok']:
@@ -42,6 +64,37 @@ def main():
     pc = {k: v[1] for k, v in s['fields'].items() if k[:2] in ('pc', 'pm')}
     ck(tpsave.encode_pc_box(s['box']) == pc, 're-encoding the box reproduces the firmware\'s own pmNN bytes')
     ck(set(pc) == {'pm00', 'pm39'}, 'only boxes holding something travel (%s)' % sorted(pc))
+
+    # ---- v3.50: the checkpoints are the save; the editor reads and writes them
+    legacy = sorted(k for k in s['fields'] if k in tpsave.LEGACY_KEYS)
+    ck(not legacy, 'the firmware exports no legacy key any more (%s)' % (legacy or 'none'))
+    live, ply = s['live_pet'], s['player']
+    ck(live.get('dexn') == 6 and (live.get('ivat'), live.get('ivdf'), live.get('ivsp'), live.get('ivhp')) == (31, 20, 25, 28)
+       and (live.get('tatk'), live.get('tdef'), live.get('tspe')) == (40, 30, 20),
+       'the live pet is shown from its checkpoint: %r' % {k: live.get(k) for k in ('dexn', 'ivat', 'ivhp', 'tatk')})
+    ck(all(k in ply for k in tpsave.PLAYER_LEGACY if k in tpsave.SAVE_FIELD_KIND),
+       'and the player from theirs, every field (proved both ways by the round trip below)')
+    pet0 = s['pet_checkpoint']
+
+    # An edit, as the editor makes one: values written into the legacy view,
+    # folded into the checkpoints, then IMPORTED BY THE FIRMWARE and exported again.
+    f = OrderedDict(s['fields'])
+    f['ivat'] = (tpsave.SK_U8, tpsave.encode_scalar(tpsave.SK_U8, 12))
+    f['bond'] = (tpsave.SK_U8, tpsave.encode_scalar(tpsave.SK_U8, 77))
+    f['tnam'] = (tpsave.SK_STR, tpsave.encode_scalar(tpsave.SK_STR, 'BROCK'))
+    f['badg'] = (tpsave.SK_U16, tpsave.encode_scalar(tpsave.SK_U16, 0x0F))
+    folded = tpsave.fold_legacy_into_checkpoints(f)
+    ck(not any(k in tpsave.LEGACY_KEYS for k in folded), 'folding leaves no legacy key behind')
+    edited = tpsave.encode_export(folded)
+    lines = [l for l in tpsave.export_text_from_bytes(edited).splitlines() if l.startswith('IMPORT')]
+    back = tpsave.decode_save(emu(lines, then=['EXPORT', 'WIPE']), dex_h_path=os.path.join(ROOT, 'dex.h'))
+    ck(back['ok'], 'the firmware accepts the edited save')
+    if back['ok']:
+        lv, pv, pc2 = back['live_pet'], back['player'], back['pet_checkpoint']
+        ck(lv.get('ivat') == 12 and lv.get('bond') == 77 and pv.get('tnam') == 'BROCK' and pv.get('badg') == 0x0F,
+           'and its own export shows every edit: ivat=%s bond=%s tnam=%s badg=%s' % (lv.get('ivat'), lv.get('bond'), pv.get('tnam'), pv.get('badg')))
+        same = all(pc2[k] == pet0[k] for k in ('speciesId', 'ivDef', 'ivSpe', 'ivHp', 'trAtk', 'trDef', 'trSpe', 'moves', 'nick'))
+        ck(same, 'and everything NOT edited came through unchanged (species, IVs, training, moves, nickname)')
     print('all good' if not bad else 'FAILURES')
     return 1 if bad else 0
 

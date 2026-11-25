@@ -716,6 +716,9 @@ public:
   // autosave to notice. Defined out of line: save() is private and declared
   // further down.
   bool saveNow();
+  // How many of the legacy keys (the pre-checkpoint save) are still on flash.
+  // 0 once a checkpointed save has run on this boot -- see purgeLegacyKeys().
+  uint8_t legacyKeyCount();
 
 private:
   Preferences prefs;
@@ -786,4 +789,7 @@ private:
   bool save();
   void load();
   static uint8_t clamp100(int v) { return v < 0 ? 0 : (v > 100 ? 100 : v); }
+ private:
+  bool legacyPurged = false;   // purgeLegacyKeys() has run this boot
+  void purgeLegacyKeys();
 };

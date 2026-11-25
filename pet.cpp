@@ -576,7 +576,7 @@ void Pet::begin() {
     if (!starterPick && !trainerName[0]) {
       strncpy(trainerName, "TRAINER", sizeof(trainerName) - 1);
       trainerName[sizeof(trainerName) - 1] = 0;
-      if (prefs.putString("tnam", trainerName) == 0) logKeyFailure("pet", "tnam");
+      pendingSave = true;   // into the player checkpoint with the next save
     }
     // A creature from before personalities has none: give it one, once. Marked
     // pending rather than saved here, for the same reason as the name above.
@@ -2335,12 +2335,8 @@ bool Pet::loadCoreSnapshot() {
 bool Pet::save() {
   if (!opened) return false;
   lastSaveAttempt = millis();   // retryDue() measures from this, on every attempt
-  // Both checkpoints go first, and a failure in either one returns BEFORE the
-  // legacy keys are touched. That ordering is the point: the legacy keys are
-  // still what a backup exports and what a downgrade reads, so a half-finished
-  // run through them is a real save that nothing can see is broken. Leaving
-  // them entirely alone means the previous save stays the previous save.
-  // Each of these already logged which stage failed and the NVS headroom at
+  // The two checkpoints ARE the save; a failure in either returns with nothing
+  // else touched, so the previous save stays the previous save. Each of these already logged which stage failed and the NVS headroom at
   // that moment -- see logCkptFailure() -- so nothing more is printed here.
   if (!saveCoreSnapshot()) {
     pendingSave = true;
@@ -2355,97 +2351,47 @@ bool Pet::save() {
   ticksSinceSave = 0;
   pendingSave = false;
   saveFailures = 0;
-  // Every one of these used to be fire-and-forget: putX() returning 0/short
-  // was silently discarded (see nvsinfo.cpp's header comment). SAVE_KEY logs
-  // exactly which key failed, with the same headroom+probe detail the
-  // checkpoints already had, instead of leaving the legacy keys as the one
-  // blind spot in the save path. The checkpoints above still gate whether we
-  // even get here; this is diagnostics for what happens after that gate.
-#define SAVE_KEY(expr, key) do { if (!(expr)) logKeyFailure("pet", key); } while (0)
-  // putString() returns strlen(value) on success (Preferences.cpp), so a
-  // successful write of an empty string returns 0 -- indistinguishable from
-  // putString()'s own 0-on-real-failure. nick and tnam are the two keys that
-  // can legitimately be empty (an unnicknamed pet; trainerName before the
-  // starter-pick/backfill default above ever ran), so SAVE_KEY's plain
-  // truthiness check misreads a correct empty-string save as a failure. Only
-  // treat a 0 return as a real failure when the value being written is
-  // itself non-empty. (A close/reopen/retry diagnostic ran here earlier this
-  // session chasing a suspected stale handle; the retry never once changed
-  // the outcome, which is what pointed at this being a false positive rather
-  // than a real write failure.)
-#define SAVE_STR_KEY(expr, key, value) do { \
-    if ((expr) == 0 && (value)[0] != '\0') logKeyFailure("pet", key); \
-  } while (0)
-  SAVE_KEY(prefs.putUChar("full", fullness), "full");
-  SAVE_KEY(prefs.putUChar("joy", joy), "joy");
-  SAVE_KEY(prefs.putUChar("ene", energy), "ene");
-  SAVE_KEY(prefs.putUChar("hyg", hygiene), "hyg");
-  SAVE_KEY(prefs.putUChar("poop", poops), "poop");
-  SAVE_KEY(prefs.putUChar("wgt", weight), "wgt");
-  SAVE_KEY(prefs.putUChar("ivat", ivAtk), "ivat");
-  SAVE_KEY(prefs.putUChar("ivdf", ivDef), "ivdf");
-  SAVE_KEY(prefs.putUChar("ivsp", ivSpe), "ivsp");
-  SAVE_KEY(prefs.putUChar("ivhp", ivHp), "ivhp");
-  SAVE_KEY(prefs.putUChar("tatk", trAtk), "tatk");
-  SAVE_KEY(prefs.putUChar("tdef", trDef), "tdef");
-  SAVE_KEY(prefs.putUChar("tspe", trSpe), "tspe");
-  {
-    // "mvs" stays the four LOW bytes it always was (a downgrade still reads it);
-    // "mvh" is the high bytes, new in v3.37 and absent = all zero.
-    uint8_t lo[MOVE_SLOTS], hi[MOVE_SLOTS];
-    for (int i = 0; i < MOVE_SLOTS; i++) { lo[i] = (uint8_t)moves[i]; hi[i] = (uint8_t)(moves[i] >> 8); }
-    SAVE_KEY(prefs.putBytes("mvs", lo, sizeof(lo)), "mvs");
-    SAVE_KEY(prefs.putBytes("mvh", hi, sizeof(hi)), "mvh");
-  }
-  SAVE_KEY(prefs.putUChar("mvlv", lastLearnLevel), "mvlv");
-  SAVE_KEY(prefs.putUChar("avtr", avatarLegacyByte()), "avtr");   // what a downgrade reads
-  SAVE_KEY(prefs.putUShort("avt2", avatar), "avt2");
-  SAVE_KEY(prefs.putUChar("reg", region), "reg");
-  SAVE_KEY(prefs.putUChar("regn", REGION_COUNT), "regn");   // what REGION_ALL meant when this was written
-  SAVE_KEY(prefs.putBytes("badgX", badgesX, sizeof(badgesX)), "badgX");
-  SAVE_KEY(prefs.putBytes("badhX", badgesHardX, sizeof(badgesHardX)), "badhX");
-  SAVE_KEY(prefs.putBytes("eggR", eggByRegion, sizeof(eggByRegion)), "eggR");
-  SAVE_STR_KEY(prefs.putString("tnam", trainerName), "tnam", trainerName);
-  SAVE_KEY(prefs.putBool("froz", frozen), "froz");
-  SAVE_KEY(prefs.putUShort("badg", badges), "badg");
-  SAVE_KEY(prefs.putUShort("badh", badgesHard), "badh");
-  SAVE_KEY(prefs.putBool("bk", berryKnown), "bk");
-  SAVE_KEY(prefs.putBool("shy", shiny), "shy");
-  SAVE_KEY(prefs.putBool("eshy", eggShiny), "eshy");
-  SAVE_KEY(prefs.putUChar("prsn", persona), "prsn");
-  SAVE_KEY(prefs.putUChar("skin", skin), "skin");
-  SAVE_KEY(prefs.putBool("stpk", starterPick), "stpk");
-  SAVE_KEY(prefs.putUChar("evop", evoPen), "evop");
-  SAVE_KEY(prefs.putUChar("slpa", sleepAuto), "slpa");
-  SAVE_KEY(prefs.putBool("rtpn", retirePending), "rtpn");
-  SAVE_KEY(prefs.putBytes("dexsh", dexShinyReg, sizeof(dexShinyReg)), "dexsh");
-  SAVE_KEY(prefs.putUInt("age", ageMinutes), "age");
-  SAVE_KEY(prefs.putShort("dexn", speciesId), "dexn");
-  SAVE_KEY(prefs.putShort("eggT2", eggTarget), "eggT2");
-  SAVE_KEY(prefs.putUChar("crack", eggTaps), "crack");
-  SAVE_KEY(prefs.putUChar("mist", careMistakes), "mist");
-  SAVE_KEY(prefs.putBool("sleep", sleeping), "sleep");
-  SAVE_KEY(prefs.putUChar("lend", lastEnd), "lend");
-  if (lastSeenEpoch) SAVE_KEY(prefs.putUInt("seen", lastSeenEpoch), "seen");
-  SAVE_KEY(prefs.putBytes("dexreg", dexReg, sizeof(dexReg)), "dexreg");
-  SAVE_KEY(prefs.putUShort("strk", streak), "strk");
-  SAVE_KEY(prefs.putUShort("bstrk", bestStreak), "bstrk");
-  SAVE_KEY(prefs.putUInt("cday", lastCareDay), "cday");
-  SAVE_KEY(prefs.putUChar("bond", bond), "bond");
-  SAVE_KEY(prefs.putUShort("medal", medals), "medal");
-  SAVE_KEY(prefs.putUShort("tmedal", totalMedals), "tmedal");
-  SAVE_KEY(prefs.putUShort("mstone", lastMilestone), "mstone");
-  SAVE_KEY(prefs.putUShort("ghi", gameHi), "ghi");
-  SAVE_KEY(prefs.putUShort("shi", strHi), "shi");
-  SAVE_KEY(prefs.putUShort("qhi", spdHi), "qhi");
-  SAVE_KEY(prefs.putUInt("wlt", wallet), "wlt");
-  SAVE_KEY(prefs.putUInt("stps", stepsTotal), "stps");
-  SAVE_KEY(prefs.putUShort("coin", coinsLegacy()), "coin");   // what a downgrade reads
-  SAVE_KEY(prefs.putUInt("coin2", coins), "coin2");
-  SAVE_STR_KEY(prefs.putString("nick", nick), "nick", nick);
-#undef SAVE_KEY
-#undef SAVE_STR_KEY
+  // THE TWO CHECKPOINTS ARE THE WHOLE SAVE (v3.50). Every field the ~65 legacy
+  // keys used to mirror is in petA/petB or plyA/plyB, so they are no longer
+  // written: a save went from ~67 NVS commits to 2, which is less flash wear,
+  // a far shorter tearing window, and -- the reason it was done -- NVS can no
+  // longer creep toward full, the one state where the core ERASES THE WHOLE
+  // PARTITION at boot (see nvsinfo.cpp). Any build since the checkpoints went
+  // in reads them, so a downgrade to one of those still finds the save.
+  // load() still READS the legacy keys: that is how a save from before the
+  // checkpoints migrates. Once a checkpointed save has landed they are stale,
+  // so they are removed, once per boot, to give their entries back.
+  purgeLegacyKeys();
   return true;
+}
+
+// The legacy keys Pet::save() used to write, plus the older shapes load()
+// still understands (gatk/gdef/gspe, spec, eggT). Each is a pure mirror of a
+// checkpoint field -- legacy_test pins that a creature and a player survive a
+// reload with every one of them gone. Keys owned by other modules (party, box,
+// bag, rivals, casino, settings...) are NOT here and are never touched.
+static const char *const LEGACY_KEYS[] = {
+  "full", "joy", "ene", "hyg", "poop", "wgt", "ivat", "ivdf", "ivsp", "ivhp",
+  "tatk", "tdef", "tspe", "mvs", "mvh", "mvlv", "avtr", "avt2", "reg", "regn",
+  "badgX", "badhX", "eggR", "froz", "badg", "badh", "bk", "shy", "eshy", "prsn",
+  "skin", "stpk", "evop", "slpa", "rtpn", "dexsh", "age", "dexn", "eggT2", "crack",
+  "mist", "sleep", "lend", "seen", "dexreg", "strk", "bstrk", "cday", "bond", "medal",
+  "tmedal", "mstone", "ghi", "shi", "qhi", "wlt", "stps", "coin", "coin2", "tnam",
+  "nick", "gatk", "gdef", "gspe", "spec", "eggT",
+};
+
+uint8_t Pet::legacyKeyCount() {
+  uint8_t n = 0;
+  for (const char *k : LEGACY_KEYS) if (prefs.isKey(k)) n++;
+  return n;
+}
+
+void Pet::purgeLegacyKeys() {
+  if (legacyPurged) return;
+  // Only ever after BOTH checkpoints have just landed (save() calls this past
+  // that gate), so the record the keys mirror is on flash before they go.
+  for (const char *k : LEGACY_KEYS) if (prefs.isKey(k)) prefs.remove(k);
+  legacyPurged = true;
 }
 
 void Pet::load() {

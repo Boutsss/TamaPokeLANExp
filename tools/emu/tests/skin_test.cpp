@@ -142,7 +142,10 @@ int main(){
     ck(pet.saveNow(), "saved");
     nvs()["skin"] = { 0 };                 // the legacy key says otherwise
     { Pet q; q.begin(); ck(q.skin == SKIN_ARMORED, "the checkpoint carries the skin (and wins over the legacy key)"); }
+    // A save from BEFORE the checkpoints: only legacy keys. Since v3.50 the
+    // firmware no longer writes them, so the fixture sets the ones it needs.
     nvs()["skin"] = { SKIN_ARMORED };
+    nvs()["dexn"] = { 150, 0 };
     nvs().erase("petA"); nvs().erase("petB");
     { Pet q; q.begin(); ck(q.speciesId == 150 && q.skin == SKIN_ARMORED, "with no checkpoint, the legacy key carries it"); }
     nvs()["skin"] = { 0x7F };

@@ -37,7 +37,16 @@ volatile int g_touchX = 0, g_touchY = 0;
 volatile bool g_touchDown = false;
 
 // millis() lives in clock.cpp so the headless tests share it
-void FakeESP::restart() { Serial.println("emu: ESP.restart() -> exiting"); exit(0); }
+// On a board, NVS is already on flash when the firmware restarts -- an IMPORT
+// or a WIPE has landed before ESP.restart(). Here the store lives in RAM until
+// nvsSave(), so a restart must write it too, or a restore simply vanishes and
+// the next boot comes up on the save from before it (check_tpsave caught this).
+static const char *g_saveFile = nullptr;
+void FakeESP::restart() {
+  Serial.println("emu: ESP.restart() -> exiting");
+  if (g_saveFile) nvsSave(g_saveFile);
+  exit(0);
+}
 
 // --- stdin-backed serial ---
 static std::deque<std::string> g_lines;
@@ -560,6 +569,7 @@ int main(int argc, char **argv) {
     boxStoreSetDir(cut == std::string::npos ? "." : sp.substr(0, cut).c_str());
   }
   nvsLoad(save);
+  g_saveFile = save;
 
   if (SDL_Init(SDL_INIT_VIDEO) != 0) { fprintf(stderr, "SDL: %s\n", SDL_GetError()); return 1; }
   SDL_Window *win = SDL_CreateWindow("TamaPoke (emulator)", SDL_WINDOWPOS_CENTERED,

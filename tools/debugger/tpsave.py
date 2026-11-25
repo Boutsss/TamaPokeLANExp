@@ -173,6 +173,17 @@ class SaveError(Exception):
     pass
 
 
+def export_text_from_bytes(raw: bytes) -> str:
+    """The inverse: chunks raw bytes into the same 'IMPORT <hex...>' line
+    shape the firmware's EXPORT prints, ending with the bare commit line."""
+    hexstr = raw.hex().upper()
+    lines = [f"# TamaPoke save, {len(raw)} bytes. Paste this whole block back."]
+    for i in range(0, len(hexstr), 96):
+        lines.append("IMPORT " + hexstr[i:i + 96])
+    lines.append("IMPORT")
+    return "\n".join(lines) + "\n"
+
+
 def parse_export(raw: bytes) -> "OrderedDict":
     """Parses the outer wire format. Returns an OrderedDict of
     key -> (kind, value_bytes). Raises SaveError with a human reason on any
@@ -613,18 +624,181 @@ def decode_pet_checkpoint(raw: bytes) -> dict:
     return d
 
 
+# The player record's fixed scalars (pet.cpp savePlayerSnapshot): offset, format.
+# Its arrays follow, sized by the dimensions in bytes 12-16 of the record itself,
+# and after them the appended tail (wallet, steps, coins16, avatar16, coins32).
+PLAYER_FIXED = 42
+PLAYER_SCALARS = {
+    "region": (18, "B"), "badges": (20, "H"), "badgesHard": (22, "H"),
+    "streak": (24, "H"), "bestStreak": (26, "H"), "lastCareDay": (28, "I"),
+    "totalMedals": (32, "H"), "lastMilestone": (34, "H"),
+    "gameHi": (36, "H"), "strHi": (38, "H"), "spdHi": (40, "H"),
+}
+
+
+def _player_layout(raw: bytes) -> dict:
+    """Where everything sits in one player record, from its OWN dimensions --
+    the same rule pet.cpp's loadPlayerSnapshot() reads by."""
+    dex_bytes = struct.unpack_from("<H", raw, 12)[0]
+    region_n, badge_n, name_n = raw[14], raw[15], raw[16]
+    need = PLAYER_FIXED + 2 * dex_bytes + 4 * badge_n + 2 * region_n + name_n
+    return {"dex_bytes": dex_bytes, "region_n": region_n, "badge_n": badge_n,
+            "name_n": name_n, "need": need, "name_at": need - name_n,
+            "body": len(raw) - CKPT_CRC}
+
+
 def decode_player_checkpoint(raw: bytes) -> dict:
-    """Header/generation/CRC only -- the player record's tail is a set of
-    variable-length arrays sized by DEX_COUNT/REGION_COUNT/GYM_REGIONS, which
-    this tool does not track. Good enough to answer "is it valid, and which
-    of plyA/plyB is newer" without re-deriving the firmware's dex/region
-    tables in python."""
+    """Decodes a plyA/plyB blob in full: header, the fixed scalars, the
+    trainer name and the appended tail (wallet, steps, the coins and the
+    16-bit avatar). The arrays (Pokedex bitmaps, the badge ladders, the egg
+    regions) are located but left as bytes -- nothing here edits them."""
     try:
         generation, version = _ckpt_header_ok(raw, PLAYER_MAGIC)
-        return {"valid": True, "error": None, "generation": generation,
-                "version": version, "body_len": len(raw) - CKPT_HDR - CKPT_CRC}
     except SaveError as e:
         return {"valid": False, "error": str(e)}
+    d = {"valid": True, "error": None, "generation": generation,
+         "version": version, "body_len": len(raw) - CKPT_HDR - CKPT_CRC}
+    L = _player_layout(raw)
+    if L["need"] > L["body"]:
+        d.update(valid=False, error="player record shorter than its own dimensions")
+        return d
+    for name, (off, fmt) in PLAYER_SCALARS.items():
+        d[name] = struct.unpack_from("<" + fmt, raw, off)[0]
+    d["avatar"] = raw[17]
+    d["trainerName"] = raw[L["name_at"]:L["need"]].split(b"\x00", 1)[0].decode("ascii", "replace")
+    n = L["need"]
+    d["wallet"] = struct.unpack_from("<I", raw, n)[0] if L["body"] >= n + 8 else 0
+    d["stepsTotal"] = struct.unpack_from("<I", raw, n + 4)[0] if L["body"] >= n + 8 else 0
+    d["coins"] = struct.unpack_from("<H", raw, n + 8)[0] if L["body"] >= n + 10 else 0
+    if L["body"] >= n + 12:
+        d["avatar"] = struct.unpack_from("<H", raw, n + 10)[0]
+    if L["body"] >= n + 16:
+        d["coins"] = struct.unpack_from("<I", raw, n + 12)[0]
+    return d
+
+
+# ---- the legacy-key VIEW of the checkpoints ----------------------------------
+# Since v3.50 the firmware writes ONLY the checkpoints; the ~65 legacy keys are
+# gone. The editor still shows the live pet and the player as those familiar
+# keys, so they are DERIVED from the newest checkpoint on load, and an edit is
+# FOLDED back into that checkpoint (crc recomputed) before it goes to the
+# device -- never by dropping the checkpoints and letting the firmware rebuild
+# from legacy keys, which loses everything only a checkpoint carries (the held
+# item, the favourite flag, a stashed egg, the move high bytes, the skin).
+# legacy key -> PetCoreSnapshot field
+PET_LEGACY = {
+    "full": "fullness", "joy": "joy", "ene": "energy", "hyg": "hygiene",
+    "poop": "poops", "wgt": "weight", "age": "ageMinutes", "dexn": "speciesId",
+    "eggT2": "eggTarget", "crack": "eggTaps", "mist": "careMistakes",
+    "sleep": "sleeping", "lend": "lastEnd", "seen": "lastSeenEpoch", "bond": "bond",
+    "nick": "nick", "froz": "frozen", "ivat": "ivAtk", "ivdf": "ivDef",
+    "ivsp": "ivSpe", "ivhp": "ivHp", "tatk": "trAtk", "tdef": "trDef",
+    "tspe": "trSpe", "mvlv": "lastLearnLevel", "bk": "berryKnown", "shy": "shiny",
+    "eshy": "eggShiny", "stpk": "starterPick", "evop": "evoPen",
+    "slpa": "sleepAuto", "rtpn": "retirePending", "medal": "medals",
+}
+# legacy key -> decode_player_checkpoint field
+PLAYER_LEGACY = {
+    "tnam": "trainerName", "avt2": "avatar", "reg": "region", "badg": "badges",
+    "badh": "badgesHard", "strk": "streak", "bstrk": "bestStreak", "cday": "lastCareDay",
+    "tmedal": "totalMedals", "mstone": "lastMilestone", "ghi": "gameHi",
+    "shi": "strHi", "qhi": "spdHi", "wlt": "wallet", "stps": "stepsTotal",
+}
+# Every key the firmware used to mirror (pet.cpp LEGACY_KEYS). With a
+# checkpoint present they are stale by definition.
+LEGACY_KEYS = set(PET_LEGACY) | set(PLAYER_LEGACY) | {
+    "mvs", "mvh", "avtr", "regn", "badgX", "badhX", "eggR", "prsn", "skin",
+    "dexsh", "dexreg", "coin", "coin2", "gatk", "gdef", "gspe", "spec", "eggT"}
+
+
+def legacy_view(pet_ck, ply_ck) -> "tuple[dict, dict]":
+    """(live_pet, player) dicts keyed like the legacy keys, from checkpoints."""
+    live, player = {}, {}
+    if pet_ck and pet_ck.get("valid"):
+        for key, name in PET_LEGACY.items():
+            if key in SAVE_FIELD_KIND:
+                v = pet_ck[name]
+                live[key] = bool(v) if SAVE_FIELD_KIND[key] == SK_BOOL else v
+    if ply_ck and ply_ck.get("valid"):
+        for key, name in PLAYER_LEGACY.items():
+            if key in SAVE_FIELD_KIND:
+                player[key] = ply_ck[name]
+        player["avtr"] = player["avt2"] if player.get("avt2", 0) < 256 else 0
+    return live, player
+
+
+def _newest_key(fields, a, b, decode):
+    da = decode(fields[a][1]) if a in fields else None
+    db = decode(fields[b][1]) if b in fields else None
+    best = newer_checkpoint(da, db)
+    if best is None:
+        return None
+    return a if best is da else b
+
+
+def _reseal(buf: bytearray):
+    struct.pack_into("<H", buf, 6, len(buf))
+    struct.pack_into("<H", buf, len(buf) - 2, crc16(bytes(buf[:-2])))
+
+
+def fold_legacy_into_checkpoints(fields: "OrderedDict") -> "OrderedDict":
+    """Writes the legacy-key values in `fields` into the NEWEST pet and player
+    checkpoints (crc recomputed, generation kept) and removes every legacy key,
+    so the device gets exactly what the editor shows, through the records the
+    firmware believes. A save with no checkpoint at all (older than them) is
+    returned unchanged: there the legacy keys ARE the save, and the firmware
+    migrates them. Only call this on fields whose legacy values came from the
+    editor (they were shown from the checkpoint, so an untouched one is a no-op);
+    folding a raw old backup's legacy keys could carry a stale value forward."""
+    out = OrderedDict(fields)
+    pk = _newest_key(out, "petA", "petB", decode_pet_checkpoint)
+    yk = _newest_key(out, "plyA", "plyB", decode_player_checkpoint)
+    if pk is None and yk is None:
+        return out
+    if pk:
+        buf = bytearray(out[pk][1])
+        offs = {}
+        at = 0
+        for name, fmt in PET_CORE_FIELDS:
+            offs[name] = (at, fmt)
+            at += struct.calcsize("<" + fmt)
+        for key, name in PET_LEGACY.items():
+            if key not in out:
+                continue
+            v = decode_scalar(*out[key])
+            off, fmt = offs[name]
+            if name == "nick":
+                b = str(v).encode("ascii", "replace")[:11]
+                buf[off:off + 12] = b.ljust(12, b"\x00")
+            else:
+                struct.pack_into("<" + fmt, buf, off, int(v))
+        _reseal(buf)
+        out[pk] = (SK_BYTES, bytes(buf))
+    if yk:
+        buf = bytearray(out[yk][1])
+        L = _player_layout(bytes(buf))
+        for key, name in PLAYER_LEGACY.items():
+            if key not in out:
+                continue
+            v = decode_scalar(*out[key])
+            if name in PLAYER_SCALARS:
+                off, fmt = PLAYER_SCALARS[name]
+                struct.pack_into("<" + fmt, buf, off, int(v))
+            elif name == "trainerName":
+                b = str(v).encode("ascii", "replace")[:L["name_n"] - 1]
+                buf[L["name_at"]:L["need"]] = b.ljust(L["name_n"], b"\x00")
+            elif name == "avatar":
+                buf[17] = int(v) if int(v) < 256 else 0
+                if L["body"] >= L["need"] + 12:
+                    struct.pack_into("<H", buf, L["need"] + 10, int(v))
+            elif name in ("wallet", "stepsTotal") and L["body"] >= L["need"] + 8:
+                struct.pack_into("<I", buf, L["need"] + (0 if name == "wallet" else 4), int(v))
+        _reseal(buf)
+        out[yk] = (SK_BYTES, bytes(buf))
+    for key in list(out):
+        if key in LEGACY_KEYS:
+            del out[key]
+    return out
 
 
 def newer_checkpoint(a: "dict|None", b: "dict|None"):
@@ -738,6 +912,12 @@ def decode_save(raw: bytes, dex_h_path: str = None, items_h_path: str = None) ->
     ply_b = decode_player_checkpoint(fields["plyB"][1]) if "plyB" in fields else None
     result["plyA"], result["plyB"] = ply_a, ply_b
     result["player_checkpoint"] = newer_checkpoint(ply_a, ply_b)
+
+    # The checkpoints are the save (v3.50): show the live pet and the player
+    # from them, over any legacy key a pre-v3.50 export still carries.
+    lv, pv = legacy_view(result["pet_checkpoint"], result["player_checkpoint"])
+    result["live_pet"].update(lv)
+    result["player"].update(pv)
 
     result["findings"] = find_integrity_issues(result)
     return result

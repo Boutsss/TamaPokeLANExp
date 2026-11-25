@@ -1568,13 +1568,36 @@ Four things about it that are easy to get wrong:
   breaks the moment one write succeeds and the other does not.
   `powerloss_test` pins the invariant directly.
 
-The ~50 legacy keys are STILL WRITTEN, deliberately: they are what `EXPORT`
-carries and what a downgrade reads. But a failure in either checkpoint returns
-before touching them, so the previous save stays the previous save rather than
-becoming a half-updated one nothing can see is broken. **Dropping them is the
-obvious next win** -- it would take a save from ~55 NVS commits to 2, cutting
-both the tearing window and the page churn -- but it is a one-way door for
-anyone who downgrades, so it is not in this change.
+**The legacy keys are NO LONGER WRITTEN (v3.50).** Every field the ~65 keys
+mirrored is in a checkpoint, so `Pet::save()` writes the two records and nothing
+else: a save went from ~67 NVS commits to 2, which cut the flash wear, the
+tearing window and -- the reason it was done -- the slow creep toward a full
+NVS, the one state where the core erases the WHOLE partition at boot (see
+below). `load()` still READS them, because that is how a save from before the
+checkpoints migrates, and `purgeLegacyKeys()` removes any left on flash once a
+checkpointed save has landed (`LEGACY_KEYS` in pet.cpp; only that list, never a
+key another module owns). Any build since the checkpoints went in reads them,
+so a downgrade to one of those still finds the save; only a pre-checkpoint
+build would not.
+
+- **`legacy_test` is the guarantee the change rests on**: it sets EVERY field the
+  legacy keys carried to a distinct value, saves, proves none is on flash,
+  reloads into a fresh `Pet` and compares them all -- then migrates a
+  legacy-only save, refuses to purge when the checkpoints did not land, and
+  round-trips a backup. A field held ONLY by a legacy key would fail it.
+- **The desktop save editor follows the checkpoints too.** `tpsave.py` shows the
+  live pet and player from the newest records (`legacy_view()`) and an edit is
+  FOLDED back into them, crc recomputed (`fold_legacy_into_checkpoints()`). It
+  used to drop the checkpoints and let the firmware rebuild from legacy keys,
+  which silently lost everything only a checkpoint carries (held item,
+  favourite, stashed egg, move high bytes, skin). `check_tpsave.py` drives the
+  real firmware through an edit and back.
+- **The emulator's `ESP.restart()` now writes its NVS to disk**, as a board's
+  flash already is when it restarts. Without that an IMPORT vanished at the
+  restart that follows it, and the next boot came up on the old save.
+- A negative check that edits a Python file and copies it back within the same
+  second can leave a STALE `__pycache__` (same size, same mtime): the restored
+  source then runs the sabotaged bytecode. Clear `__pycache__` after one.
 
 `powerloss_test` covers all of it, and every guard in it was negative-checked by
 breaking the firmware on purpose. Note `poisonLegacy()` in that file: almost

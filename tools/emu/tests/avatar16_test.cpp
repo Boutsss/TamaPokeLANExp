@@ -53,7 +53,6 @@ static size_t avatarTailAt(const std::vector<uint8_t> &b){
   size_t need = 42 + 2 * rd16(&b[12]) + 4 * b[15] + 2 * b[14] + b[16];
   return need + 10;
 }
-static uint16_t storedU16(const char *k){ auto &v = nvs()[k]; return v.size() >= 2 ? rd16(v.data()) : 0xFFFF; }
 
 int main(){
   static_assert(sizeof(Pet::avatar) == 2, "the live avatar index is 16-bit");
@@ -69,14 +68,14 @@ int main(){
     auto &b = nvs()[newestPly()];
     ck(rd16(&b[4]) >= 4 && b[17] == A && b.size() >= avatarTailAt(b) + 2 + 2 && rd16(&b[avatarTailAt(b)]) == A,
        "the checkpoint carries 200 in byte 17 AND in its v4 tail");
-    ck(nvs()["avtr"].size() == 1 && nvs()["avtr"][0] == A && storedU16("avt2") == A, "and in both legacy keys");
+    ck(!nvs().count("avtr") && !nvs().count("avt2"), "and no legacy key is written any more (v3.50)");
   }
   pet.avatar = 300; pet.saveNow();   // past 255: not a real avatar yet, so only the bytes are checked
   {
     auto &b = nvs()[newestPly()];
     ck(b[17] == 0 && rd16(&b[avatarTailAt(b)]) == 300,
        "an index past 255 leaves 0 in byte 17 (what a downgrade sees) and the whole value in the tail");
-    ck(nvs()["avtr"][0] == 0 && storedU16("avt2") == 300, "likewise the legacy pair");
+    ck(!nvs().count("avtr") && !nvs().count("avt2"), "still no legacy key");
   }
   pet.avatar = A; pet.saveNow();
 
@@ -85,7 +84,7 @@ int main(){
     std::vector<uint8_t> b = nvs()[newestPly()];
     b[17] = LOW; reseal(b);
     nvs()["plyA"] = b; nvs()["plyB"] = b;
-    wr16(nvs()["avt2"].data(), 9); nvs()["avtr"][0] = 9;   // and the legacy keys say something else again
+    nvs()["avt2"] = { 9, 0 }; nvs()["avtr"] = { 9 };   // stale legacy keys saying something else again
     Pet p; p.begin();
     ck(p.avatar == A, "the checkpoint's v4 tail is what loads, not byte 17 or the legacy keys");
 
@@ -99,7 +98,7 @@ int main(){
   // ---- reading the legacy keys, with no checkpoint to believe
   {
     nvs().erase("plyA"); nvs().erase("plyB");
-    wr16(nvs()["avt2"].data(), A); nvs()["avtr"][0] = LOW;
+    nvs()["avt2"] = { (uint8_t)A, (uint8_t)(A >> 8) }; nvs()["avtr"] = { LOW };   // a pre-checkpoint save
     Pet p; p.begin();
     ck(p.avatar == A, "with no checkpoint, avt2 wins over avtr");
     nvs().erase("plyA"); nvs().erase("plyB"); nvs().erase("avt2");

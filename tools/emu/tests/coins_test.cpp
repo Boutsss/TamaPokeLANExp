@@ -55,7 +55,7 @@ int main(){
     size_t e = arraysEnd(b);
     ck(rd16(&b[4]) >= 5 && rd16(&b[e + 8]) == 0xFFFF && rd32(&b[e + 12]) == BIG,
        "the checkpoint keeps 65535 in its 16-bit field (an old build clamps that) and the count in its v5 tail");
-    ck(rd16(nvs()["coin"].data()) == 0xFFFF && rd32(nvs()["coin2"].data()) == BIG, "likewise coin / coin2");
+    ck(!nvs().count("coin") && !nvs().count("coin2"), "and no legacy coin key is written any more (v3.50)");
   }
   { Pet q; q.begin(); ck(q.coins == BIG, "and 1,234,567 coins come back"); }
 
@@ -65,7 +65,7 @@ int main(){
     size_t e = arraysEnd(b);
     wr16(&b[e + 8], 50); wr32(&b[e + 12], 1000000); reseal(b);
     nvs()["plyA"] = b; nvs()["plyB"] = b;
-    wr16(nvs()["coin"].data(), 7); wr32(nvs()["coin2"].data(), 8);
+    nvs()["coin"] = { 7, 0 }; nvs()["coin2"] = { 8, 0, 0, 0 };   // stale legacy keys
     Pet p; p.begin();
     ck(p.coins == 1000000, "the v5 tail is what loads");
     std::vector<uint8_t> v4(b.begin(), b.begin() + e + 12);   // a v4 record ends before it
@@ -80,7 +80,7 @@ int main(){
   }
   {
     nvs().erase("plyA"); nvs().erase("plyB");
-    wr16(nvs()["coin"].data(), 50); wr32(nvs()["coin2"].data(), 2000000);
+    nvs()["coin"] = { 50, 0 }; nvs()["coin2"] = { 0x80, 0x84, 0x1E, 0x00 };   // 2,000,000: a pre-checkpoint save
     Pet p; p.begin();
     ck(p.coins == 2000000, "with no checkpoint, coin2 wins over coin");
     nvs().erase("plyA"); nvs().erase("plyB"); nvs().erase("coin2");

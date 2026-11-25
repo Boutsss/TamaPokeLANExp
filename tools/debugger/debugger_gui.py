@@ -260,15 +260,8 @@ def hex_from_export_text(text: str) -> bytes:
     return bytes.fromhex(hexstr)
 
 
-def export_text_from_bytes(raw: bytes) -> str:
-    """The inverse: chunks raw bytes into the same 'IMPORT <hex...>' line
-    shape the firmware's EXPORT prints, ending with the bare commit line."""
-    hexstr = raw.hex().upper()
-    lines = [f"# TamaPoke save, {len(raw)} bytes. Paste this whole block back."]
-    for i in range(0, len(hexstr), 96):
-        lines.append("IMPORT " + hexstr[i:i + 96])
-    lines.append("IMPORT")
-    return "\n".join(lines) + "\n"
+# The IMPORT-line text the firmware's EXPORT prints: tpsave owns it (no tkinter).
+export_text_from_bytes = tpsave.export_text_from_bytes
 
 
 class App:
@@ -1687,6 +1680,8 @@ class App:
             return
         try:
             fields = self._rebuild_edited_fields()
+            if self.dirty:
+                fields = tpsave.fold_legacy_into_checkpoints(fields)
             raw = tpsave.encode_export(fields)
         except tpsave.SaveError as e:
             messagebox.showerror("Cannot encode", str(e))
@@ -1713,15 +1708,20 @@ class App:
             messagebox.showerror("Cannot encode", str(e))
             return
 
-        drop_ckpt = self.dirty
         warn = ""
-        if drop_ckpt:
-            for k in ("petA", "petB", "plyA", "plyB"):
-                fields.pop(k, None)
-            warn = ("\n\nYou edited fields, so petA/petB/plyA/plyB will be OMITTED from the "
-                    "restore -- this forces the firmware to rebuild fresh checkpoints from "
-                    "your edited legacy values instead of a stale checkpoint silently "
-                    "overriding them on next boot.")
+        if self.dirty:
+            # Edits go INTO the newest checkpoints (crc recomputed) -- the
+            # firmware's only save since v3.50. Dropping the checkpoints instead
+            # and letting it rebuild from legacy keys loses everything only a
+            # checkpoint carries: the held item, the favourite flag, a stashed
+            # egg, the move high bytes, the skin.
+            try:
+                fields = tpsave.fold_legacy_into_checkpoints(fields)
+            except (tpsave.SaveError, struct.error, ValueError) as e:
+                messagebox.showerror("Cannot encode", str(e))
+                return
+            warn = ("\n\nYour edits are written into the save records themselves; "
+                    "everything you did not edit is kept exactly as it was.")
         if not messagebox.askyesno(
                 "Confirm restore",
                 "This will back up the device's CURRENT save, then overwrite it with "
