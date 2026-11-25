@@ -3,7 +3,7 @@
 [![Flash in browser](https://img.shields.io/badge/flash-in%20browser-FF6B00?logo=googlechrome&logoColor=white)](https://reallyjustsomeguy.github.io/TamaPokeLANExp/web/)
 [![MakerWorld](https://img.shields.io/badge/MakerWorld-3D%20case-00AE42?logo=bambulab&logoColor=white)](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)
 ![Board](https://img.shields.io/badge/board-ESP32--S3%20round%20AMOLED-E7352C?logo=espressif&logoColor=white)
-![Firmware](https://img.shields.io/badge/firmware-v3.32-8A2BE2)
+![Firmware](https://img.shields.io/badge/firmware-v3.33-8A2BE2)
 ![Code](https://img.shields.io/badge/code-MIT-blue)
 ![Languages](https://img.shields.io/badge/languages-6-FFCB05)
 [![Stars](https://img.shields.io/github/stars/DylanPDao/TamaPoke?style=flat&logo=github&color=yellow)](https://github.com/DylanPDao/TamaPoke/stargazers)
@@ -384,10 +384,10 @@ reaches the 18 ceiling sooner.
 ### Arcade
 
 **Dumbbell > ARCADE** (the training menu's fourth row; it was ADVENTURE page 2
-until v3.20). Four short games played for fun,
+until v3.20). Six short games played for fun,
 joy and the bond -- they train **no stat** (that is what the
 [Training games](#training-games) are for). The list shows each game with your
-best score; a star marks a game you have S-ranked. The row is greyed, and no
+best score, as a grid of six tiles; a star marks a game you have S-ranked. The row is greyed, and no
 game starts, while the pet is an **egg, asleep or in a ceremony**; if it falls
 asleep mid-game the session is banked and the list comes back.
 
@@ -399,7 +399,11 @@ pet got); it goes back to the list by itself after 7 s, or on a tap after 0.7 s.
 
 **Leaving.** A tap on the top strip (y < 60) or a vertical swipe leaves a game
 and **banks it exactly as finishing would**; a horizontal swipe does too, except
-in BERRY CATCH, where dragging sideways is the control. Leaving the arcade from
+in BERRY CATCH, where dragging sideways is the control. **SURF** ignores
+vertical swipes (dragging up and down is how you steer). **PINBALL** ignores
+taps altogether (the flippers are held, anywhere on each half, top included)
+and every swipe while a ball is rolling, so a flipper press that slides never
+ends your game; between balls a swipe leaves. Leaving the arcade from
 anywhere mid-game banks it as well. A session is paid once, however it ends.
 
 | game | length | rules |
@@ -407,6 +411,8 @@ anywhere mid-game banks it as well. A session is paid once, however it ends.
 | **BERRY CATCH** | 45 s, or 3 lives | Drag (or tap) to move the basket along the ground (0.9 px/ms; catches within 46 px). A berry is **1 + mult - 1**, a golden berry (8 %) **5 + mult - 1**. A berry that lands breaks the combo. From **6 s** rocks fall too (25 % of drops, 15 % faster): one in the basket costs a **life**, the combo and stuns the basket for 0.7 s; a rock that misses is harmless. A drop every 950 ms falling 0.16 px/ms at the start, every 420 ms at 0.34 px/ms by 45 s. |
 | **MEMORY** | 60 s | 4x4 cards, 8 pairs of type symbols (drawn with the move-effect sprites; 8 of 12 types with distinct shapes). Flip two: a pair stays up and is worth **10 x mult** (combo = pairs in a row). A mismatch shows for 0.7 s -- or until your next tap -- and turns back: no points lost, combo broken. Clearing the board is **+20** and deals a fresh one. |
 | **ECHO** | until the last life, at most 60 s | Four type pads -- FIRE top, WATER right, GRASS bottom, ELECTRIC left, each its own note (C E G C) -- play a sequence; repeat it. Each right pad **+1**, a cleared round **+its length**, and the next round adds one pad: clearing *n* rounds is **n x (n + 1)** points. A wrong pad, or **5 s** without a tap on your turn, costs one of **2 lives** and replays the same sequence. Playback: each pad lit 460 - 18 x length ms (at least 240), 140 ms apart. |
+| **PINBALL** | 3 balls | Hold the **left half** of the panel for the left flipper and the **right half** for the right one. A traditional table: three **pop bumpers** (100 x mult); three **top rollover lanes** (250 each -- light all three for **1,000 x mult** and the next **multiplier**, up to x5; a fresh flipper press shifts the lit lanes one to the right, so you can aim); an **orbit** round the right of the rim (500 x mult at the top); a bank of three **drop targets** on the left (300 each, **2,500** for the set, then they stand back up); a Poke Ball **CATCH saucer** that holds the ball, scores **2,000** and spits it back out; **slingshots** above the flippers (10 and a kick up and in); and **inlanes** feeding each flipper (100). Points are the score / 100. |
+| **SURF** | 45 s, or 3 lives | **The creature you are raising** rides the wave, on its own sprite. Drag up and down to steer (anywhere below the top strip; a tap sends it there). A star is **1 + mult - 1**, a shell (9 %) **5 + mult - 1**; a star that gets past breaks the combo. From **4 s** rocks come too (30 %): one costs a **life** and the combo, and you are safe from rocks for 1 s after. The sea quickens from 0.20 to 0.40 px/ms, a new thing every 760 ms down to 360 ms. |
 | **POP-UP** | 45 s | Seven holes. Bop a critter for **1 + mult - 1**, a golden one (10 %, stays 3/4 as long) for **3 + mult - 1**. From **5 s** a BOMB can pop up (18 %): bopping it is **-5** points (never below 0) and the combo; left alone it fizzles. A critter that ducks back untapped, or a tap on an empty hole, breaks the combo. One critter at a time, **two from 8 s, three from 25 s**; each stays 1150 ms - 14 ms per hit (at least 550), a bomb 1300 ms. |
 
 **Grades** (points): 
@@ -417,6 +423,14 @@ anywhere mid-game banks it as well. A session is paid once, however it ends.
 | MEMORY | 40 | 90 | 150 |
 | ECHO | 12 (3 rounds) | 30 (5) | 56 (7) |
 | POP-UP | 20 | 40 | 65 |
+| PINBALL | 60 | 90 | 150 |
+| SURF | 30 | 90 | 140 |
+
+The PINBALL and SURF lines are measured, not guessed: the test suite plays
+hundreds of games with a bot that reacts like a person (it misses some balls,
+looks again only every quarter second and aims imprecisely). For pinball about
+70% of its games make a B and 10% an S; one that never flips makes a B in
+fewer than 1 in 10. For surfing about 95% make a B, 65% an A and 15% an S.
 
 **Rewards**, for a session that scored at least 1 point (a 0-point session pays
 and records nothing):
@@ -437,11 +451,16 @@ and records nothing):
   | MEMORY | POKE BALL | GREAT BALL | QUICK CLAW |
   | ECHO | POKE BALL | GREAT BALL | FOCUS SASH |
   | POP-UP | ORAN BERRY | SITRUS BERRY | LUM BERRY |
+  | PINBALL | POTION | SUPER POTION | PROTEIN |
+  | SURF | ORAN BERRY | SITRUS BERRY | CARBOS |
 
-- **All four S-ranked** (each game's first S paid): **3 ULTRA BALLs**, once.
+- **The first four games all S-ranked** (BERRY CATCH, MEMORY, ECHO, POP-UP):
+  **3 ULTRA BALLs**, once. (PINBALL and SURF came later, in v3.33, and pay
+  their own first-S items instead, so nobody who already earned this loses it.)
 
-Bests, today's prizes and the one-time bonuses are saved (`arcHi`, 4 x 16-bit;
-`arcDay`; `arcRw`, 5 B) and are in the EXPORT backup.
+Bests, today's prizes and the one-time bonuses are saved (`arcHi`, 6 x 16-bit;
+`arcDay`; `arcRw`, 7 B) and are in the EXPORT backup. A save from before v3.33
+(four games) loads as it was, with the two new games starting at zero.
 
 &nbsp;
 
@@ -495,7 +514,7 @@ the lobby. Let go any earlier and the row turns back to ARCADE. A Team Rocket
 grunt deals; he laughs when you lose and grumbles when you win.
 
 It plays like the GBC Game Corner: **you buy coins with your money, and you
-play and buy prizes with coins only** -- prizes never take money. There are five games: slots, High/Low, blackjack, roulette and pinball.
+play and buy prizes with coins only** -- prizes never take money. There are four games: slots, High/Low, blackjack and roulette.
 
 | | |
 |---|---|
@@ -505,8 +524,7 @@ play and buy prizes with coins only** -- prizes never take money. There are five
 | **High / Low** | guess whether the next card is higher or lower (ace low, king high). A tie loses. Each right guess doubles the pot (up to 9,999); CASH OUT whenever. |
 | **Blackjack** | one deck, reshuffled every hand. Dealer stands on all 17s. Blackjack pays 3:2, a win 1:1, a push returns the bet. DOUBLE on your first two cards takes exactly one more card at twice the bet. |
 | **Roulette** | a single-zero wheel (0-36, in the real pocket order) with a Poke Ball hub. Bet on RED or BLACK, ODD or EVEN, 1-18 or 19-36 (each pays 1:1), GREEN -- the zero -- (pays 35:1), a DOZEN (tap again to change which; pays 2:1) or a single NUMBER (tap its right half to step up, left half to step down; pays 35:1). 0 loses every bet except GREEN or a straight bet on 0. Every bet returns 36 coins in 37 over the long run. The result is drawn when you press SPIN; the wheel and the ball only travel to it. |
-| **Pinball** | the PINBALL button under the others. **10 coins** for **3 balls**. Hold a finger on the **left half** of the screen for the left flipper and the **right half** for the right one (one finger, one flipper). Each of Team Rocket's three **R bumpers** scores **100**, each **Poke Ball target** 250 and lights up; light all three for a **1,000 bonus** and the **multiplier** goes up one (to **x5**, which multiplies the bumpers and the bonus too). It pays by your final score: **5,000: 10 coins**, **9,000: 25**, **15,000: 50**, **25,000: 100**. Over many games a player who catches about three balls in four gets back roughly 90% of what they put in, and one who never flips gets almost nothing. Your best score is kept. |
-| Leaving | swipe down. A blackjack hand in play is stood on and settled; a High/Low pot is cashed out; spinning reels and a turning wheel stop and pay. Pinball does **not** leave while a ball is rolling (a flipper press that slides would end your game); between balls it does, and the game is paid for what it scored. |
+| Leaving | swipe down. A blackjack hand in play is stood on and settled; a High/Low pot is cashed out; spinning reels and a turning wheel stop and pay. |
 
 **Prizes** -- everything is **9,999 coins** (about $200,000 worth at the
 counter, so winning at the tables is how you get there). Tap a prize once to select it and
