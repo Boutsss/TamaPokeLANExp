@@ -399,6 +399,12 @@ enum StrId : uint16_t {
   S_PC_MEDALS_FMT, // trainer cards
   S_PC_STREAK_FMT, // trainer cards
   S_PC_SWAPPED,    // trainer cards
+  S_CAS_ROULETTE,  // the Game Corner
+  S_CAS_RED,       // the Game Corner
+  S_CAS_BLACK,     // the Game Corner
+  S_CAS_ODD,       // the Game Corner
+  S_CAS_EVEN,      // the Game Corner
+  S_CAS_ROCKET,    // the Game Corner
   STR_COUNT
 };
 

@@ -176,6 +176,40 @@ float slotReturn() {
   return (float)paid / (SLOT_REEL_LEN * SLOT_REEL_LEN * SLOT_REEL_LEN);
 }
 
+// ---------------------------------------------------------------- roulette
+const uint8_t ROULETTE_WHEEL[ROULETTE_POCKETS] = {
+  0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10,
+  5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26 };
+
+bool rouletteRed(uint8_t n) {
+  static const uint8_t R[18] = { 1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36 };
+  for (uint8_t r : R) if (r == n) return true;
+  return false;
+}
+
+uint8_t roulettePays(uint8_t bet, uint8_t arg, uint8_t n) {
+  if (n >= ROULETTE_POCKETS) return 0;
+  if (bet == RB_NUMBER) return arg == n ? 36 : 0;      // 35 to 1, plus the stake
+  if (n == 0) return 0;                                 // the house's pocket
+  switch (bet) {
+    case RB_RED:   return rouletteRed(n) ? 2 : 0;
+    case RB_BLACK: return rouletteRed(n) ? 0 : 2;
+    case RB_ODD:   return (n & 1) ? 2 : 0;
+    case RB_EVEN:  return (n & 1) ? 0 : 2;
+    case RB_LOW:   return n <= 18 ? 2 : 0;
+    case RB_HIGH:  return n >= 19 ? 2 : 0;
+    case RB_DOZEN: return (uint8_t)((n - 1) / 12) == arg ? 3 : 0;   // 2 to 1
+    default: return 0;
+  }
+}
+
+uint8_t rouletteSpin() { return (uint8_t)random(ROULETTE_POCKETS); }
+
+uint8_t rouletteWheelIndex(uint8_t n) {
+  for (uint8_t i = 0; i < ROULETTE_POCKETS; i++) if (ROULETTE_WHEEL[i] == n) return i;
+  return 0;
+}
+
 // ---------------------------------------------------------------- the shop
 
 uint8_t casinoPrizeCount(uint8_t kind) {

@@ -35,7 +35,7 @@ extern bool friendsOpen;
 extern bool casinoOpen;
 extern bool cardBookOpen;
 extern bool lanOpen, lanPractice;
-void casinoOpenNow(); void casinoClose(); void onTap(int16_t,int16_t);
+void casinoOpenNow(); void casinoClose(); void onTap(int16_t,int16_t); void casinoDbgSkipDoor();
 void casLobbyBtn(uint8_t i, int *x, int *y, int *w, int *h);
 extern Party party;
 void startBattle(int16_t dex, uint8_t lvl);
@@ -96,11 +96,11 @@ int main(){
   tradeView=1; check("tradepick"); crumbIs("tradepick"); tradeOpen=false; tradeView=0;
   clearAll(); friendsOpen=true; check("friends"); crumbIs("friends"); friendsOpen=false;
   // The casino: the lobby and each of its five screens (the last is the shop).
-  clearAll(); casinoOpenNow(); check("casino"); crumbIs("casino");
-  for (uint8_t i = 0; i < 5; i++) {
-    casinoClose(); casinoOpenNow();
+  clearAll(); casinoOpenNow(); check("cas-door"); casinoDbgSkipDoor(); check("casino"); crumbIs("casino");
+  for (uint8_t i = 0; i < 6; i++) {
+    casinoClose(); casinoOpenNow(); casinoDbgSkipDoor();
     int x,y,w,h; casLobbyBtn(i,&x,&y,&w,&h); onTap(x+w/2, y+h/2);
-    const char *nm[5] = { "cas-slots", "cas-hilo", "cas-bj", "cas-coins", "casshop" };
+    const char *nm[6] = { "cas-slots", "cas-hilo", "cas-bj", "cas-roulette", "cas-coins", "casshop" };
     check(nm[i]);
   }
   crumbIs("casshop");

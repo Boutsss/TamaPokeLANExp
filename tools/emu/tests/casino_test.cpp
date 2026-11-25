@@ -88,6 +88,31 @@ int main(){
     ck(inRange, "every stop lands on the strip");
   }
 
+  // ---- roulette: every bet returns exactly 36/37 over the 37 pockets
+  {
+    bool seen[ROULETTE_POCKETS] = { false }, wheelOk = true;
+    for (uint8_t i = 0; i < ROULETTE_POCKETS; i++) { if (ROULETTE_WHEEL[i] >= ROULETTE_POCKETS || seen[ROULETTE_WHEEL[i]]) wheelOk = false; else seen[ROULETTE_WHEEL[i]] = true; }
+    ck(wheelOk, "the wheel holds every pocket 0..36 exactly once");
+    uint8_t reds = 0; for (uint8_t n = 1; n <= 36; n++) reds += rouletteRed(n);
+    ck(reds == 18 && !rouletteRed(0), "18 red, 18 black, and 0 is neither");
+    bool alt = true;   // on a real wheel the colours alternate pocket to pocket
+    for (uint8_t i = 1; i + 1 < ROULETTE_POCKETS; i++) if (rouletteRed(ROULETTE_WHEEL[i]) == rouletteRed(ROULETTE_WHEEL[i + 1])) alt = false;
+    ck(alt, "red and black alternate round the wheel");
+    bool exact = true;
+    for (uint8_t b = 0; b < RB_COUNT; b++) {
+      uint8_t args = b == RB_DOZEN ? 3 : b == RB_NUMBER ? 37 : 1;
+      for (uint8_t a = 0; a < args; a++) {
+        unsigned ret = 0; for (uint8_t n = 0; n < ROULETTE_POCKETS; n++) ret += roulettePays(b, a, n);
+        if (ret != 36) { exact = false; printf("      bet %u arg %u returns %u/37\n", b, a, ret); }
+      }
+    }
+    ck(exact, "every bet returns exactly 36 coins in 37 per coin: the zero is the house edge");
+    ck(roulettePays(RB_RED, 0, 0) == 0 && roulettePays(RB_NUMBER, 0, 0) == 36, "0 loses red, and pays 35 to 1 on 0 itself");
+    ck(roulettePays(RB_DOZEN, 2, 36) == 3 && roulettePays(RB_DOZEN, 0, 13) == 0, "dozens pay 2 to 1");
+    randomSeed(4); bool inR = true; for (int i = 0; i < 2000; i++) if (rouletteSpin() >= ROULETTE_POCKETS) inR = false;
+    ck(inR, "every spin lands in a pocket");
+  }
+
   // ---- the prize shop
   {
     nvs().clear(); casinoBegin();

@@ -19,13 +19,13 @@
 
 #define COIN_CAP 9999
 #define CASINO_PRICE 9999
-#define COIN_DOLLARS 1          // Pokedollars per coin
-#define CASINO_HOLD_MS 5000     // hold ARCADE this long to find the casino
+#define COIN_DOLLARS 20         // Pokedollars per coin: the GBC price, 50 coins for $1000
+#define CASINO_HOLD_MS 6400     // hold ARCADE this long to find the Game Corner
 // The reveal: once a press is too long to be a tap, the ARCADE row starts to
 // turn like a card, slowly at first, and lands on its GAME CORNER face at
 // CASINO_REVEAL_MS; it glitters there until the door opens at CASINO_HOLD_MS.
-#define CASINO_SPIN_START_MS 1500
-#define CASINO_REVEAL_MS 4400
+#define CASINO_SPIN_START_MS 3000   // nothing shows for the first 3 s
+#define CASINO_REVEAL_MS 5600
 #define CASINO_SPIN_HALF_TURNS 5   // odd: it must finish face DOWN, i.e. on GAME CORNER
 
 // ---- cards -----------------------------------------------------------------
@@ -97,6 +97,20 @@ void slotSpin(uint8_t stop[3]);
 // The exact long-run return of SLOT_REELS (all 16^3 stops), so the test can
 // hold the house edge to a range without sampling.
 float slotReturn();
+
+// ---- roulette -------------------------------------------------------------
+// A single-zero wheel, 0..36, in the real pocket order. Every bet pays what
+// the real table pays, and 0 is the house's: it loses every outside bet. The
+// long-run return of every bet is exactly 36/37 (roulette_test sums all 37).
+enum RouletteBet : uint8_t { RB_RED = 0, RB_BLACK, RB_ODD, RB_EVEN, RB_LOW, RB_HIGH, RB_DOZEN, RB_NUMBER, RB_COUNT };
+#define ROULETTE_POCKETS 37
+extern const uint8_t ROULETTE_WHEEL[ROULETTE_POCKETS];   // the pocket order round the wheel
+bool rouletteRed(uint8_t n);                 // 0 is neither red nor black
+// Coins returned per coin staked (stake included): 0 = lost. `arg` is the
+// dozen (0..2) for RB_DOZEN or the number (0..36) for RB_NUMBER.
+uint8_t roulettePays(uint8_t bet, uint8_t arg, uint8_t result);
+uint8_t rouletteSpin();                      // 0..36, decided at SPIN
+uint8_t rouletteWheelIndex(uint8_t n);       // where n sits on the wheel
 
 // ---- the prize shop -------------------------------------------------------------
 enum PrizeKind : uint8_t { PK_BACK = 0, PK_AVATAR, PK_CARDBG, PK_KINDS };

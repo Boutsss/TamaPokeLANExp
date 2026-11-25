@@ -38,6 +38,9 @@ bool casinoSpinning(); bool casinoSpinShowsCorner(); uint32_t casinoHeldMs();
 extern Arduino_Canvas *gfx;
 static uint16_t px(int x, int y) { return gfx->buffer()[y * 466 + x]; }
 const Blackjack &casBlackjack();
+uint8_t casRouletteResult(); bool casRouletteSpinning(); uint8_t casRouletteBetKind(); uint8_t casRouletteBetArg();
+void casRlCell(uint8_t i, int *x, int *y, int *w, int *h); void casRlBtn(uint8_t i, int *x, int *y, int *w, int *h);
+bool casinoDoorsShowing();
 const HighLow &casHighLow();
 uint8_t casinoView();
 uint16_t cardBgPixel(uint8_t bg, int x, int y, uint32_t t);
@@ -67,16 +70,16 @@ int main(){
   trainOpen = true; render();
   hold(233, uiTrainRowCenterY(3), 2000);
   ck(!casinoOpen && !arcadeOpen && trainOpen, "two seconds on ARCADE opens nothing: not the arcade, not the casino");
-  hold(233, uiTrainRowCenterY(1), 5600);
-  ck(!casinoOpen, "five seconds on another row does not find the door");
+  hold(233, uiTrainRowCenterY(1), CASINO_HOLD_MS + 600);
+  ck(!casinoOpen, "the full hold on another row does not find the door");
   // ---- the reveal: the ARCADE row turns over while it is held
   {
     int ry = uiTrainRowCenterY(3);
     render();
-    uint16_t cream = px(233 - 110, ry);            // the ARCADE row's own face
+    uint16_t cream = px(233 + 120, ry);            // the ARCADE row's own face
     g_touchX = 233; g_touchY = ry; g_touchDown = true; emuFireInterrupt();
-    pump(25);                                      // ~0.75 s
-    ck(!casinoSpinning(), "under 1.5 s the row does not turn: it could still be a tap");
+    pump(80);                                      // ~2.4 s
+    ck(!casinoSpinning() && casinoHeldMs() > 2000, "for the first 3 s nothing shows: the row stays ARCADE");
     bool sawArcade = false, sawCorner = false, early = false;
     while (casinoHeldMs() < CASINO_REVEAL_MS + 100 && casinoHeldMs() > 0) {
       pump(1);
@@ -87,37 +90,50 @@ int main(){
     ck(sawArcade && sawCorner, "held on, it turns: both faces come round");
     ck(!early && trainOpen && !casinoOpen, "and nothing opens while it turns");
     render();
-    ck(casinoSpinShowsCorner() && px(233 - 110, ry) != cream && px(233 - 110, ry) == 0x18C3,
-       "it comes to rest on its GAME CORNER face -- on the panel, not just in a flag");
+    ck(casinoSpinShowsCorner() && px(233 + 120, ry) != cream && px(233 + 120, ry) == 0x0841,
+       "it comes to rest on its black Team Rocket GAME CORNER face -- on the panel, not just in a flag");
     g_touchDown = false; emuFireInterrupt(); pump(3);
-    ck(!casinoOpen && !casinoSpinning(), "let go before 5 s: nothing opens");
+    ck(!casinoOpen && !casinoSpinning(), "let go before the door: nothing opens");
     render();
-    ck(px(233 - 110, ry) == cream, "and the row is back to ARCADE");
+    ck(px(233 + 120, ry) == cream, "and the row is back to ARCADE");
   }
-  hold(233, uiTrainRowCenterY(3), 5600);
-  ck(casinoOpen && onScreen("casino"), "five seconds on ARCADE opens the GAME CORNER");
+  g_touchX = 233; g_touchY = uiTrainRowCenterY(3); g_touchDown = true; emuFireInterrupt();
+  pump((CASINO_HOLD_MS + 300) / 30);
+  ck(casinoOpen && onScreen("casino"), "the full hold on ARCADE opens the GAME CORNER");
+  render();
+  ck(casinoDoorsShowing() && px(40, 233) == 0x18C3, "through Team Rocket's doors: shut at first");
+  g_touchDown = false; emuFireInterrupt(); pump(3);
+  { int x,y,w,h; casLobbyBtn(4,&x,&y,&w,&h); onTap(x+w/2, y+h/2); render(); }
+  ck(casinoView() == 0, "and the lobby does not take a tap until they have opened");
+  pump(50);
+  render();
+  ck(!casinoDoorsShowing() && px(40, 233) != 0x18C3, "then they slide apart onto the lobby");
   ck(!arcadeOpen, "and not the arcade itself");
 
   // ---- coins for money
   pet.wallet = 1000; pet.coins = 0;
-  tapGeo(casLobbyBtn, 3);
+  tapGeo(casLobbyBtn, 4);
   tapGeo(casCoinsBtn, 0);
-  ck(pet.coins == 50 && pet.wallet == 950, "50 coins for $50");
-  { Pet q; q.begin(); ck(q.coins == 50 && q.wallet == 950, "both sides of the purchase are on flash"); }
-  pet.wallet = 10;
+  ck(pet.coins == 50 && pet.wallet == 0, "50 coins for $1000, the GBC price");
+  { Pet q; q.begin(); ck(q.coins == 50 && q.wallet == 0, "both sides of the purchase are on flash"); }
+  pet.wallet = 999;
   tapGeo(casCoinsBtn, 0);
-  ck(pet.coins == 50 && pet.wallet == 10, "a short wallet buys nothing");
+  ck(pet.coins == 50 && pet.wallet == 999, "a short wallet buys nothing");
+  pet.wallet = 10000;
+  tapGeo(casCoinsBtn, 1);
+  ck(pet.coins == 550 && pet.wallet == 0, "500 coins for $10,000");
   onSwipeV(1); render();
   ck(onScreen("casino") && casinoOpen && casinoView() == 0, "down: back to the lobby");
 
   // ---- a spin
   tapGeo(casLobbyBtn, 0);
-  tapBtn(0, 1);                                   // SPIN (bet 10)
-  ck(pet.coins == 40, "a spin takes the 10-coin bet");
+  pet.coins = 50;
+  tapBtn(0, 1);                                   // SPIN (bet 1, like the GBC machines)
+  ck(pet.coins == 49, "a spin takes a 1-coin bet");
   for (int i = 0; i < 3; i++) tapBtn(0, 1);       // STOP, STOP, STOP
   const uint8_t *st = casSlotStops();
-  uint16_t pay = slotPays(SLOT_REELS[0][st[0]], SLOT_REELS[1][st[1]], SLOT_REELS[2][st[2]]) * 10;
-  ck(pet.coins == 40 + pay, "the reels pay exactly what the paytable says for where they stopped");
+  uint16_t pay = slotPays(SLOT_REELS[0][st[0]], SLOT_REELS[1][st[1]], SLOT_REELS[2][st[2]]);
+  ck(pet.coins == 49 + pay, "the reels pay exactly what the paytable says for where they stopped");
   onSwipeV(1); render();
 
   // ---- a blackjack hand
@@ -126,21 +142,44 @@ int main(){
   tapBtn(0, 1);                                   // DEAL
   if (casBlackjack().state == BJ_PLAYER) tapBtn(1, 3);   // STAND
   ck(casBlackjack().state == BJ_DONE, "a dealt hand plays to the end");
-  ck(pet.coins == 500 - 10 + casBlackjack().payout(), "and pays its result into the coins");
+  ck(pet.coins == 500 - casBlackjack().bet + casBlackjack().payout(), "and pays its result into the coins");
   onSwipeV(1); render();
 
   // ---- high / low: cash out at once returns the stake
   pet.coins = 100;
   tapGeo(casLobbyBtn, 1);
   tapBtn(0, 1);                                   // DEAL
-  ck(pet.coins == 90 && casHighLow().state == HL_GUESS, "High/Low takes the stake");
+  ck(pet.coins == 95 && casHighLow().state == HL_GUESS, "High/Low takes the 5-coin stake");
   tapBtn(2, 3);                                   // CASH OUT
   ck(pet.coins == 100, "and cashing out before guessing gives it back");
   onSwipeV(1); render();
 
+  // ---- roulette
+  pet.coins = 100;
+  tapGeo(casLobbyBtn, 3);
+  ck(onScreen("casino") && casinoView() == 6, "ROULETTE opens the wheel");
+  tapGeo(casRlCell, 7);                           // a straight number: 17 to start
+  { int x,y,w,h; casRlCell(7,&x,&y,&w,&h); onTap(x+w-6, y+h/2); onTap(x+6, y+h/2); onTap(x+6, y+h/2); render(); }
+  ck(casRouletteBetKind() == RB_NUMBER && casRouletteBetArg() == 16, "the number steps up on its right half, down on its left");
+  tapGeo(casRlCell, 0);                           // RED
+  tapGeo(casRlBtn, 1);                            // SPIN (bet 5)
+  ck(pet.coins == 95 && casRouletteSpinning(), "SPIN takes the 5-coin bet and the wheel turns");
+  tapGeo(casRlCell, 1);
+  ck(casRouletteBetKind() == RB_RED, "no more bets while it turns");
+  pump((3600 + 300) / 30);
+  ck(!casRouletteSpinning(), "it comes to rest");
+  ck(pet.coins == 95 + 5 * roulettePays(RB_RED, 0, casRouletteResult()), "and pays exactly what the table says for where the ball lies");
+  {
+    render();
+    uint8_t r = casRouletteResult();
+    uint16_t want = r == 0 ? 0x0480 : rouletteRed(r) ? 0xE8E4 : 0x18C3;
+    ck(px(233, 148 - 74 + 5) == want, "the pocket under the pointer is the winning number's colour, on the panel");
+  }
+  onSwipeV(1); render();
+
   // ---- the prize shop: an avatar
   pet.coins = CASINO_PRICE;
-  tapGeo(casLobbyBtn, 4);
+  tapGeo(casLobbyBtn, 5);
   ck(onScreen("casshop"), "PRIZES opens the shop");
   tapGeo(casTab, 1);                              // AVATARS
   tapGeo(casTile, 0);

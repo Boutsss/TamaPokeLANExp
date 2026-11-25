@@ -88,7 +88,7 @@ uint8_t learnableFor(int16_t dex, uint8_t lvl, uint8_t *out, uint8_t max);
 extern bool casinoOpen; extern uint8_t casShopKind, casShopPage;
 extern const char *const SCREEN_NAME[];
 extern bool cardBookOpen; extern uint8_t cardBookPage;
-void casinoOpenNow(); void casinoClose(); void onTap(int16_t,int16_t);
+void casinoOpenNow(); void casinoClose(); void onTap(int16_t,int16_t); void casinoDbgSkipDoor();
 void casLobbyBtn(uint8_t i, int *x, int *y, int *w, int *h);
 
 int main(){
@@ -137,8 +137,8 @@ int main(){
     else printf("PASS  %-10s a horizontal swipe neither pages nor closes it\n", "tasks"); }
   // The Game Corner's prize shop pages on the rim (82 avatars: 14 pages),
   // and paging must neither leave the shop nor close the casino.
-  clearAll(); casinoOpenNow();
-  { int x,y,w,h; casLobbyBtn(4,&x,&y,&w,&h); onTap(x+w/2, y+h/2); }
+  clearAll(); casinoOpenNow(); casinoDbgSkipDoor();
+  { int x,y,w,h; casLobbyBtn(5,&x,&y,&w,&h); onTap(x+w/2, y+h/2); }
   casShopKind = 1;                                check("casshop",  &casinoOpen,   &casShopPage);
   if (strcmp(SCREEN_NAME[uiCurrentScreen()], "casshop")) { printf("FAIL  casshop    paging left the shop\n"); bad++; }
   casinoClose();

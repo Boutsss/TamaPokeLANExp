@@ -13,16 +13,22 @@
 // github.com/FedorSosnin/Catch151).
 
 
+
 // ---------------------------------------------------------------- state
 bool casinoOpen = false;
-enum : uint8_t { CV_LOBBY = 0, CV_SLOTS, CV_HL, CV_BJ, CV_COINS, CV_SHOP };
+// APPEND-ONLY: casinoView() == CV_SHOP (5) is how the sketch tells the shop apart.
+enum : uint8_t { CV_LOBBY = 0, CV_SLOTS, CV_HL, CV_BJ, CV_COINS, CV_SHOP, CV_ROULETTE };
 static uint8_t casView = CV_LOBBY;
 uint8_t casShopKind = PK_BACK;
 uint8_t casShopPage = 0;
 static int16_t casArmed = -1;          // a shop tile tapped once: the next tap buys it
-static const uint16_t CAS_BETS[3] = { 10, 50, 100 };
+// Bets in COINS. The slots take 1, 2 or 3 like the GBC machines; the tables,
+// which the old Game Corner never had, take 5, 10 or 50.
+static const uint16_t SLOT_BETS[3] = { 1, 2, 3 };
+static const uint16_t TABLE_BETS[3] = { 5, 10, 50 };
 static uint8_t casBetI = 0;
-static uint16_t casBet() { return CAS_BETS[casBetI % 3]; }
+static uint16_t casBet() { return (casView == CV_SLOTS ? SLOT_BETS : TABLE_BETS)[casBetI % 3]; }
+static uint32_t casOpenedAt = 0;      // the secret door opens from here
 
 // the dealer's mood drives his animation and his line
 enum : uint8_t { DM_IDLE = 0, DM_DEAL, DM_LAUGH, DM_GRUMBLE };
@@ -55,11 +61,12 @@ static bool casTakeBet(uint16_t n) {
 
 // ---------------------------------------------------------------- geometry
 #define CAS_BTN_H 58
-// The lobby: five buttons, two columns and a centred last row.
+// The lobby: six buttons, two columns of three under the dealer.
+#define CAS_LOBBY_BTNS 6
 void casLobbyBtn(uint8_t i, int *x, int *y, int *w, int *h) {
-  *h = CAS_BTN_H;
-  if (i < 4) { *w = 150; *x = (i % 2) ? CX + 6 : CX - 156; *y = 214 + (i / 2) * 68; }
-  else { *w = 200; *x = CX - 100; *y = 214 + 2 * 68; }
+  *h = 56; *w = 150;
+  *x = (i % 2) ? CX + 6 : CX - 156;
+  *y = 176 + (i / 2) * 66;
 }
 // A game screen's bottom row of up to three buttons.
 void casBtn(uint8_t i, uint8_t n, int *x, int *y, int *w, int *h) {
@@ -429,11 +436,11 @@ static void casBanner(const char *t, uint16_t col) {
 // ---------------------------------------------------------------- lobby
 static void renderCasLobby() {
   casTable(T(S_CAS_TITLE));
-  casDrawDealer(CX - 40, 92, 5);
-  const char *lab[5] = { T(S_CAS_SLOTS), T(S_CAS_HL), T(S_CAS_BJ), T(S_CAS_BUY), T(S_CAS_PRIZES) };
-  for (uint8_t i = 0; i < 5; i++) {
+  casDrawDealer(CX - 32, 82, 4);
+  const char *lab[CAS_LOBBY_BTNS] = { T(S_CAS_SLOTS), T(S_CAS_HL), T(S_CAS_BJ), T(S_CAS_ROULETTE), T(S_CAS_BUY), T(S_CAS_PRIZES) };
+  for (uint8_t i = 0; i < CAS_LOBBY_BTNS; i++) {
     int x, y, w, h; casLobbyBtn(i, &x, &y, &w, &h);
-    casButton(x, y, w, h, lab[i], i == 4 ? CAS_GOLD : UI_BG_DAY, false);
+    casButton(x, y, w, h, lab[i], i == 5 ? CAS_GOLD : UI_BG_DAY, false);
   }
 }
 
@@ -666,14 +673,16 @@ static void casBjTap(int16_t px, int16_t py) {
 }
 
 // ---------------------------------------------------------------- buy coins
-static const uint16_t CAS_PACKS[3] = { 50, 500, 2500 };
+// The GBC counter's two offers: 50 coins for $1000, 500 for $10,000.
+#define CAS_PACK_N 2
+static const uint16_t CAS_PACKS[CAS_PACK_N] = { 50, 500 };
 static void renderCasCoins() {
   casTable(T(S_CAS_BUY));
   casDrawDealer(CX - 40, 84, 4);
   char b[40];
   snprintf(b, sizeof(b), T(S_CAS_WALLET_FMT), (unsigned long)pet.wallet);
   casText(CX, 172, b, CAS_GOLD, 2);
-  for (uint8_t i = 0; i < 3; i++) {
+  for (uint8_t i = 0; i < CAS_PACK_N; i++) {
     int x = CX - 150, y = 200 + i * 66, w = 300, h = CAS_BTN_H;
     snprintf(b, sizeof(b), T(S_CAS_PACK_FMT), (unsigned)CAS_PACKS[i], (unsigned)(CAS_PACKS[i] * COIN_DOLLARS));
     bool can = pet.wallet >= (uint32_t)CAS_PACKS[i] * COIN_DOLLARS && pet.coins < COIN_CAP;
@@ -682,7 +691,7 @@ static void renderCasCoins() {
 }
 void casCoinsBtn(uint8_t i, int *x, int *y, int *w, int *h) { *x = CX - 150; *y = 200 + i * 66; *w = 300; *h = CAS_BTN_H; }
 static void casCoinsTap(int16_t px, int16_t py) {
-  for (uint8_t i = 0; i < 3; i++) {
+  for (uint8_t i = 0; i < CAS_PACK_N; i++) {
     int x, y, w, h; casCoinsBtn(i, &x, &y, &w, &h);
     if (!inBox(px, py, x, y, w, h)) continue;
     bool ok = pet.buyCoins(CAS_PACKS[i], COIN_DOLLARS);
@@ -690,6 +699,162 @@ static void casCoinsTap(int16_t px, int16_t py) {
     if (ok) casSetMood(DM_DEAL); else casSetMood(DM_LAUGH);
     return;
   }
+}
+
+// ---------------------------------------------------------------- roulette
+// A single-zero wheel (casino.cpp has the rules and their exact 36/37). The
+// result is drawn at SPIN; the wheel and the ball only travel to it.
+#define RL_CY 148
+#define RL_R 74
+#define RL_SPIN_MS 3600
+static uint8_t rlBet = RB_RED, rlArg = 0;     // the dozen 0..2, or the number 0..36
+static uint8_t rlResult = 0;
+static bool rlSpinning = false, rlHasResult = false;
+static uint32_t rlSpinAt = 0;
+static uint16_t rlStake = 0, rlWon = 0;
+static float rlRest = -90.0f;                 // wheel angle at rest (deg)
+static const float RL_STEP = 360.0f / ROULETTE_POCKETS;
+
+// The bet board: 4 x 2 cells, then BET and SPIN.
+void casRlCell(uint8_t i, int *x, int *y, int *w, int *h) { *w = 86; *h = 40; *x = CX - 178 + (i % 4) * 90; *y = 238 + (i / 4) * 46; }
+void casRlBtn(uint8_t i, int *x, int *y, int *w, int *h) { *w = 140; *h = 50; *x = i ? CX + 8 : CX - 148; *y = 336; }
+
+static float rlFinal() { return -90.0f - rouletteWheelIndex(rlResult) * RL_STEP; }
+static float rlWheelAngle() {
+  if (!rlSpinning) return rlRest;
+  float t = (float)(millis() - rlSpinAt) / RL_SPIN_MS;
+  if (t > 1) t = 1;
+  float d = fmodf(rlRest - rlFinal(), 360.0f);
+  if (d < 0) d += 360.0f;
+  float e = 1 - (1 - t) * (1 - t) * (1 - t);
+  return rlRest - (d + 720.0f) * e;             // spins one way and slows to a stop
+}
+static void rlPoint(float deg, int r, int *x, int *y) {
+  float a = deg * 0.01745329f;
+  *x = CX + (int)(r * cosf(a));
+  *y = RL_CY + (int)(r * sinf(a));
+}
+static uint16_t rlColor(uint8_t n) { return n == 0 ? 0x0480 : rouletteRed(n) ? CAS_RED : 0x18C3; }
+
+static void rlDrawWheel() {
+  gfx->fillCircle(CX, RL_CY, RL_R + 6, 0x8A00);             // the wooden bowl
+  gfx->drawCircle(CX, RL_CY, RL_R + 6, CAS_GOLD);
+  float w = rlWheelAngle();
+  for (uint8_t i = 0; i < ROULETTE_POCKETS; i++) {
+    float c = w + i * RL_STEP;
+    int x0, y0, x1, y1;
+    rlPoint(c - RL_STEP / 2, RL_R, &x0, &y0);
+    rlPoint(c + RL_STEP / 2, RL_R, &x1, &y1);
+    gfx->fillTriangle(CX, RL_CY, x0, y0, x1, y1, rlColor(ROULETTE_WHEEL[i]));
+    int fx, fy; rlPoint(c - RL_STEP / 2, RL_R, &fx, &fy);
+    gfx->drawLine(CX, RL_CY, fx, fy, CAS_GOLD);              // the frets
+  }
+  gfx->fillCircle(CX, RL_CY, RL_R - 24, 0x6180);              // the cone
+  gfx->drawCircle(CX, RL_CY, RL_R - 24, CAS_GOLD);
+  casMotif(CM_BALL, CX, RL_CY, 52, CAS_RED, UI_INK);           // a Poke Ball hub
+  // the pointer, fixed at the top
+  gfx->fillTriangle(CX - 8, RL_CY - RL_R - 14, CX + 8, RL_CY - RL_R - 14, CX, RL_CY - RL_R + 2, CAS_GOLD);
+  // the ball: round the rim the other way, slowing, dropping into the pocket under the pointer
+  if (rlSpinning || rlHasResult) {
+    float t = rlSpinning ? (float)(millis() - rlSpinAt) / RL_SPIN_MS : 1.0f;
+    if (t > 1) t = 1;
+    float ang = -90.0f + 1440.0f * (1 - (1 - t) * (1 - t));
+    int r = t < 0.75f ? RL_R - 8 : RL_R - 8 - (int)((t - 0.75f) * 4 * 6);
+    int bx, by; rlPoint(ang, r, &bx, &by);
+    gfx->fillCircle(bx, by, 5, UI_WHITE);
+    gfx->drawCircle(bx, by, 5, UI_INK);
+  }
+}
+
+static void rlCellLabel(uint8_t i, char *b, size_t n) {
+  switch (i) {
+    case RB_RED: snprintf(b, n, "%s", T(S_CAS_RED)); break;
+    case RB_BLACK: snprintf(b, n, "%s", T(S_CAS_BLACK)); break;
+    case RB_ODD: snprintf(b, n, "%s", T(S_CAS_ODD)); break;
+    case RB_EVEN: snprintf(b, n, "%s", T(S_CAS_EVEN)); break;
+    case RB_LOW: snprintf(b, n, "1-18"); break;
+    case RB_HIGH: snprintf(b, n, "19-36"); break;
+    case RB_DOZEN: snprintf(b, n, "%u-%u", (unsigned)(rlBet == RB_DOZEN ? rlArg : 0) * 12 + 1, (unsigned)((rlBet == RB_DOZEN ? rlArg : 0) + 1) * 12); break;
+    default: snprintf(b, n, "<%u>", (unsigned)(rlBet == RB_NUMBER ? rlArg : 17)); break;
+  }
+}
+
+static void renderCasRoulette() {
+  casTable(T(S_CAS_ROULETTE));
+  rlDrawWheel();
+  char b[32];
+  if (rlHasResult && !rlSpinning) {
+    snprintf(b, sizeof(b), "%u", (unsigned)rlResult);
+    gfx->fillCircle(CX + RL_R + 34, RL_CY - 40, 20, rlColor(rlResult));
+    gfx->drawCircle(CX + RL_R + 34, RL_CY - 40, 20, CAS_GOLD);
+    casText(CX + RL_R + 34, RL_CY - 48, b, UI_WHITE, 2);
+    if (rlWon) snprintf(b, sizeof(b), T(S_CAS_WIN_FMT), (unsigned)rlWon);
+    else snprintf(b, sizeof(b), "%s", T(S_CAS_LOSE));
+    casText(CX, 222, b, rlWon ? CAS_GOLD : UI_WHITE, 1);
+  }
+  casDrawDealer(CX - 178, 76, 3);
+  for (uint8_t i = 0; i < RB_COUNT; i++) {
+    int x, y, w, h; casRlCell(i, &x, &y, &w, &h);
+    uint16_t fill = i == RB_RED ? CAS_RED : i == RB_BLACK ? 0x18C3 : UI_BG_DAY;
+    uint16_t ink = (i == RB_RED || i == RB_BLACK) ? UI_WHITE : UI_INK;
+    gfx->fillRoundRect(x, y, w, h, 10, fill);
+    gfx->drawRoundRect(x, y, w, h, 10, UI_INK);
+    if (i == rlBet) { gfx->drawRoundRect(x - 2, y - 2, w + 4, h + 4, 12, CAS_GOLD); gfx->drawRoundRect(x - 3, y - 3, w + 6, h + 6, 13, CAS_GOLD); }
+    rlCellLabel(i, b, sizeof(b));
+    casText(x + w / 2, y + h / 2 - 4, b, ink, 1);
+  }
+  int x, y, w, h;
+  casRlBtn(0, &x, &y, &w, &h);
+  snprintf(b, sizeof(b), T(S_CAS_BET_FMT), (unsigned)casBet());
+  gfx->fillRoundRect(x, y, w, h, 20, rlSpinning ? CAS_FELT_D : CAS_RED);
+  gfx->drawRoundRect(x, y, w, h, 20, UI_WHITE);
+  casText(x + w / 2, y + h / 2 - 8, b, UI_WHITE, 2);
+  casRlBtn(1, &x, &y, &w, &h);
+  casButton(x, y, w, h, T(S_CAS_SPIN), CAS_GOLD, rlSpinning);
+}
+
+static void casRouletteSettle() {
+  rlSpinning = false;
+  rlHasResult = true;
+  rlRest = rlFinal();
+  rlWon = (uint16_t)(rlStake * roulettePays(rlBet, rlArg, rlResult));
+  casPay(rlWon);
+  casSetMood(rlWon > rlStake ? DM_GRUMBLE : rlWon ? DM_IDLE : DM_LAUGH);
+  sfxPlay(rlWon ? SFX_MEDAL : SFX_DENY);
+}
+static void casRouletteAuto() {
+  if (rlSpinning && millis() - rlSpinAt >= RL_SPIN_MS) casRouletteSettle();
+}
+static void casRouletteSettleNow() { if (rlSpinning) casRouletteSettle(); }
+
+static void casRouletteTap(int16_t px, int16_t py) {
+  if (rlSpinning) return;                       // no more bets
+  int x, y, w, h;
+  for (uint8_t i = 0; i < RB_COUNT; i++) {
+    casRlCell(i, &x, &y, &w, &h);
+    if (!inBox(px, py, x, y, w, h)) continue;
+    sfxPlay(SFX_TAP);
+    if (i == RB_DOZEN && rlBet == RB_DOZEN) { rlArg = (uint8_t)((rlArg + 1) % 3); return; }
+    if (i == RB_NUMBER && rlBet == RB_NUMBER) {  // the left half steps down, the right half up
+      rlArg = (uint8_t)(px < x + w / 2 ? (rlArg + ROULETTE_POCKETS - 1) % ROULETTE_POCKETS : (rlArg + 1) % ROULETTE_POCKETS);
+      return;
+    }
+    if (i != rlBet) rlArg = i == RB_NUMBER ? 17 : 0;
+    rlBet = i;
+    return;
+  }
+  casRlBtn(0, &x, &y, &w, &h);
+  if (inBox(px, py, x, y, w, h)) { casBetI = (casBetI + 1) % 3; sfxPlay(SFX_TAP); return; }
+  casRlBtn(1, &x, &y, &w, &h);
+  if (!inBox(px, py, x, y, w, h) || !casTakeBet(casBet())) return;
+  rlStake = casBet();
+  rlResult = rouletteSpin();                    // decided NOW; the wheel only travels to it
+  rlSpinning = true;
+  rlHasResult = false;
+  rlWon = 0;
+  rlSpinAt = millis();
+  casSetMood(DM_DEAL);
+  sfxPlay(SFX_TAP);
 }
 
 // ---------------------------------------------------------------- the prize shop
@@ -1041,14 +1206,21 @@ void casinoDrawSpinRow(int x, int y, int w, int h, const char *arcadeLabel) {
     gfx->drawRoundRect(rx, ry, cw, h, 12, UI_INK);
     if (cw > (int)strlen(arcadeLabel) * 12 + 16) casText(cx, ry + h / 2 - 8, arcadeLabel, UI_INK, 2);
   } else {
-    gfx->fillRoundRect(rx, ry, cw, h, 12, 0x18C3);
-    gfx->drawRoundRect(rx, ry, cw, h, 12, CAS_GOLD);
-    if (cw > 12) gfx->drawRoundRect(rx + 3, ry + 3, cw - 6, h - 6, 9, CAS_RED);
-    const char *gc = T(S_CAS_TITLE);
-    if (cw > (int)strlen(gc) * 12 + 16) casText(cx, ry + h / 2 - 8, gc, CAS_GOLD, 2);
-    if (cw > w - 8) {                     // fully round: a coin either side
-      casMotif(CM_COIN, rx + 22, ry + h / 2, 26, CAS_GOLD, UI_INK);
-      casMotif(CM_COIN, rx + cw - 22, ry + h / 2, 26, CAS_GOLD, UI_INK);
+    // Team Rocket's side: black, a red R, and the name of what is behind it.
+    gfx->fillRoundRect(rx, ry, cw, h, 12, 0x0841);
+    for (int sx = rx + 10; sx + 7 < rx + cw - 10; sx += 14)   // hazard stripes along the bottom
+      gfx->fillRect(sx, ry + h - 8, 7, 3, CAS_RED);
+    gfx->drawRoundRect(rx, ry, cw, h, 12, CAS_RED);
+    if (cw > 12) gfx->drawRoundRect(rx + 2, ry + 2, cw - 4, h - 4, 10, 0x5000);
+    if (cw > 44) {
+      int ex = cw > w - 8 ? rx + 30 : cx;                     // the R, alone while it is narrow
+      gfx->fillCircle(ex, ry + h / 2, 21, UI_WHITE);
+      gfx->drawCircle(ex, ry + h / 2, 21, CAS_RED);
+      casMotif(CM_ROCKET, ex, ry + h / 2, 30, CAS_RED, CAS_RED);
+    }
+    if (cw > w - 8) {                                         // fully round: the name
+      casText(cx + 22, ry + 12, T(S_CAS_TITLE), CAS_GOLD, 2);
+      casText(cx + 22, ry + 34, T(S_CAS_ROCKET), CAS_RED, 1);
     }
   }
   // revealed: it glitters until the door opens
@@ -1074,7 +1246,8 @@ void casinoOpenNow() {
   casView = CV_LOBBY;
   casArmed = -1;
   casSetMood(DM_LAUGH);
-  sfxPlay(SFX_TAP);
+  casOpenedAt = millis();
+  sfxPlay(SFX_MEDAL);
 }
 void casinoClose() {
   casinoOpen = false;
@@ -1084,11 +1257,46 @@ void casinoClose() {
   // exactly as walking away from a real table. High/Low banks its pot.
   if (casHl.state == HL_GUESS) { casPay(casHl.cashOut()); }
   casBj.state = BJ_IDLE;
+  casRouletteSettleNow();
+}
+
+// The way in: Team Rocket's hideout doors, shut with the R across them for a
+// beat, then sliding apart onto the lobby. Drawn over the lobby for
+// CAS_DOOR_MS after the door opens; taps wait until it has.
+#define CAS_DOOR_HOLD_MS 350
+#define CAS_DOOR_MS 1300
+bool casinoDoorsShowing() { return casView == CV_LOBBY && millis() - casOpenedAt < CAS_DOOR_MS; }
+static void casDrawDoors() {
+  uint32_t t = millis() - casOpenedAt;
+  float p = t <= CAS_DOOR_HOLD_MS ? 0 : (float)(t - CAS_DOOR_HOLD_MS) / (CAS_DOOR_MS - CAS_DOOR_HOLD_MS);
+  if (p > 1) p = 1;
+  p = p * p * (3 - 2 * p);                  // ease in and out
+  int gap = (int)(p * 233);
+  const uint16_t DOOR = 0x18C3, EDGE = 0x5000;
+  if (CX - gap > 0) {
+    gfx->fillRect(0, 0, CX - gap, 466, DOOR);
+    for (int y = 40; y < 466; y += 56) gfx->fillRect(0, y, CX - gap, 6, EDGE);   // riveted bands
+    gfx->fillRect(CX - gap - 6 > 0 ? CX - gap - 6 : 0, 0, 6, 466, CAS_RED);
+  }
+  if (CX + gap < 466) {
+    gfx->fillRect(CX + gap, 0, 466 - (CX + gap), 466, DOOR);
+    for (int y = 40; y < 466; y += 56) gfx->fillRect(CX + gap, y, 466 - (CX + gap), 6, EDGE);
+    gfx->fillRect(CX + gap, 0, 6, 466, CAS_RED);
+  }
+  if (!gap) {                               // shut: the R across the seam
+    gfx->fillCircle(CX, CY, 92, 0x0841);
+    gfx->drawCircle(CX, CY, 92, CAS_RED);
+    gfx->drawCircle(CX, CY, 91, CAS_RED);
+    casMotif(CM_ROCKET, CX, CY, 120, CAS_RED, CAS_RED);
+    casText(CX, CY + 104, T(S_CAS_ROCKET), CAS_RED, 2);
+  }
 }
 
 void renderCasino() {
   casSlotsAuto();
+  casRouletteAuto();
   switch (casView) {
+    case CV_ROULETTE: renderCasRoulette(); break;
     case CV_SLOTS: renderCasSlots(); break;
     case CV_HL: renderCasHl(); break;
     case CV_BJ: renderCasBj(); break;
@@ -1096,12 +1304,15 @@ void renderCasino() {
     case CV_SHOP: renderCasShop(); break;
     default: renderCasLobby(); break;
   }
+  if (casinoDoorsShowing()) casDrawDoors();
   uiChrome();
   gfx->flush();
 }
 
 void casinoTap(int16_t x, int16_t y) {
+  if (casinoDoorsShowing()) return;          // still coming through the door
   switch (casView) {
+    case CV_ROULETTE: casRouletteTap(x, y); return;
     case CV_SLOTS: casSlotsTap(x, y); return;
     case CV_HL: casHlTap(x, y); return;
     case CV_BJ: casBjTap(x, y); return;
@@ -1109,10 +1320,10 @@ void casinoTap(int16_t x, int16_t y) {
     case CV_SHOP: casShopTap(x, y); return;
     default: break;
   }
-  for (uint8_t i = 0; i < 5; i++) {
+  for (uint8_t i = 0; i < CAS_LOBBY_BTNS; i++) {
     int bx, by, bw, bh; casLobbyBtn(i, &bx, &by, &bw, &bh);
     if (!inBox(x, y, bx, by, bw, bh)) continue;
-    static const uint8_t V[5] = { CV_SLOTS, CV_HL, CV_BJ, CV_COINS, CV_SHOP };
+    static const uint8_t V[CAS_LOBBY_BTNS] = { CV_SLOTS, CV_HL, CV_BJ, CV_ROULETTE, CV_COINS, CV_SHOP };
     casView = V[i];
     casArmed = -1;
     casLastWin = 0;
@@ -1128,6 +1339,7 @@ void casinoSwipeDown() {
   if (casView == CV_HL && casHl.state == HL_GUESS) casPay(casHl.cashOut());
   if (casView == CV_SLOTS && slShown < 3) { slShown = 3; casSlotsSettle(); }
   if (casView == CV_BJ && casBj.state == BJ_PLAYER) { casBj.stand(); casBjFinish(); }
+  if (casView == CV_ROULETTE) casRouletteSettleNow();
   casView = CV_LOBBY;
   casArmed = -1;
 }
@@ -1136,3 +1348,9 @@ uint8_t casinoView() { return casView; }
 const uint8_t *casSlotStops() { return slStop; }
 const Blackjack &casBlackjack() { return casBj; }
 const HighLow &casHighLow() { return casHl; }
+uint8_t casRouletteResult() { return rlResult; }
+bool casRouletteSpinning() { return rlSpinning; }
+uint8_t casRouletteBetKind() { return rlBet; }
+uint8_t casRouletteBetArg() { return rlArg; }
+// Tests that do not run real time step past the door animation with this.
+void casinoDbgSkipDoor() { casOpenedAt = millis() - CAS_DOOR_MS - 1; }
