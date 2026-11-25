@@ -3,7 +3,7 @@
 [![Flash in browser](https://img.shields.io/badge/flash-in%20browser-FF6B00?logo=googlechrome&logoColor=white)](https://boutsss.github.io/TamaPokeLANExp/web/)
 [![MakerWorld](https://img.shields.io/badge/MakerWorld-3D%20case-00AE42?logo=bambulab&logoColor=white)](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)
 ![Board](https://img.shields.io/badge/board-ESP32--S3%20round%20AMOLED-E7352C?logo=espressif&logoColor=white)
-![Firmware](https://img.shields.io/badge/firmware-v3.37-8A2BE2)
+![Firmware](https://img.shields.io/badge/firmware-v3.38-8A2BE2)
 ![Code](https://img.shields.io/badge/code-MIT-blue)
 ![Languages](https://img.shields.io/badge/languages-6-FFCB05)
 [![Stars](https://img.shields.io/github/stars/DylanPDao/TamaPoke?style=flat&logo=github&color=yellow)](https://github.com/DylanPDao/TamaPoke/stargazers)
@@ -1037,14 +1037,18 @@ or anyone in the party or box. One item per creature; a released or runaway
 creature's item goes back to the bag. Items work in gym and wild battles; **LAN
 battles carry no items** on either side, so they stay even.
 
-| Item | Effect in battle | Used up? |
+| Item | Effect in battle | How often |
 |---|---|---|
-| Oran Berry | heals **10 HP** once at half HP or below | yes |
-| Sitrus Berry | heals **25%** of max HP once at half HP or below | yes |
-| Lum Berry | cures an ailment or confusion once | yes |
-| Focus Sash | survives one hit from **full HP** with 1 HP | yes |
-| Leftovers | heals **1/16** of max HP at the end of every turn | no |
-| Quick Claw | **20%** chance to move first (priority moves still win) | no |
+| Oran Berry | heals **10 HP** at half HP or below | once per battle |
+| Sitrus Berry | heals **25%** of max HP at half HP or below | once per battle |
+| Lum Berry | cures an ailment or confusion | once per battle |
+| Focus Sash | survives one hit from **full HP** with 1 HP | once per battle |
+| Leftovers | heals **1/16** of max HP at the end of every turn | every turn |
+| Quick Claw | **20%** chance to move first (priority moves still win) | every turn |
+
+**Nothing is ever used up for good (v3.38).** A berry or a sash works once in
+a fight, and the creature is holding it again when the fight ends -- you never
+have to re-equip it. (KNOCK OFF also only takes an item for that one battle.)
 
 They are never sold. They come from the **Pokédex**: every **25** species
 registered gives one, cycling Oran ×3 → Sitrus ×2 → Lum ×2 → Quick Claw → Focus

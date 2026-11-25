@@ -72,7 +72,7 @@ struct RimPage {
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
-#define FW_VERSION "3.37"
+#define FW_VERSION "3.38"
 
 Arduino_DataBus *bus = new Arduino_ESP32QSPI(
   LCD_CS, LCD_SCLK, LCD_SDIO0, LCD_SDIO1, LCD_SDIO2, LCD_SDIO3);
@@ -5206,7 +5206,6 @@ static void btlResolve(uint16_t yourMove) {
   }
   battleEndRound(lg);
   btlNotes(btlYou, btlYou, lg);
-  heldBattleSync(pet, party, btlYou);
   // Someone went down. The replacement is NOT swapped in here -- that made the
   // change instant and read as a jump cut. Flag it, let the sprite drop out of
   // frame, and swap when the player dismisses the message.

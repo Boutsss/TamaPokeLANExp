@@ -3,11 +3,6 @@
 #include "inventory.h"
 #include "battle.h"
 
-bool itemConsumable(ItemKey item) {
-  return item == IT_ORAN_BERRY || item == IT_SITRUS_BERRY ||
-         item == IT_LUM_BERRY || item == IT_FOCUS_SASH;
-}
-
 static PartyMon *banked(Party &pt, uint16_t who) {
   if (who >= HOLDER_PARTY(0) && who < HOLDER_BOX(0))
     return &pt.slots[who - HOLDER_PARTY(0)];
@@ -84,14 +79,10 @@ void heldReturn(ItemKey &held) {
   held = ITEM_NONE;
 }
 
-void heldBattleSync(Pet &p, Party &pt, const Combatant &c) {
-  if (!c.itemUsed || !itemConsumable(c.held)) return;
-  if (c.holder < 0 || c.holder >= HOLDER_COUNT) return;
-  ItemKey *h = slot(p, pt, (uint8_t)c.holder);
-  if (!h || *h != c.held) return;
-  *h = ITEM_NONE;
-  saveHolder(p, pt, (uint8_t)c.holder);
-}
+// (v3.38) There is no write-back from a battle any more. A berry, a FOCUS SASH
+// and the rest work ONCE PER BATTLE -- Combatant::itemUsed, a battle-only copy --
+// and the creature still holds them when the fight ends. Nothing in battle.cpp
+// touches the stored holder; held_items_test proves the item is back.
 
 int shinyCharmOdds(int base) {
   if (bag.has(IT_SHINY_CHARM)) {

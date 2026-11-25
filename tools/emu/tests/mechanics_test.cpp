@@ -272,7 +272,6 @@ int main() {
     mk(A, 52, 50, 0);
     TurnLog l; battleAct(A, tgt, mv("KNOCK OFF"), l);
     ck(tgt.held == ITEM_NONE && noted(l, BN_KNOCKED), "KNOCK OFF: the item is gone for the fight");
-    heldBattleSync(p, party, tgt);
     ck(p.held == IT_LEFTOVERS, "but the creature still holds it afterwards");
   }
 

@@ -1856,8 +1856,14 @@ how a move plays, never which move an ID is). `MOVE_COUNT` is 500.
   `battleEndRound()` once. A test that skips them is testing a different game.
 - `battleCanSwitch()` is THE trap rule: the menu switch and the LAN host's
   remote switch both ask it.
-- KNOCK OFF clears `Combatant::held` but not `itemUsed`, so `heldBattleSync()`
-  never consumes the real item: knocked off for the battle only.
+- **Held items are never used up for good (v3.38).** `heldBattleSync()` --
+  which wrote a spent berry or sash back to the stored creature as gone -- is
+  deleted. `Combatant::itemUsed` makes a consumable once PER BATTLE, and the
+  battle only ever edits its own copy, so the item is simply back afterwards.
+  KNOCK OFF clears the copy's `held` for the same reason. Do not reintroduce a
+  write-back: `helditem_ui_test` plays a real turn through the screen, eats a
+  berry, and checks the stored creature AND the reloaded save still hold it
+  (negative-checked by restoring the old write-back).
 - `relearnFromLevel()`'s `autoPickPenalty()` keeps EXPLOSION, SNORE and friends
   out of every AUTOMATIC moveset (hatchlings, gym leaders, wild creatures).
 - Crits are x1.5 now (Gen 6 on), not x2.
