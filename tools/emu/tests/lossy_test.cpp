@@ -13,6 +13,7 @@
 #include "link.h"
 #include <cstdio>
 #include <vector>
+#include <cstring>
 uint32_t g_seed=31; FakeSerial Serial; FakeESP ESP; FakeWire Wire;
 volatile int g_touchX=0,g_touchY=0; volatile bool g_touchDown=false; bool wasPressed=false;
 uint32_t millis(){return 0;} void FakeESP::restart(){exit(0);}
@@ -78,6 +79,11 @@ int main(){
   run(4000);
   ck(A.state==LINK_READY && B.state==LINK_READY,
      "pairing completes with every third frame dropped");
+  // Each side shows the OTHER's name. One field used to serve both jobs, so a
+  // resent HELLO -- exactly what a lossy channel provokes -- carried the peer's
+  // own name back to it. Asserted under loss, where the resend path runs.
+  ck(!strcmp(A.peerName, "B") && !strcmp(B.peerName, "A"),
+     "with resends in play, each side still names the other, never itself");
   ck(A.theirsN==1 && B.theirsN==2, "and both squads arrive whole");
   ck(B.theirs[0].dex==6 && B.theirs[1].dex==9, "with nothing missing in the middle");
   printf("      (%d frames, %d dropped)\n", seen, dropped);

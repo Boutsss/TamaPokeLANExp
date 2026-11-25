@@ -750,18 +750,13 @@ to `"TRAINER"` if still unset when a new game picks its starter (with
 selection), so the empty-`tnam` case stops occurring going forward rather than
 just being logged correctly.
 
-**Found, not fixed:** `link.cpp`'s `HELLO` handshake reuses one `peerName`
-field for both your own outgoing name and the peer's incoming one -- a side
-that answers a `HELLO` while still `LISTENING`, or any `LINK_SQUADS`-state
-resend, sends the *peer's* name back to them instead of its own. This is the
-same one-field-two-jobs shape as this file's own recurring trap. It has not
-actually been observed, though: `lanOffer()` has both host and guest call
-`start()` immediately rather than one side staying passive, so squad exchange
-normally finishes before the resend path that triggers this ever fires --
-matching repeated real-world testing showing correct names. It would only
-surface under packet loss during pairing, which is what `lossy_test` exists to
-simulate on the protocol side without a radio. Worth fixing before it is
-needed, not because it has bitten anyone yet.
+**Fixed (and now pinned):** `link.cpp`'s `HELLO` handshake once reused one
+`peerName` field for both your own outgoing name and the peer's incoming one,
+so a resent HELLO could carry the peer's own name back to it. The two jobs are
+separate fields now (`myName` written by `begin()`, `peerName` by `onPacket()`),
+and `lossy_test` asserts each side names the other under a lossy channel --
+where the resend path actually runs -- negative-checked by sending `peerName`
+in the HELLO again.
 
 ### Done (branch `feat/battle-foundations`, pushed)
 
