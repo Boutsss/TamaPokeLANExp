@@ -47,7 +47,7 @@ const SaveField SAVE_FIELDS[] = {
   // remembered LAN opponents -- its own key, same reasoning as the box
   { "rivals", SK_BYTES },
   // settings, so a restored device plays the way it did
-  { "lang", SK_U8 },    { "snd", SK_BOOL },   { "vol", SK_U8 },
+  { "lang", SK_U8 },    { "snd", SK_BOOL },   { "vol", SK_U8 },    { "bri", SK_U8 },
   { "tasks", SK_BYTES },
   // Pokedex rewards paid so far (dex_rewards.cpp)
   { "dxgf", SK_U8 },    { "dxrw", SK_U8 },

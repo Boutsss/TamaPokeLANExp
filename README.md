@@ -3,7 +3,7 @@
 [![Flash in browser](https://img.shields.io/badge/flash-in%20browser-FF6B00?logo=googlechrome&logoColor=white)](https://reallyjustsomeguy.github.io/TamaPokeLANExp/web/)
 [![MakerWorld](https://img.shields.io/badge/MakerWorld-3D%20case-00AE42?logo=bambulab&logoColor=white)](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)
 ![Board](https://img.shields.io/badge/board-ESP32--S3%20round%20AMOLED-E7352C?logo=espressif&logoColor=white)
-![Firmware](https://img.shields.io/badge/firmware-v3.29-8A2BE2)
+![Firmware](https://img.shields.io/badge/firmware-v3.30-8A2BE2)
 ![Code](https://img.shields.io/badge/code-MIT-blue)
 ![Languages](https://img.shields.io/badge/languages-6-FFCB05)
 [![Stars](https://img.shields.io/github/stars/DylanPDao/TamaPoke?style=flat&logo=github&color=yellow)](https://github.com/DylanPDao/TamaPoke/stargazers)
@@ -180,6 +180,12 @@ the navigation — three axes, one meaning each, everywhere:
 - **Tap the name** at the top opens the **menu** (Pokédex / Bag / Settings).
 - **Tap the creature** to pet it. **Long press (3 s)** opens the **release**
   dialog — gated to the main screen only, so it can never fire on a party slot.
+- **Maximum brightness:** Settings has a **LIGHT 1-10** row (the sun) under
+  the clock. 10 is the full panel; each step lower is dimmer. Everything that
+  dims the screen still works underneath it: sleeping, and the idle dims after
+  1.5 and 5 minutes, are always at most two thirds of the maximum you chose,
+  so a sleeping creature still visibly darkens the screen even at LIGHT 1.
+  The setting is kept across reboots and travels in the save backup.
 - **Physical PWR button:** short press = screen on/off · long press (4 s) =
   full power-off (the RTC keeps running, so time still passes while it's off).
 
@@ -803,10 +809,34 @@ accept it.
 
 After any ending, a **new egg** appears.
 
+### The PC box: 1200 slots
+
+The box holds **1200** creatures: **40 boxes of 30**. The box screen shows one
+box at a time as a 6 x 5 grid; drag along the rim to move between boxes. Each
+slot shows the creature, its level, a gold rim if it is shiny and a star if it
+is a favourite. Tap a slot to open its sheet; tap a party slot then BOX to
+move creatures in and out, exactly as before.
+
+It is stored in its own file on the board's flash, not in the save's settings
+area, which is far too small for 1200 creatures. Each write goes to a new copy
+first and only replaces the old one once it is complete, so losing power while
+the box is being written leaves the previous box intact.
+
+**Coming from the 18-slot box:** the first boot on this version moves every
+boxed creature into the new box, each into the same slot number it had. The
+old copy is only removed once the new one has been read back. You do not need
+to do anything.
+
+**The save backup carries the whole box** (only the slots in use, so a nearly
+empty box adds almost nothing). A full box makes the backup about 64 KB,
+roughly 1400 lines; the installer page waits up to a minute for it. An older
+backup with the 18-slot box restores fine; its box moves across at the next
+boot.
+
 ### Finding creatures in the box, and favourites
 
-**Filter and sort.** On the box screen, tap the **hub** (the circle in the
-middle) to open the FILTER sheet. Pick one chip to show only those creatures:
+**Filter and sort.** On the box screen, tap the **FILTER** pill under the grid
+to open the FILTER sheet. Pick one chip to show only those creatures:
 
 | Filter | Shows |
 |---|---|
@@ -821,7 +851,7 @@ own order), LEVEL, IV TOTAL, ATTACK, DEFENCE, SPEED, HP (each highest first),
 DEX NO. and NAME (A-Z, by nickname if it has one). Creatures that tie keep
 their box order. With a filter or a sort on, the box shows only the matches,
 best first, the title says how many were found, and the rim pages through
-them. The hub names the active filter. While you are moving a party creature
+them. The pill names the active filter. While you are moving a party creature
 into the box, it shows the plain box, because that is where the empty slots
 are.
 

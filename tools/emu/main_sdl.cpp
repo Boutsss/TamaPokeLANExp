@@ -402,12 +402,16 @@ static int shotMode(const char *screen, const char *out, int lvl, int iv, int de
     static const int f[]={9,25,143,94,131,3};
     for(int i=0;i<6;i++){ PartyMon m; m.dex=f[i]; m.level=40+i*5;
       m.ivAtk=m.ivDef=m.ivSpe=m.ivHp=25; party.replaceAt(i,m); }
-    static const int b[]={6,65,68,143,12,131,94,25};
-    for(int i=0;i<8;i++){ PartyMon m; m.dex=b[i]; m.level=30+i*4;
+    // one PC box of 30, most of it filled, a shiny and a favourite among them
+    static const int b[]={6,65,68,143,12,131,94,25,1,4,7,133,147,149,130,59,
+                          38,26,112,123,127,142,144,145,146,150,151,52,54,63};
+    for(int i=0;i<30;i++){ if (i==9 || i==22 || i==27) continue;
+      PartyMon m; m.dex=b[i]; m.level=12+(i*7)%80;
       m.ivAtk=m.ivDef=m.ivSpe=m.ivHp=20; m.shiny=(i==3);
+      if (i==0 || i==14) m.fav=PM_FAV;
       party.box[i]=m; }
     party.boxSave();
-    partyOpen=true; boxOpen=true; boxSwapFrom=1;
+    partyOpen=true; boxOpen=true;
   }
   else if (!strcmp(screen, "win")) {
     startTrainerBattle(2, true);

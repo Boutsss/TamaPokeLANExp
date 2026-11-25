@@ -118,7 +118,7 @@ int main(){
   // ---- NO ITEMS: held items do nothing, and are never spent
   ck(weekWith(CR_NOITEMS), "a NO ITEMS week comes round");
   bag.add(IT_FOCUS_SASH, 1);
-  extern bool heldGive(Pet &, Party &, uint8_t, ItemKey);
+  extern bool heldGive(Pet &, Party &, uint16_t, ItemKey);
   ck(heldGive(pet, party, 0, IT_FOCUS_SASH) && pet.held == IT_FOCUS_SASH, "the pet holds a FOCUS SASH");
   openWeekly();
   onTap(233, chBtnCenterY()); render();

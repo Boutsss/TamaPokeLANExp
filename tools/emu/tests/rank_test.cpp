@@ -10,6 +10,7 @@
 #include "items.h"
 #include "tower.h"
 #include "rank.h"
+#include "casino.h"
 #include "avatars.h"
 #include "game_events.h"
 #include <cstdio>
@@ -160,9 +161,14 @@ int main() {
     for (uint8_t a = 0; a < AVATAR_COUNT; a++) if (!rankAvatarUnlocked(a)) someLocked = true;
     ck(someLocked, "(and some are locked, or none of this tests anything)");
     bool consistent = true;
-    for (uint8_t a = 0; a < AVATAR_COUNT; a++)
+    for (uint8_t a = 0; a < AVATAR_BASE_COUNT; a++)
       if (rankAvatarUnlocked(a) != (rankShown() >= rankAvatarNeeds(a))) consistent = false;
     ck(consistent, "unlocked means the shown rank reached rankAvatarNeeds()");
+    // The Game Corner's avatars are BOUGHT, never ranked: locked until owned.
+    bool shopLocked = true;
+    for (uint8_t a = AVATAR_BASE_COUNT; a < AVATAR_COUNT; a++)
+      if (rankAvatarUnlocked(a) != casinoOwns(PK_AVATAR, a - AVATAR_BASE_COUNT)) shopLocked = false;
+    ck(AVATAR_COUNT > AVATAR_BASE_COUNT && shopLocked, "a shop avatar is open exactly when it has been bought");
   }
   ck(rankNextAvatar(2) == 0, "cycling from GIRL at rank 1 skips every locked one back to RED");
   ck(!rankAvatarUnlocked(6), "SAILOR is locked at rank 1");

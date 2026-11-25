@@ -423,6 +423,7 @@ enum StrId : uint16_t {
   S_BF_FAVLOCK,    // box filters and favourites
   S_BF_FOUND_FMT,  // box filters and favourites
   S_BF_SORT_FMT,   // box filters and favourites
+  S_BRI_FMT,       // max brightness level, e.g. "LIGHT 7"
   STR_COUNT
 };
 

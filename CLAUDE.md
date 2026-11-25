@@ -1028,6 +1028,7 @@ the volume curve. The amplitude scale in particular (`500 * vol`) is a guess at
 what sounds linear. This is part of what the soak test is for.
 
 **B. Storage and the box -- DONE.**
+- (Superseded by § "The PC box: 1200 slots in a FILE" -- kept for the history.)
 - The box is 18 slots (3 pages of 6) under its OWN NVS key, not a bigger party
   blob. That was deliberate: growing the party blob changes its stride, and the
   length-based migration in `begin()` cannot tell a stride change from a
@@ -1785,19 +1786,44 @@ Costs to weigh before starting: the WiFi stack is ~40-50 KB RAM (there is
 headroom -- currently 10% used), meaningful current draw on a battery device,
 and pairing UX on a touch-only screen.
 
-### Box size (if the party grows past 6)
+### The PC box: 1200 slots in a FILE, not in NVS (v3.30)
 
-`sizeof(PartyMon)` is **48 bytes** now (it was 30 when this was written; `moves[]`
-and then the care block were appended) and the NVS partition is 20 KB (`0x5000`).
-So the arithmetic has moved: the current box of 18 is 864 bytes, a box of 80 is
-3840 and still inside the ~4000-byte single-blob figure, and 100 (4800) already
-exceeds it and would need splitting across two keys. **Derive these from
-`sizeof(PartyMon)` when the time comes rather than trusting the numbers in this
-paragraph** -- they have been wrong once already, which is § "sizeof(PartyMon) is
-load-bearing in four places" wearing a doc instead of code. RAM is a non-issue.
+The box is `BOX_SLOTS` = `BOX_BOXES` (40) x `BOX_PER_BOX` (30). At 53 bytes a
+record that is ~64 KB, which NVS cannot hold at all (20 KB partition, ~4 KB a
+blob), so it lives in `box_store.cpp`: `/ffat/pcbox.bin` on the board -- the
+`ffat` partition § "NVS can run out" already noted was unused -- and
+`tamapoke-box.bin` beside the emulator's save. `party.box` is heap memory
+(`ps_malloc`, PSRAM) allocated in `Party::loadBox()`: **it is null until
+`party.begin()`**, which is exactly how `save_test` segfaulted the first time.
 
-Check the headroom too, not just the blob limit: see § "NVS can run out". A box
-that fits one blob can still be the thing that fills the partition.
+- **Atomic by rename.** `boxStoreSave()` writes `.tmp`, then replaces the real
+  file. `boxStoreLoad()` prefers a WHOLE `.tmp` (a cut between the write and the
+  rename) and ignores a short one. `pcbox_test` cuts it both ways.
+- **The old 18-slot NVS `"box"` key migrates once** (`migrateLegacyBox()`):
+  each creature to its own slot number, the file written, every placed slot
+  READ BACK with `boxStoreSlotIs()`, and only then is the key removed. A failed
+  write leaves the key for the next boot -- never in neither place. It reads
+  two shapes: 18 records at an older, shorter stride, or MORE records at our
+  stride (a build with a bigger box); any other size is left alone.
+- **The backup carries it as `pc00`..`pc39`**, one SK_BYTES field per box that
+  holds anything, each record `[slot in box][PartyMon]`. Import validates every
+  record's slot before touching anything, empties the box, and writes it ONCE.
+  A pre-1200 backup carries `"box"` instead, which the next boot migrates.
+  `SAVE_TRANSFER_MAX` went to 96 KB for a full box (64 KB, a quarter spare --
+  `save_test` and `pcbox_test` both hold that line) and the console buffers are
+  `malloc`'d rather than static. `MAX_VAL` is now the largest single field
+  (one box of 30, the ghosts, the card book), each derived from its own header.
+- **WIPE removes the file too** (`Pet::factoryResetBox()`), in RAM as well,
+  because `prefs.clear()` no longer reaches the box.
+- **Every box index is `uint16_t`** -- `boxDetail`, `boxSel`, the daycare and
+  trade lists, `storeDurably()`'s out-param, the held-item picker. A `uint8_t`
+  here is § "uint8_t with a dex of 386" again, and `pcbox_test` stores a trade
+  into slot 1000 to prove it.
+- **The screen is a 6 x 5 grid, one box per rim page**, not the party's ring:
+  `boxCellPos()`/`boxCellAt()`/`boxPillAt()` are the geometry and `hit_test`
+  checks the cells tile, are >= `UI_TAP_MIN`, and keep their corners on the
+  glass. FILTER moved from the hub to a pill under the grid. The filtered view
+  is cached on `Party::boxGen`, because sorting 1200 per drawn cell is too slow.
 
 **Fix the migration first.** `Party::begin()` infers the old record size as
 `stored / PARTY_SLOTS`, which is right when the stride grows but wrong when the
@@ -1917,11 +1943,12 @@ bottom of the panel back. Four `UI_TAP_FINGER` targets in one row would reach
 radius 222 of 233 -- so a finger-safe home row on this panel is three icons, not
 four, and 80 px is the honest compromise that keeps all four.
 
-**The party and box are a RING of six, not a 2x3 grid** (`partySlotPos`,
+**The party is a RING of six, not a 2x3 grid** (`partySlotPos`,
 `partySlotAt`, `partyHubAt`). A grid on a circle spends its corners on glass
 that is not there; the old 150x70 cells were 70 px tall, under the floor, with
 their outer corners at the bezel. The BOX button is the hub in the middle,
 because the centre of a round panel is the easiest place on it to hit.
+(The PC box is a 6 x 5 grid since it grew to 30 a box -- see § "The PC box".)
 `hit_test` MEASURES the slot radius off `partySlotAt()` rather than reading
 `PSLOT_R`, so it checks the hit areas the firmware actually answers with.
 

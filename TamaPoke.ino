@@ -70,7 +70,7 @@ struct RimPage {
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
-#define FW_VERSION "3.29"
+#define FW_VERSION "3.30"
 
 Arduino_DataBus *bus = new Arduino_ESP32QSPI(
   LCD_CS, LCD_SCLK, LCD_SDIO0, LCD_SDIO1, LCD_SDIO2, LCD_SDIO3);
@@ -441,6 +441,7 @@ uint8_t btlMyAct = 0;        // host: our own action, latched until theirs lands
 // half a fingertip. It survives as the HARD FLOOR because several laid-out
 // screens cannot grow without being redesigned, but nothing new may use it.
 #define UI_TAP_MIN 44
+#define BRIGHT_LEVELS 10   // the max-brightness setting runs 1..10
 // 9 mm -- what watchOS and Wear OS both land on -- in this panel's pixels.
 // Every control laid out from here on is held to THIS by hit_test.
 #define UI_TAP_FINGER 94
@@ -1149,7 +1150,8 @@ void setup() {
   // QSPI a 80MHz (por defecto 40): el flush del framebuffer es el cuello de
   // botella del fps (~56ms a 40MHz). Si el panel mostrara basura, bajar a 40M.
   if (!gfx->begin(80000000)) Serial.println("gfx->begin() failed");
-  panel->setBrightness(180);
+  loadMaxBrightness();
+  panel->setBrightness(brightnessTarget(false, true, 0, maxBrightness()));
 
   touch.setPins(TP_RESET, TP_INT);
   bool touchOk = false;
@@ -1378,6 +1380,44 @@ void loop() {
   }
 }
 
+// The player's MAXIMUM brightness, 1..10 (settings screen, NVS "bri"). 10 is
+// the panel as it always was. Everything else -- sleeping, the idle dims --
+// still happens underneath it.
+uint8_t gMaxBright = BRIGHT_LEVELS;
+uint8_t maxBrightness() { return gMaxBright; }
+void setMaxBrightness(uint8_t v) {
+  if (v < 1) v = 1;
+  if (v > BRIGHT_LEVELS) v = BRIGHT_LEVELS;
+  gMaxBright = v;
+  Preferences p;
+  if (p.begin("tamapoke", false)) { p.putUChar("bri", v); p.end(); }
+}
+void loadMaxBrightness() {
+  Preferences p;
+  uint8_t v = BRIGHT_LEVELS;
+  if (p.begin("tamapoke", true)) { v = p.getUChar("bri", BRIGHT_LEVELS); p.end(); }
+  gMaxBright = (v < 1 || v > BRIGHT_LEVELS) ? BRIGHT_LEVELS : v;
+}
+// THE rule: the awake level scales with the setting, and every dimmer state
+// (asleep, idle) is never brighter than that. One function, so the panel, the
+// settings preview and brightness_test cannot disagree.
+uint8_t brightnessTarget(bool sleeping, bool usb, uint8_t dim, uint8_t level) {
+  if (level < 1) level = 1;
+  if (level > BRIGHT_LEVELS) level = BRIGHT_LEVELS;
+  uint16_t awake = (uint16_t)(usb ? 180 : 145) * level / BRIGHT_LEVELS;
+  if (awake < 8) awake = 8;                 // still readable at level 1
+  if (!sleeping && dim == 0) return (uint8_t)awake;
+  uint16_t t = sleeping ? 25 : 60;
+  if (dim == 1) t = sleeping ? 10 : 60;
+  else if (dim == 2) t = 8;
+  // Any dimmer state stays VISIBLY dimmer than the chosen maximum, even at the
+  // bottom of the scale: at most two thirds of it, and never fully dark.
+  uint16_t ceil = awake * 2 / 3;
+  if (t > ceil) t = ceil;
+  if (t < 3) t = 3;
+  return (uint8_t)t;
+}
+
 // brillo segun sueno + inactividad (proteccion del AMOLED)
 void updateBrightness(uint32_t now) {
   // los eventos visibles despiertan la pantalla solos
@@ -1386,9 +1426,7 @@ void updateBrightness(uint32_t now) {
   }
   uint32_t idle = now - lastInteract;
   dimStage = (idle > 300000) ? 2 : (idle > 90000) ? 1 : 0;
-  uint8_t target = pet.sleeping ? 25 : (usbPresent() ? 180 : 145);
-  if (dimStage == 1) target = pet.sleeping ? 10 : 60;
-  else if (dimStage == 2) target = 8;
+  uint8_t target = brightnessTarget(pet.sleeping, usbPresent(), dimStage, gMaxBright);
   if (screenOff) target = 0;
   static uint8_t current = 255;
   if (target != current) {
@@ -3911,6 +3949,9 @@ void drawClockBtn(int x, int y, const char *l) {
 }
 
 // pildoras de idioma centradas en y; rellena la activa
+#define BRI_ROW_Y 248              // the max-brightness row: - LIGHT n +
+#define CLK_TIME_Y 90
+#define CLK_BTN_Y 156              // the hour/minute +/- buttons (58 tall)
 #define LANG_PILL_Y 296
 #define LANG_PILL_H 30
 #define LANG_PILL_X 336          // pildora de idioma (cicla los 6 al tocar)
@@ -3927,25 +3968,56 @@ void renderClock() {
   gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
   gfx->setTextColor(UI_INK);
   gfx->setTextSize(3);
-  gfx->setCursor(CX - strlen(T(S_SET_TIME)) * 9, 44);
+  gfx->setCursor(CX - strlen(T(S_SET_TIME)) * 9, 40);
   gfx->print(T(S_SET_TIME));
 
   char t[8];
   snprintf(t, sizeof(t), "%02d:%02d", clockH, clockM);
   gfx->setTextSize(7);
-  gfx->setCursor(CX - 105, 108);
+  gfx->setCursor(CX - 105, CLK_TIME_Y);
   gfx->print(t);
 
-  drawClockBtn(104, 190, "-");  // hora -
-  drawClockBtn(170, 190, "+");  // hora +
-  drawClockBtn(252, 190, "-");  // min -
-  drawClockBtn(318, 190, "+");  // min +
+  drawClockBtn(104, CLK_BTN_Y, "-");  // hora -
+  drawClockBtn(170, CLK_BTN_Y, "+");  // hora +
+  drawClockBtn(252, CLK_BTN_Y, "-");  // min -
+  drawClockBtn(318, CLK_BTN_Y, "+");  // min +
   gfx->setTextSize(2);
   gfx->setTextColor(UI_INK_SOFT);
-  gfx->setCursor(120, 256);
+  gfx->setCursor(120, CLK_BTN_Y + 62);
   gfx->print(T(S_HOUR));
-  gfx->setCursor(276, 256);
+  gfx->setCursor(276, CLK_BTN_Y + 62);
   gfx->print(T(S_MIN));
+
+  // MAXIMUM brightness: the same - level + shape as the volume, under the time.
+  {
+    uint8_t b = gMaxBright;
+    for (int i = 0; i < 2; i++) {
+      int bx = i ? VOL_PLUS_X : VOL_MINUS_X;
+      bool live = i ? (b < BRIGHT_LEVELS) : (b > 1);
+      gfx->fillRoundRect(bx, BRI_ROW_Y, VOL_BTN_W, LANG_PILL_H, 8, live ? UI_WHITE : UI_TRACK);
+      gfx->drawRoundRect(bx, BRI_ROW_Y, VOL_BTN_W, LANG_PILL_H, 8, UI_INK);
+      gfx->setTextColor(live ? UI_INK : 0x8410);
+      gfx->setTextSize(2);
+      gfx->setCursor(bx + VOL_BTN_W / 2 - 6, BRI_ROW_Y + 8);
+      gfx->print(i ? "+" : "-");
+    }
+    // a small sun on the left says what the row is
+    int sx = VOL_MINUS_X - 34, sy = BRI_ROW_Y + LANG_PILL_H / 2;
+    for (int k = 0; k < 8; k++) {
+      float a = k * 0.7854f;
+      gfx->drawLine(sx + (int)(9 * cosf(a)), sy + (int)(9 * sinf(a)),
+                    sx + (int)(13 * cosf(a)), sy + (int)(13 * sinf(a)), UI_BAR_WARN);
+    }
+    gfx->fillCircle(sx, sy, 6, UI_BAR_WARN);
+    char bl[16];
+    snprintf(bl, sizeof(bl), T(S_BRI_FMT), b);
+    gfx->setTextColor(UI_INK);
+    gfx->setTextSize(1);
+    gfx->setCursor(210 + (56 - (int)strlen(bl) * 6) / 2, BRI_ROW_Y + 4);
+    gfx->print(bl);
+    gfx->fillRoundRect(210, BRI_ROW_Y + 18, 56, 8, 3, UI_TRACK);
+    gfx->fillRoundRect(210, BRI_ROW_Y + 18, 56 * b / BRIGHT_LEVELS, 8, 3, UI_BAR_WARN);
+  }
 
   // interruptor de sonido (izquierda de la fila de idioma)
   bool snd = audioEnabled();
@@ -4013,12 +4085,21 @@ void renderClock() {
   gfx->flush();
 }
 
+// the brightness row's tap targets, for brightness_test: asked, not re-typed
+extern const int BRI_TEST_MINUS_X = VOL_MINUS_X + VOL_BTN_W / 2;
+extern const int BRI_TEST_PLUS_X = VOL_PLUS_X + VOL_BTN_W / 2;
+extern const int BRI_TEST_Y = BRI_ROW_Y + LANG_PILL_H / 2;
 void clockTap(int16_t x, int16_t y) {
-  if (y >= 190 && y <= 248) {  // fila de botones +/-
+  if (y >= CLK_BTN_Y && y <= CLK_BTN_Y + 58) {  // fila de botones +/-
     if (x >= 104 && x < 162) clockH = (clockH + 23) % 24;
     else if (x >= 170 && x < 228) clockH = (clockH + 1) % 24;
     else if (x >= 252 && x < 310) clockM = (clockM + 59) % 60;
     else if (x >= 318 && x < 376) clockM = (clockM + 1) % 60;
+    return;
+  }
+  if (y >= BRI_ROW_Y && y <= BRI_ROW_Y + LANG_PILL_H) {   // max brightness
+    if (x >= VOL_MINUS_X && x < VOL_MINUS_X + VOL_BTN_W) { setMaxBrightness(gMaxBright - 1); sfxPlay(SFX_TAP); }
+    else if (x >= VOL_PLUS_X && x < VOL_PLUS_X + VOL_BTN_W) { setMaxBrightness(gMaxBright + 1); sfxPlay(SFX_TAP); }
     return;
   }
   if (y >= LANG_PILL_Y && y <= LANG_PILL_Y + LANG_PILL_H) {
@@ -8224,6 +8305,7 @@ bool boxPillAt(int16_t x, int16_t y) {
 }
 void boxPillCentre(int *x, int *y) { if (x) *x = CX; if (y) *y = BOX_PILL_Y + BOX_PILL_H / 2; }
 
+#define GAL_CELL 80   // the square drawThumb() centres a sprite in (gallery, box)
 static void drawBoxCell(uint8_t i, const PartyMon *m) {
   int cx, cy;
   boxCellPos(i, &cx, &cy);
@@ -8233,9 +8315,14 @@ static void drawBoxCell(uint8_t i, const PartyMon *m) {
     return;
   }
   gfx->fillRoundRect(x, y, 54, 54, 8, UI_WHITE);
-  gfx->drawRoundRect(x, y, 54, 54, 8, m->shiny ? UI_BAR_WARN : UI_INK);
+  // A soft edge, not black ink: thirty hard outlines read as a spreadsheet.
+  // A shiny keeps its gold rim.
+  if (m->shiny) gfx->drawRoundRect(x, y, 54, 54, 8, UI_BAR_WARN);
+  else gfx->drawRoundRect(x, y, 54, 54, 8, C565(0xd9, 0xcf, 0xbf));
   const uint8_t *th = thumbs.get(m->dex);
-  if (th) drawThumb(th, cx - 24, cy - 26, 1, false);
+  // drawThumb() centres the sprite in a GAL_CELL square from (x, y), so give
+  // it the square centred on the cell.
+  if (th) drawThumb(th, cx - GAL_CELL / 2, cy - GAL_CELL / 2 - 4, 1, false);   // 4 up: clear of the level tag
   else {
     char d[8];
     snprintf(d, sizeof(d), "%03d", (int)m->dex);
@@ -8252,7 +8339,7 @@ static void drawBoxCell(uint8_t i, const PartyMon *m) {
   gfx->setCursor(x + 54 - (int)strlen(lv) * 6 - 3, y + 44);
   gfx->print(lv);
   if (m->isFav()) {
-    drawFavStar(x + 9, y + 9, 8, UI_INK);
+    drawFavStar(x + 9, y + 9, 8, C565(0xc8, 0x8a, 0x10));   // a darker gold edge, not black
     drawFavStar(x + 9, y + 9, 6, 0xFEA0);
   }
 }
@@ -8571,7 +8658,6 @@ void keyboardTap(int16_t x, int16_t y) {
 
 #define GAL_X 73
 #define GAL_Y 84
-#define GAL_CELL 80
 
 // dibuja una miniatura centrada en su celda; sil=true la pinta en tinta
 void drawThumb(const uint8_t *b, int x, int y, int s, bool sil) {
