@@ -1786,6 +1786,24 @@ Costs to weigh before starting: the WiFi stack is ~40-50 KB RAM (there is
 headroom -- currently 10% used), meaningful current draw on a battery device,
 and pairing UX on a touch-only screen.
 
+### The party is the live pet + FIVE banked (v3.31)
+
+Party slot 1 on screen is the creature you raise (`partyLivePos()`/
+`partyLiveAt()`, ring position 0); banked `slots[i]` is ring position i+1
+(`partySlotPos()`). `PARTY_BANKED` (5) is the capacity -- `count()`,
+`isFull()`, `firstFree()`, `swapPartyBox()` all ask it -- while `PARTY_SLOTS`
+(6) stays the STORED record count, because shrinking a stored layout
+reinterprets every save. `slots[5]` is kept EMPTY: `Party::reshelveSixth()`
+moves an older save's sixth to a free slot or the box at boot, box write read
+back first. `replaceAt()` is still raw on purpose (tests and migrations); no UI
+path can address slot 5 because the ring only maps 0..4. A test that fills
+`PARTY_SLOTS` creatures and reloads will now see the sixth in the box.
+
+The STATS page (`ui_monstats.ino`, `monStats` = MS_LIVE/PARTY/BOX) sits ON TOP
+of the party/box, like the box-name keyboard (`KB_BOX`): both are checked
+BEFORE `partyOpen` in `uiCurrentScreen()`, `onTap()` and `render()`, and the
+STATS page closes first on every swipe. `partylive_test` covers all three.
+
 ### The PC box: 1200 slots in a FILE, not in NVS (v3.30)
 
 The box is `BOX_SLOTS` = `BOX_BOXES` (40) x `BOX_PER_BOX` (30). At 53 bytes a

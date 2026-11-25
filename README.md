@@ -3,7 +3,7 @@
 [![Flash in browser](https://img.shields.io/badge/flash-in%20browser-FF6B00?logo=googlechrome&logoColor=white)](https://reallyjustsomeguy.github.io/TamaPokeLANExp/web/)
 [![MakerWorld](https://img.shields.io/badge/MakerWorld-3D%20case-00AE42?logo=bambulab&logoColor=white)](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)
 ![Board](https://img.shields.io/badge/board-ESP32--S3%20round%20AMOLED-E7352C?logo=espressif&logoColor=white)
-![Firmware](https://img.shields.io/badge/firmware-v3.30-8A2BE2)
+![Firmware](https://img.shields.io/badge/firmware-v3.31-8A2BE2)
 ![Code](https://img.shields.io/badge/code-MIT-blue)
 ![Languages](https://img.shields.io/badge/languages-6-FFCB05)
 [![Stars](https://img.shields.io/github/stars/DylanPDao/TamaPoke?style=flat&logo=github&color=yellow)](https://github.com/DylanPDao/TamaPoke/stargazers)
@@ -775,7 +775,19 @@ egg back. With no egg set aside, a creature that already gave its egg cannot be
 retired or released for a new one (unless your party and box are otherwise
 empty, so nobody can ever get stuck).
 
-**Farewell and release bank the creature** into your party (6 slots) instead
+**Your party is six: the creature you are raising, plus five banked.** On the
+party screen, **slot 1** (top-left, ringed in green with a heart) is always the
+creature on the main screen -- or its egg -- and tapping it shows its stats.
+The other five slots hold banked creatures. (Before v3.31 the party held six
+banked *as well as* the one you raise; on the first boot of v3.31 a sixth banked
+creature moves to a free party slot, or to the PC box. Nothing is lost.)
+
+**Every creature has a STATS page.** Tap any party or box creature and press
+**STATS** on its sheet (or tap party slot 1): all six battle stats with a bar,
+each stat's IV, its training against its cap, the IV total out of 124, the item
+it holds, its personality, bond and medals. Any tap, or a swipe down, goes back.
+
+**Farewell and release bank the creature** into your party (5 banked slots) instead
 of ending the relationship — species, nickname, shiny status, IVs, training,
 moves, level and its whole care state, frozen until you raise it again.
 **A runaway does not join** — that's what makes it the one ending with a real
@@ -816,6 +828,10 @@ box at a time as a 6 x 5 grid; drag along the rim to move between boxes. Each
 slot shows the creature, its level, a gold rim if it is shiny and a star if it
 is a favourite. Tap a slot to open its sheet; tap a party slot then BOX to
 move creatures in and out, exactly as before.
+
+**Name your boxes.** Tap a box's title (BOX 1, BOX 2...) to rename it with the
+keyboard -- up to 11 letters. An empty name goes back to "BOX n". Names are
+saved and travel in the save backup.
 
 It is stored in its own file on the board's flash, not in the save's settings
 area, which is far too small for 1200 creatures. Each write goes to a new copy
