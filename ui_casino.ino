@@ -715,8 +715,17 @@ static uint16_t rlStake = 0, rlWon = 0;
 static float rlRest = -90.0f;                 // wheel angle at rest (deg)
 static const float RL_STEP = 360.0f / ROULETTE_POCKETS;
 
-// The bet board: 4 x 2 cells, then BET and SPIN.
-void casRlCell(uint8_t i, int *x, int *y, int *w, int *h) { *w = 86; *h = 40; *x = CX - 178 + (i % 4) * 90; *y = 238 + (i / 4) * 46; }
+// The bet board: the three colours and odd/even on top (5 cells), the
+// ranges, a dozen and a number below (4 cells), then BET and SPIN. RL_ORDER
+// is which bet each cell is; cell i always means RL_ORDER[i].
+#define RL_CELLS 9
+static const uint8_t RL_ORDER[RL_CELLS] = { RB_RED, RB_BLACK, RB_GREEN, RB_ODD, RB_EVEN, RB_LOW, RB_HIGH, RB_DOZEN, RB_NUMBER };
+void casRlCell(uint8_t i, int *x, int *y, int *w, int *h) {
+  *h = 40;
+  if (i < 5) { *w = 70; *x = CX - 182 + i * 73; *y = 238; }
+  else { *w = 86; *x = CX - 178 + (i - 5) * 90; *y = 284; }
+}
+uint8_t casRlCellBet(uint8_t i) { return i < RL_CELLS ? RL_ORDER[i] : RB_RED; }
 void casRlBtn(uint8_t i, int *x, int *y, int *w, int *h) { *w = 140; *h = 50; *x = i ? CX + 8 : CX - 148; *y = 336; }
 
 static float rlFinal() { return -90.0f - rouletteWheelIndex(rlResult) * RL_STEP; }
@@ -734,7 +743,8 @@ static void rlPoint(float deg, int r, int *x, int *y) {
   *x = CX + (int)(r * cosf(a));
   *y = RL_CY + (int)(r * sinf(a));
 }
-static uint16_t rlColor(uint8_t n) { return n == 0 ? 0x0480 : rouletteRed(n) ? CAS_RED : 0x18C3; }
+#define RL_GREEN 0x0480
+static uint16_t rlColor(uint8_t n) { return n == 0 ? RL_GREEN : rouletteRed(n) ? CAS_RED : 0x18C3; }
 
 static void rlDrawWheel() {
   gfx->fillCircle(CX, RL_CY, RL_R + 6, 0x8A00);             // the wooden bowl
@@ -772,6 +782,7 @@ static void rlCellLabel(uint8_t i, char *b, size_t n) {
     case RB_BLACK: snprintf(b, n, "%s", T(S_CAS_BLACK)); break;
     case RB_ODD: snprintf(b, n, "%s", T(S_CAS_ODD)); break;
     case RB_EVEN: snprintf(b, n, "%s", T(S_CAS_EVEN)); break;
+    case RB_GREEN: snprintf(b, n, "%s", T(S_CAS_GREEN)); break;
     case RB_LOW: snprintf(b, n, "1-18"); break;
     case RB_HIGH: snprintf(b, n, "19-36"); break;
     case RB_DOZEN: snprintf(b, n, "%u-%u", (unsigned)(rlBet == RB_DOZEN ? rlArg : 0) * 12 + 1, (unsigned)((rlBet == RB_DOZEN ? rlArg : 0) + 1) * 12); break;
@@ -793,10 +804,12 @@ static void renderCasRoulette() {
     casText(CX, 222, b, rlWon ? CAS_GOLD : UI_WHITE, 1);
   }
   casDrawDealer(CX - 178, 76, 3);
-  for (uint8_t i = 0; i < RB_COUNT; i++) {
-    int x, y, w, h; casRlCell(i, &x, &y, &w, &h);
-    uint16_t fill = i == RB_RED ? CAS_RED : i == RB_BLACK ? 0x18C3 : UI_BG_DAY;
-    uint16_t ink = (i == RB_RED || i == RB_BLACK) ? UI_WHITE : UI_INK;
+  for (uint8_t c = 0; c < RL_CELLS; c++) {
+    uint8_t i = RL_ORDER[c];
+    int x, y, w, h; casRlCell(c, &x, &y, &w, &h);
+    bool coloured = i == RB_RED || i == RB_BLACK || i == RB_GREEN;
+    uint16_t fill = i == RB_RED ? CAS_RED : i == RB_BLACK ? 0x18C3 : i == RB_GREEN ? RL_GREEN : UI_BG_DAY;
+    uint16_t ink = coloured ? UI_WHITE : UI_INK;
     gfx->fillRoundRect(x, y, w, h, 10, fill);
     gfx->drawRoundRect(x, y, w, h, 10, UI_INK);
     if (i == rlBet) { gfx->drawRoundRect(x - 2, y - 2, w + 4, h + 4, 12, CAS_GOLD); gfx->drawRoundRect(x - 3, y - 3, w + 6, h + 6, 13, CAS_GOLD); }
@@ -830,8 +843,9 @@ static void casRouletteSettleNow() { if (rlSpinning) casRouletteSettle(); }
 static void casRouletteTap(int16_t px, int16_t py) {
   if (rlSpinning) return;                       // no more bets
   int x, y, w, h;
-  for (uint8_t i = 0; i < RB_COUNT; i++) {
-    casRlCell(i, &x, &y, &w, &h);
+  for (uint8_t c = 0; c < RL_CELLS; c++) {
+    uint8_t i = RL_ORDER[c];
+    casRlCell(c, &x, &y, &w, &h);
     if (!inBox(px, py, x, y, w, h)) continue;
     sfxPlay(SFX_TAP);
     if (i == RB_DOZEN && rlBet == RB_DOZEN) { rlArg = (uint8_t)((rlArg + 1) % 3); return; }

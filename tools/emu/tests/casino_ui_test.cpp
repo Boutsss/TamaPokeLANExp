@@ -39,7 +39,7 @@ extern Arduino_Canvas *gfx;
 static uint16_t px(int x, int y) { return gfx->buffer()[y * 466 + x]; }
 const Blackjack &casBlackjack();
 uint8_t casRouletteResult(); bool casRouletteSpinning(); uint8_t casRouletteBetKind(); uint8_t casRouletteBetArg();
-void casRlCell(uint8_t i, int *x, int *y, int *w, int *h); void casRlBtn(uint8_t i, int *x, int *y, int *w, int *h);
+void casRlCell(uint8_t i, int *x, int *y, int *w, int *h); uint8_t casRlCellBet(uint8_t i); void casRlBtn(uint8_t i, int *x, int *y, int *w, int *h);
 bool casinoDoorsShowing();
 const HighLow &casHighLow();
 uint8_t casinoView();
@@ -158,8 +158,19 @@ int main(){
   pet.coins = 100;
   tapGeo(casLobbyBtn, 3);
   ck(onScreen("casino") && casinoView() == 6, "ROULETTE opens the wheel");
-  tapGeo(casRlCell, 7);                           // a straight number: 17 to start
-  { int x,y,w,h; casRlCell(7,&x,&y,&w,&h); onTap(x+w-6, y+h/2); onTap(x+6, y+h/2); onTap(x+6, y+h/2); render(); }
+  // every bet on the table has its own cell -- GREEN (the zero) included
+  {
+    bool has[RB_COUNT] = { false };
+    for (uint8_t c = 0; c < 9; c++) if (casRlCellBet(c) < RB_COUNT) has[casRlCellBet(c)] = true;
+    bool all = true; for (uint8_t b = 0; b < RB_COUNT; b++) if (!has[b]) all = false;
+    ck(all, "every kind of bet has a button on the table");
+  }
+  uint8_t cGreen = 0, cNum = 0;
+  for (uint8_t c = 0; c < 9; c++) { if (casRlCellBet(c) == RB_GREEN) cGreen = c; if (casRlCellBet(c) == RB_NUMBER) cNum = c; }
+  tapGeo(casRlCell, cGreen);
+  ck(casRouletteBetKind() == RB_GREEN, "GREEN can be bet on directly");
+  tapGeo(casRlCell, cNum);                        // a straight number: 17 to start
+  { int x,y,w,h; casRlCell(cNum,&x,&y,&w,&h); onTap(x+w-6, y+h/2); onTap(x+6, y+h/2); onTap(x+6, y+h/2); render(); }
   ck(casRouletteBetKind() == RB_NUMBER && casRouletteBetArg() == 16, "the number steps up on its right half, down on its left");
   tapGeo(casRlCell, 0);                           // RED
   tapGeo(casRlBtn, 1);                            // SPIN (bet 5)

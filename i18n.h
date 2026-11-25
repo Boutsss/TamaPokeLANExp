@@ -405,6 +405,7 @@ enum StrId : uint16_t {
   S_CAS_ODD,       // the Game Corner
   S_CAS_EVEN,      // the Game Corner
   S_CAS_ROCKET,    // the Game Corner
+  S_CAS_GREEN,     // the Game Corner
   STR_COUNT
 };
 

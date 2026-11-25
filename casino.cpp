@@ -190,6 +190,7 @@ bool rouletteRed(uint8_t n) {
 uint8_t roulettePays(uint8_t bet, uint8_t arg, uint8_t n) {
   if (n >= ROULETTE_POCKETS) return 0;
   if (bet == RB_NUMBER) return arg == n ? 36 : 0;      // 35 to 1, plus the stake
+  if (bet == RB_GREEN) return n == 0 ? 36 : 0;          // the zero: 35 to 1
   if (n == 0) return 0;                                 // the house's pocket
   switch (bet) {
     case RB_RED:   return rouletteRed(n) ? 2 : 0;

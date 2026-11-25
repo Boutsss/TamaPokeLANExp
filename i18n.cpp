@@ -73,7 +73,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "BIENVENIDO!", "JE JE JE!", "QUE SUERTE...", "NI UNA PALABRA", "FICHAS %u", "APUESTA %u", "SALON DE JUEGOS", "TRAGAPERRAS", "MAYOR/MENOR", "BLACKJACK", "FICHAS", "PREMIOS", "GANAS %u!", "PARAR", "GIRAR", "REPARTIR", "BOTE %u  RACHA %u", "PIERDES", "MAYOR", "MENOR", "COBRAR", "PEDIR", "PLANTARSE", "DOBLAR", "BLACKJACK!", "EMPATE", "TE PASAS", "DINERO $%lu", "%u FICHAS  $%u", "DORSOS", "AVATARES", "FONDOS", "PUESTO", "TUYO", "TOCA DE NUEVO",
      "PRACTICAR", "TOCA UN RIVAL PARA PRACTICAR", "LUCHA EN LAN PRIMERO",
      "TARJETAS", "%u / %u GUARDADAS", "INTERCAMBIAR", "ALBUM", "UNE DOS PLACAS EN AMIGOS", "AUN NO HAY TARJETAS", "MEDALLAS %u", "POKEDEX %u", "LOGROS %u", "MEJOR RACHA %u", "TARJETAS CAMBIADAS!",
-     "RULETA", "ROJO", "NEGRO", "IMPAR", "PAR", "TEAM ROCKET", },
+     "RULETA", "ROJO", "NEGRO", "IMPAR", "PAR", "TEAM ROCKET",
+     "VERDE", },
   // ---------------- EN ----------------
   {
     "Evolving!", "Yum yum!", "It likes it!", "It's hungry!", "Needs a bath!",
@@ -138,7 +139,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "WELCOME, KID!", "HEH HEH HEH!", "LUCKY BRAT...", "NOT A WORD, KID", "COINS %u", "BET %u", "GAME CORNER", "SLOTS", "HIGH / LOW", "BLACKJACK", "BUY COINS", "PRIZES", "YOU WIN %u!", "STOP", "SPIN", "DEAL", "POT %u  STREAK %u", "YOU LOSE", "HIGHER", "LOWER", "CASH OUT", "HIT", "STAND", "DOUBLE", "BLACKJACK!", "PUSH", "BUST", "MONEY $%lu", "%u COINS  $%u", "CARD BACKS", "AVATARS", "CARD BGS", "EQUIPPED", "OWNED", "TAP AGAIN TO BUY",
      "PRACTICE", "TAP A RIVAL TO PRACTICE", "LAN BATTLE SOMEONE FIRST",
      "TRAINER CARDS", "%u / %u COLLECTED", "EXCHANGE", "CARD BOOK", "PAIR TWO BOARDS ON FRIENDS", "NO CARDS YET", "BADGES %u", "POKEDEX %u", "MEDALS %u", "BEST STREAK %u", "CARDS SWAPPED!",
-     "ROULETTE", "RED", "BLACK", "ODD", "EVEN", "TEAM ROCKET", },
+     "ROULETTE", "RED", "BLACK", "ODD", "EVEN", "TEAM ROCKET",
+     "GREEN", },
   // ---------------- FR ----------------
   {
     "Il evolue!", "Miam miam!", "Il aime ca!", "Il a faim!", "Besoin d'un bain!",
@@ -202,7 +204,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "BIENVENUE!", "HE HE HE!", "VEINARD...", "PAS UN MOT", "JETONS %u", "MISE %u", "CASINO", "MACHINES", "PLUS/MOINS", "BLACKJACK", "JETONS", "LOTS", "GAGNE %u!", "STOP", "LANCER", "DONNER", "POT %u  SERIE %u", "PERDU", "PLUS", "MOINS", "ENCAISSER", "CARTE", "RESTER", "DOUBLER", "BLACKJACK!", "EGALITE", "SAUTE", "ARGENT $%lu", "%u JETONS  $%u", "DOS", "AVATARS", "FONDS", "EQUIPE", "A TOI", "RETOUCHER",
      "ENTRAINEMENT", "TOUCHE UN RIVAL", "COMBATS EN LAN D'ABORD",
      "CARTES", "%u / %u GARDEES", "ECHANGER", "ALBUM", "APPAIRER EN AMIS", "AUCUNE CARTE", "BADGES %u", "POKEDEX %u", "MEDAILLES %u", "MEILLEURE SERIE %u", "CARTES ECHANGEES!",
-     "ROULETTE", "ROUGE", "NOIR", "IMPAIR", "PAIR", "TEAM ROCKET", },
+     "ROULETTE", "ROUGE", "NOIR", "IMPAIR", "PAIR", "TEAM ROCKET",
+     "VERT", },
   // ---------------- DE ----------------
   {
     "Entwickelt sich!", "Mampf mampf!", "Gefaellt ihm!", "Hat Hunger!", "Braucht ein Bad!",
@@ -266,7 +269,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "WILLKOMMEN!", "HE HE HE!", "GLUECKSPILZ...", "KEIN WORT", "MUENZEN %u", "EINSATZ %u", "SPIELKASINO", "AUTOMATEN", "HOCH/TIEF", "BLACKJACK", "MUENZEN", "PREISE", "GEWINN %u!", "STOPP", "DREHEN", "GEBEN", "TOPF %u  SERIE %u", "VERLOREN", "HOEHER", "TIEFER", "KASSIEREN", "KARTE", "HALTEN", "DOPPELN", "BLACKJACK!", "UNENTSCHIEDEN", "UEBERKAUFT", "GELD $%lu", "%u MUENZEN  $%u", "RUECKSEITEN", "AVATARE", "HINTERGRUND", "AKTIV", "DEINS", "NOCHMAL TIPPEN",
      "TRAINING", "RIVALEN ANTIPPEN", "ERST EIN LAN-KAMPF",
      "TRAINERKARTEN", "%u / %u GESAMMELT", "TAUSCHEN", "KARTENBUCH", "IN FREUNDE KOPPELN", "NOCH KEINE KARTEN", "ORDEN %u", "POKEDEX %u", "MEDAILLEN %u", "BESTE SERIE %u", "KARTEN GETAUSCHT!",
-     "ROULETTE", "ROT", "SCHWARZ", "UNGERADE", "GERADE", "TEAM ROCKET", },
+     "ROULETTE", "ROT", "SCHWARZ", "UNGERADE", "GERADE", "TEAM ROCKET",
+     "GRUEN", },
   // ---------------- IT ----------------
   {
     "Si evolve!", "Gnam gnam!", "Gli piace!", "Ha fame!", "Vuole un bagno!",
@@ -330,7 +334,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "BENVENUTO!", "EH EH EH!", "FORTUNATO...", "ACQUA IN BOCCA", "GETTONI %u", "PUNTATA %u", "CASINO", "SLOT", "ALTO/BASSO", "BLACKJACK", "GETTONI", "PREMI", "VINCI %u!", "STOP", "GIRA", "DISTRIBUISCI", "PIATTO %u  SERIE %u", "HAI PERSO", "PIU ALTA", "PIU BASSA", "INCASSA", "CARTA", "STAI", "RADDOPPIA", "BLACKJACK!", "PAREGGIO", "SBALLATO", "SOLDI $%lu", "%u GETTONI  $%u", "DORSI", "AVATAR", "SFONDI", "IN USO", "TUO", "TOCCA ANCORA",
      "ALLENAMENTO", "TOCCA UN RIVALE", "PRIMA UNA LOTTA LAN",
      "TESSERE", "%u / %u RACCOLTE", "SCAMBIA", "ALBUM", "COLLEGA IN AMICI", "NESSUNA TESSERA", "MEDAGLIE %u", "POKEDEX %u", "TROFEI %u", "SERIE MIGLIORE %u", "TESSERE SCAMBIATE!",
-     "ROULETTE", "ROSSO", "NERO", "DISPARI", "PARI", "TEAM ROCKET", },
+     "ROULETTE", "ROSSO", "NERO", "DISPARI", "PARI", "TEAM ROCKET",
+     "VERDE", },
   // ---------------- PT ----------------
   {
     "Evoluindo!", "Nham nham!", "Ele gosta!", "Esta com fome!", "Precisa de banho!",
@@ -394,7 +399,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "BEM-VINDO!", "HE HE HE!", "SORTUDO...", "NEM UMA PALAVRA", "FICHAS %u", "APOSTA %u", "CASSINO", "CACA-NIQUEIS", "MAIOR/MENOR", "BLACKJACK", "FICHAS", "PREMIOS", "GANHOU %u!", "PARAR", "GIRAR", "DAR", "POTE %u  SEQ %u", "PERDEU", "MAIOR", "MENOR", "SACAR", "PEDIR", "PARAR", "DOBRAR", "BLACKJACK!", "EMPATE", "ESTOUROU", "DINHEIRO $%lu", "%u FICHAS  $%u", "VERSOS", "AVATARES", "FUNDOS", "EM USO", "SEU", "TOQUE DE NOVO",
      "TREINO", "TOQUE UM RIVAL", "LUTE EM LAN PRIMEIRO",
      "CARTOES", "%u / %u GUARDADOS", "TROCAR", "ALBUM", "PAREAR EM AMIGOS", "NENHUM CARTAO", "INSIGNIAS %u", "POKEDEX %u", "MEDALHAS %u", "MELHOR SEQ %u", "CARTOES TROCADOS!",
-     "ROLETA", "VERMELHO", "PRETO", "IMPAR", "PAR", "EQUIPE ROCKET", },
+     "ROLETA", "VERMELHO", "PRETO", "IMPAR", "PAR", "EQUIPE ROCKET",
+     "VERDE", },
 };
 
 // Nombres de medalla en sus tres longitudes [idioma][medalla].

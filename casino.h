@@ -102,7 +102,8 @@ float slotReturn();
 // A single-zero wheel, 0..36, in the real pocket order. Every bet pays what
 // the real table pays, and 0 is the house's: it loses every outside bet. The
 // long-run return of every bet is exactly 36/37 (roulette_test sums all 37).
-enum RouletteBet : uint8_t { RB_RED = 0, RB_BLACK, RB_ODD, RB_EVEN, RB_LOW, RB_HIGH, RB_DOZEN, RB_NUMBER, RB_COUNT };
+// RB_GREEN is the zero, the house pocket, as a bet of its own: 35 to 1.
+enum RouletteBet : uint8_t { RB_RED = 0, RB_BLACK, RB_ODD, RB_EVEN, RB_LOW, RB_HIGH, RB_DOZEN, RB_NUMBER, RB_GREEN, RB_COUNT };
 #define ROULETTE_POCKETS 37
 extern const uint8_t ROULETTE_WHEEL[ROULETTE_POCKETS];   // the pocket order round the wheel
 bool rouletteRed(uint8_t n);                 // 0 is neither red nor black

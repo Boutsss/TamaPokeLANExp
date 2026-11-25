@@ -108,6 +108,7 @@ int main(){
     }
     ck(exact, "every bet returns exactly 36 coins in 37 per coin: the zero is the house edge");
     ck(roulettePays(RB_RED, 0, 0) == 0 && roulettePays(RB_NUMBER, 0, 0) == 36, "0 loses red, and pays 35 to 1 on 0 itself");
+    ck(roulettePays(RB_GREEN, 0, 0) == 36 && roulettePays(RB_GREEN, 0, 7) == 0, "GREEN pays 35 to 1 on the zero, nothing else");
     ck(roulettePays(RB_DOZEN, 2, 36) == 3 && roulettePays(RB_DOZEN, 0, 13) == 0, "dozens pay 2 to 1");
     randomSeed(4); bool inR = true; for (int i = 0; i < 2000; i++) if (rouletteSpin() >= ROULETTE_POCKETS) inR = false;
     ck(inR, "every spin lands in a pocket");
