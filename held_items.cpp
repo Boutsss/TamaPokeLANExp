@@ -8,14 +8,14 @@ bool itemConsumable(ItemKey item) {
          item == IT_LUM_BERRY || item == IT_FOCUS_SASH;
 }
 
-static PartyMon *banked(Party &pt, uint8_t who) {
+static PartyMon *banked(Party &pt, uint16_t who) {
   if (who >= HOLDER_PARTY(0) && who < HOLDER_BOX(0))
     return &pt.slots[who - HOLDER_PARTY(0)];
   if (who >= HOLDER_BOX(0) && who < HOLDER_COUNT)
     return &pt.box[who - HOLDER_BOX(0)];
   return nullptr;
 }
-static const PartyMon *banked(const Party &pt, uint8_t who) {
+static const PartyMon *banked(const Party &pt, uint16_t who) {
   if (who >= HOLDER_PARTY(0) && who < HOLDER_BOX(0))
     return &pt.slots[who - HOLDER_PARTY(0)];
   if (who >= HOLDER_BOX(0) && who < HOLDER_COUNT)
@@ -23,31 +23,31 @@ static const PartyMon *banked(const Party &pt, uint8_t who) {
   return nullptr;
 }
 
-bool holderExists(const Pet &p, const Party &pt, uint8_t who) {
+bool holderExists(const Pet &p, const Party &pt, uint16_t who) {
   if (who == HOLDER_PET) return !p.isEgg();
   const PartyMon *m = banked(pt, who);
   return m && !m->empty();
 }
-ItemKey heldBy(const Pet &p, const Party &pt, uint8_t who) {
+ItemKey heldBy(const Pet &p, const Party &pt, uint16_t who) {
   if (!holderExists(p, pt, who)) return ITEM_NONE;
   if (who == HOLDER_PET) return itemIsHeld(p.held) ? p.held : ITEM_NONE;
   ItemKey item = banked(pt, who)->held;
   return itemIsHeld(item) ? item : ITEM_NONE;
 }
 
-static ItemKey *slot(Pet &p, Party &pt, uint8_t who) {
+static ItemKey *slot(Pet &p, Party &pt, uint16_t who) {
   if (!holderExists(p, pt, who)) return nullptr;
   if (who == HOLDER_PET) return &p.held;
   PartyMon *m = banked(pt, who);
   return m ? &m->held : nullptr;
 }
-static bool saveHolder(Pet &p, Party &pt, uint8_t who) {
+static bool saveHolder(Pet &p, Party &pt, uint16_t who) {
   if (who == HOLDER_PET) return p.saveNow();
   if (who < HOLDER_BOX(0)) return pt.save();
   return pt.boxSave();
 }
 
-bool heldGive(Pet &p, Party &pt, uint8_t who, ItemKey item) {
+bool heldGive(Pet &p, Party &pt, uint16_t who, ItemKey item) {
   ItemKey *h = slot(p, pt, who);
   if (!h || !itemIsHeld(item) || !bag.count(item)) return false;
   if (*h == item) return true;
@@ -66,7 +66,7 @@ bool heldGive(Pet &p, Party &pt, uint8_t who, ItemKey item) {
   return false;
 }
 
-bool heldTake(Pet &p, Party &pt, uint8_t who) {
+bool heldTake(Pet &p, Party &pt, uint16_t who) {
   ItemKey *h = slot(p, pt, who);
   if (!h || !itemIsHeld(*h)) return false;
   ItemKey old = *h;

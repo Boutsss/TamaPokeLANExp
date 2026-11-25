@@ -71,7 +71,7 @@ bool cardFromWire(const uint8_t *i, uint8_t n, TrainerCard &c) {
 // ---------------------------------------------------------------- the book
 #define BOOK_VER 1
 #define BOOK_KEY "cards"
-#define BOOK_HDR 4
+#define BOOK_HDR CARD_BOOK_HDR
 
 static bool bookSave() {
   uint8_t buf[BOOK_HDR + CARD_BOOK_CAP * sizeof(TrainerCard)];

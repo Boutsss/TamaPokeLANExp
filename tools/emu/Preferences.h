@@ -31,6 +31,7 @@ public:
   bool begin(const char *, bool = false) { return true; }
   void end() {}
   void clear() { kv.clear(); }
+  bool remove(const char *k) { return kv.erase(k) > 0; }
   bool isKey(const char *k) { return kv.count(k) != 0; }
 
   template <typename T> size_t putT(const char *k, T v) {

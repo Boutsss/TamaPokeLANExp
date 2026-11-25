@@ -203,13 +203,13 @@ void breedReset() {
   gOpened = false;
 }
 
-const PartyMon *breedBanked(uint8_t idx) {
+const PartyMon *breedBanked(uint16_t idx) {
   if (idx < PARTY_SLOTS) return &party.slots[idx];
   if (idx < BREED_BANK) return &party.box[idx - PARTY_SLOTS];
   return nullptr;
 }
 
-BreedVerdict breedCheckIdx(uint8_t ia, uint8_t ib) {
+BreedVerdict breedCheckIdx(uint16_t ia, uint16_t ib) {
   const PartyMon *a = breedBanked(ia), *b = breedBanked(ib);
   if (!a || !b) return BV_EMPTY;
   return breedCheck(*a, *b);
@@ -217,9 +217,17 @@ BreedVerdict breedCheckIdx(uint8_t ia, uint8_t ib) {
 
 bool breedPossible() {
   if (breedHasQueued()) return false;
-  for (uint8_t a = 0; a < BREED_BANK; a++)
-    for (uint8_t b = a + 1; b < BREED_BANK; b++)
-      if (breedCheckIdx(a, b) == BV_OK) return true;
+  // Only the occupied ones: with a 1200-slot box, every PAIR of positions is
+  // ~727,000 checks, almost all of them on empty slots.
+  static uint16_t occ[BREED_BANK];
+  uint16_t n = 0;
+  for (uint16_t i = 0; i < BREED_BANK; i++) {
+    const PartyMon *m = breedBanked(i);
+    if (m && !m->empty()) occ[n++] = i;
+  }
+  for (uint16_t a = 0; a < n; a++)
+    for (uint16_t b = a + 1; b < n; b++)
+      if (breedCheckIdx(occ[a], occ[b]) == BV_OK) return true;
   return false;
 }
 
@@ -230,7 +238,7 @@ const BredEgg &breedQueued() { return gQueued; }
 const BredEgg &breedLive() { return gLive; }
 bool breedQueuedHatchable() { return breedHasQueued() && breedEggable(gQueued.dex); }
 
-BreedResult breedMake(uint8_t ia, uint8_t ib, uint32_t day) {
+BreedResult breedMake(uint16_t ia, uint16_t ib, uint32_t day) {
   if (!gOpened) return BR_NOT_READY;
   if (breedCheckIdx(ia, ib) != BV_OK) return BR_BAD_PAIR;
   if (breedHasQueued()) return BR_QUEUE_FULL;

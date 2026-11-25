@@ -15,6 +15,7 @@
 // travels with it so a later build that grows the record still reads this one.
 
 #define GHOST_CAP 4
+#define GHOST_HDR 4
 
 struct Ghost {
   uint8_t mac[6] = { 0 };       // all zero = keyed by name (no radio: emulator)
@@ -24,6 +25,9 @@ struct Ghost {
   uint8_t rsvd = 0;
   LinkMon mon[TRAINER_TEAM_MAX];
 };
+
+// The largest "ghosts" blob, header included (save.cpp sizes the backup by it).
+#define GHOST_BLOB_MAX (GHOST_HDR + GHOST_CAP * sizeof(Ghost))
 
 void ghostsBegin();
 uint8_t ghostCount();

@@ -5,6 +5,7 @@
 #include "items.h"
 #include "held_items.h"
 #include "nvsinfo.h"   // logKeyFailure(): save()/boxSave() used to be silent on failure
+#include "box_store.h"
 
 Party party;
 
@@ -60,39 +61,89 @@ void Party::begin() {
     s.nick[sizeof(s.nick) - 1] = 0;
     if (!itemIsHeld(s.held)) s.held = ITEM_NONE;
   }
-  // The box is a separate key and simply absent on an older save, which leaves
-  // it zeroed -- exactly what an empty box is.
-  for (auto &s : box) s = PartyMon();
-  size_t boxStored = prefs.getBytesLength("box");
-  if (boxStored == sizeof(box)) {
-    prefs.getBytes("box", box, sizeof(box));
-  } else if (boxStored > sizeof(box) && boxStored % sizeof(PartyMon) == 0) {
-    // Same as the party above: a later build with more box slots. Keep the
-    // first BOX_SLOTS rather than dropping the whole box on the floor, which is
-    // what happened before -- getBytes refuses an oversized blob outright.
-    uint8_t *tmp = (uint8_t *)malloc(boxStored);
-    if (tmp) {
-      if (prefs.getBytes("box", tmp, boxStored) == boxStored)
-        memcpy(box, tmp, sizeof(box));
-      free(tmp);
-    }
-  } else if (boxStored && boxStored % BOX_SLOTS == 0 && boxStored < sizeof(box)) {
-    // A SHORTER stride, i.e. a blob written before PartyMon grew. The party
-    // above has always had this path; the box did not, so the first time the
-    // record gained a field every stored box would have read as empty and been
-    // overwritten by the next boxSave(). Same migration, same reasoning.
-    size_t oldStride = boxStored / BOX_SLOTS;
-    uint8_t old[sizeof(box)];
-    prefs.getBytes("box", old, boxStored);
-    for (int i = 0; i < BOX_SLOTS; i++)
-      memcpy(&box[i], old + i * oldStride, oldStride);
-    boxSave();   // rewrite in the current layout so this only happens once
+  loadBox();
+}
+
+// The box: allocated once, read from its file, and the old 18-slot NVS box
+// moved into it the first time this build boots.
+void Party::loadBox() {
+  if (!box) {
+#if defined(ESP32)
+    box = (PartyMon *)ps_malloc(sizeof(PartyMon) * BOX_SLOTS);
+#else
+    box = (PartyMon *)malloc(sizeof(PartyMon) * BOX_SLOTS);
+#endif
+    if (!box) { Serial.println("box: no memory for the PC box"); return; }
   }
-  for (auto &s : box) {
+  for (uint16_t i = 0; i < BOX_SLOTS; i++) box[i] = PartyMon();
+  boxStoreLoad(box);
+  boxGen++;
+  for (uint16_t i = 0; i < BOX_SLOTS; i++) {
+    PartyMon &s = box[i];
     if (s.dex < 1 || s.dex > DEX_COUNT) s.dex = 0;
     s.nick[sizeof(s.nick) - 1] = 0;
     if (!itemIsHeld(s.held)) s.held = ITEM_NONE;
   }
+  migrateLegacyBox();
+}
+
+// The pre-1200 box: BOX_LEGACY_SLOTS records under the NVS key "box", at
+// whatever stride the build that wrote it used. Each goes to its OWN slot
+// number if that is free (so a player's box looks the same after the upgrade),
+// else the first free one. The key is removed only once the file holding them
+// has been written and READ BACK -- a failure keeps the key and tries again at
+// the next boot, so a creature is never in neither place.
+void Party::migrateLegacyBox() {
+  size_t stored = prefs.getBytesLength("box");
+  if (!stored) return;
+  PartyMon old[BOX_LEGACY_SLOTS];
+  for (auto &m : old) m = PartyMon();
+  if (stored % BOX_LEGACY_SLOTS == 0 && stored / BOX_LEGACY_SLOTS <= 128) {
+    size_t stride = stored / BOX_LEGACY_SLOTS;
+    uint8_t *raw = (uint8_t *)malloc(stored);
+    if (!raw) return;
+    if (prefs.getBytes("box", raw, stored) == stored)
+      for (int i = 0; i < BOX_LEGACY_SLOTS; i++)
+        memcpy(&old[i], raw + i * stride, stride < sizeof(PartyMon) ? stride : sizeof(PartyMon));
+    free(raw);
+  } else {
+    Serial.printf("box: old box key has an unknown size (%u), left alone\n", (unsigned)stored);
+    return;
+  }
+  uint16_t moved = 0;
+  int16_t placed[BOX_LEGACY_SLOTS];
+  for (int i = 0; i < BOX_LEGACY_SLOTS; i++) {
+    placed[i] = -1;
+    PartyMon m = old[i];
+    if (m.dex < 1 || m.dex > DEX_COUNT) continue;
+    m.nick[sizeof(m.nick) - 1] = 0;
+    if (!itemIsHeld(m.held)) m.held = ITEM_NONE;
+    int at = box[i].empty() ? i : boxFirstFree();
+    if (at < 0) { Serial.println("box: no room to migrate the old box -- kept for next boot"); loadBoxFileOnly(); return; }
+    box[at] = m;
+    placed[i] = (int16_t)at;
+    moved++;
+  }
+  if (moved && !boxSave()) { loadBoxFileOnly(); return; }    // nothing removed: next boot retries
+  // Each one READ BACK from the file before the old key goes.
+  for (int i = 0; i < BOX_LEGACY_SLOTS; i++)
+    if (placed[i] >= 0 && !boxStoreSlotIs((uint16_t)placed[i], box[placed[i]])) {
+      Serial.println("box: migration not confirmed on flash -- old box kept");
+      return;
+    }
+  prefs.remove("box");
+  Serial.printf("box: moved %u from the old 18-slot box into the PC box\n", (unsigned)moved);
+}
+
+void Party::loadBoxFileOnly() {
+  for (uint16_t i = 0; i < BOX_SLOTS; i++) box[i] = PartyMon();
+  boxStoreLoad(box);
+}
+
+void Party::boxWipe() {
+  if (box) for (uint16_t i = 0; i < BOX_SLOTS; i++) box[i] = PartyMon();
+  boxStoreWipe();
+  prefs.remove("box");
 }
 
 bool Party::save() {
@@ -104,8 +155,10 @@ bool Party::save() {
 }
 
 bool Party::boxSave() {
-  if (prefs.putBytes("box", box, sizeof(box)) != sizeof(box)) {
-    logKeyFailure("party", "box");
+  if (!box) return false;
+  boxGen++;
+  if (!boxStoreSave(box)) {
+    Serial.println("save: the PC box file did not write");
     return false;
   }
   return true;
@@ -130,13 +183,13 @@ static bool sameMon(const PartyMon &a, const PartyMon &b) {
          !strncmp(a.nick, b.nick, sizeof(a.nick));
 }
 
-bool Party::storeDurably(const PartyMon &m, int8_t *where) {
+bool Party::storeDurably(const PartyMon &m, int16_t *where) {
   if (m.empty()) return false;
   int i = firstFree();
   if (i >= 0) {
     PartyMon old = slots[i];
     slots[i] = m;
-    if (save() && readBackMatches(prefs, "party", slots, sizeof(slots))) { if (where) *where = (int8_t)i; return true; }
+    if (save() && readBackMatches(prefs, "party", slots, sizeof(slots))) { if (where) *where = (int16_t)i; return true; }
     slots[i] = old;
     save();
     return false;
@@ -145,20 +198,20 @@ bool Party::storeDurably(const PartyMon &m, int8_t *where) {
   if (i < 0) return false;
   PartyMon old = box[i];
   box[i] = m;
-  if (boxSave() && readBackMatches(prefs, "box", box, sizeof(box))) { if (where) *where = (int8_t)(PARTY_SLOTS + i); return true; }
+  if (boxSave() && boxStoreSlotIs((uint16_t)i, box[i])) { if (where) *where = (int16_t)(PARTY_SLOTS + i); return true; }
   box[i] = old;
   boxSave();
   return false;
 }
 
-bool Party::takeOutExact(int8_t where, const PartyMon &expect) {
+bool Party::takeOutExact(int16_t where, const PartyMon &expect) {
   if (where < 0 || where >= PARTY_SLOTS + BOX_SLOTS) return false;
   bool inBox = where >= PARTY_SLOTS;
   PartyMon &s = inBox ? box[where - PARTY_SLOTS] : slots[where];
   if (s.empty() || !sameMon(s, expect)) return false;
   PartyMon old = s;
   s = PartyMon();
-  bool ok = inBox ? (boxSave() && readBackMatches(prefs, "box", box, sizeof(box)))
+  bool ok = inBox ? (boxSave() && boxStoreSlotIs((uint16_t)(where - PARTY_SLOTS), PartyMon()))
                   : (save() && readBackMatches(prefs, "party", slots, sizeof(slots)));
   if (ok) return true;
   s = old;
@@ -166,10 +219,10 @@ bool Party::takeOutExact(int8_t where, const PartyMon &expect) {
   return false;
 }
 
-uint8_t Party::boxCount() const {
-  uint8_t n = 0;
-  for (auto &s : box)
-    if (!s.empty()) n++;
+uint16_t Party::boxCount() const {
+  uint16_t n = 0;
+  if (box) for (uint16_t i = 0; i < BOX_SLOTS; i++)
+    if (!box[i].empty()) n++;
   return n;
 }
 
@@ -187,14 +240,14 @@ bool Party::boxAdd(const PartyMon &m) {
   return true;
 }
 
-void Party::boxReleaseAt(uint8_t i) {
+void Party::boxReleaseAt(uint16_t i) {
   if (i >= BOX_SLOTS) return;
   heldReturn(box[i].held);
   box[i] = PartyMon();
   boxSave();
 }
 
-void Party::swapPartyBox(uint8_t partyIdx, uint8_t boxIdx) {
+void Party::swapPartyBox(uint8_t partyIdx, uint16_t boxIdx) {
   if (partyIdx >= PARTY_SLOTS || boxIdx >= BOX_SLOTS) return;
   PartyMon t = slots[partyIdx];
   slots[partyIdx] = box[boxIdx];

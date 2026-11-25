@@ -9,12 +9,22 @@
 // A runaway does not: it is the game's one punishing outcome, and letting a
 // neglected pet come back as a team member would take the sting out of it.
 #define PARTY_SLOTS 6
-// The box: storage beyond the six that fight. Deliberately a SEPARATE NVS key
-// rather than a bigger party blob -- growing that blob would change its stride
-// and the length-based migration in begin() cannot tell a stride change from a
-// slot-count change, so an existing party would be read back misaligned. A new
-// key is purely additive and cannot corrupt anything.
-#define BOX_SLOTS 18
+// The PC BOX: storage beyond the six that fight. 40 boxes of 30 -- 1200 slots,
+// the Sword/Shield PC -- held in RAM (PSRAM on the board) and kept in a FILE
+// on the board's own FAT partition (box_store.h), because 1200 records are
+// three times the whole NVS partition.
+//
+// It used to be 18 slots under the NVS key "box". That key is still READ, once:
+// Party::begin() moves those creatures into the file and only then removes the
+// key, so a failure leaves a creature in two places, never in none. An old
+// backup that carries "box" restores the same way.
+#define BOX_PER_BOX 30
+#define BOX_BOXES 40
+#define BOX_SLOTS (BOX_PER_BOX * BOX_BOXES)
+#define BOX_LEGACY_SLOTS 18     // the old NVS box, migrated at boot
+// Anything that numbers "party then box" in one index (breed.h, held_items.h,
+// trades) needs 16 bits now: 6 + 1200 does not fit a byte. CLAUDE.md trap 2.
+static_assert(PARTY_SLOTS + BOX_SLOTS > 255, "if this ever fails, nothing is wrong -- but nobody narrowed an index back to a byte either");
 #define MOVE_SLOTS 4    // the same four every trainer gets in the real games
 
 // A stored creature -- one of the six that fight, or one in the box.
@@ -86,9 +96,14 @@ static_assert(sizeof(PartyMon) == 52, "PartyMon grew: party/box migration, MAX_V
 class Party {
 public:
   PartyMon slots[PARTY_SLOTS];
-  PartyMon box[BOX_SLOTS];
+  // BOX_SLOTS records, allocated by begin() (PSRAM on the board). Indexed like
+  // an array; never touched before begin().
+  PartyMon *box = nullptr;
+  // Bumped by every boxSave() and load: anything that caches a view of the box
+  // (the box screen's filtered, sorted list) recomputes when it moves.
+  uint32_t boxGen = 0;
 
-  void begin();                 // load from NVS
+  void begin();                 // load the party (NVS) and the box (its file)
   uint8_t count() const;
   bool isFull() const { return count() >= PARTY_SLOTS; }
   int firstFree() const;        // index of the first empty slot, -1 if full
@@ -96,24 +111,26 @@ public:
   void replaceAt(uint8_t i, const PartyMon &m);
   void releaseAt(uint8_t i);    // free a slot again
   bool save();
-  uint8_t boxCount() const;
+  uint16_t boxCount() const;
   int boxFirstFree() const;
   bool boxAdd(const PartyMon &m);     // into the first free box slot
   // For a TRADE (and anything else that must not be lost): into the first free
   // party slot, else the first free box slot, written and READ BACK. True only
   // if the record is verifiably on flash; on any failure RAM is put back and
-  // nothing is claimed. `where` = 0..5 party, 6..23 box (the breed.h indices).
-  bool storeDurably(const PartyMon &m, int8_t *where);
+  // nothing is claimed. `where` = 0..5 party, 6.. box (the breed.h indices).
+  bool storeDurably(const PartyMon &m, int16_t *where);
   // Takes out the record at `where` only if it is still exactly `expect` (the
   // slot may have changed since it was offered), WITHOUT returning its held
   // item to the bag -- a traded creature takes its item with it. Written and
   // read back; true only if the slot is verifiably empty on flash.
-  bool takeOutExact(int8_t where, const PartyMon &expect);
-  void boxReleaseAt(uint8_t i);
+  bool takeOutExact(int16_t where, const PartyMon &expect);
+  void boxReleaseAt(uint16_t i);
   bool boxSave();
   // Swaps a party slot with a box slot. Either may be empty, so this doubles as
   // deposit and withdraw rather than needing three separate operations.
-  void swapPartyBox(uint8_t partyIdx, uint8_t boxIdx);
+  void swapPartyBox(uint8_t partyIdx, uint16_t boxIdx);
+  // WIPE / IMPORT: the box is emptied and its file removed.
+  void boxWipe();
 
   // combat stats of a party member, same formula as the live pet's
   uint16_t atkOf(const PartyMon &m) const;
@@ -125,6 +142,9 @@ public:
 
 private:
   Preferences prefs;
+  void loadBox();
+  void migrateLegacyBox();
+  void loadBoxFileOnly();
 };
 
 extern Party party;

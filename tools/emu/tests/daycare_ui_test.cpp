@@ -20,12 +20,12 @@ void setup(); void render(); void onSwipe(int dir); void onSwipeV(int dir);
 void onTap(int16_t x, int16_t y); void onRim(int dir);
 int uiTileIndex();
 extern Pet pet;
-extern bool daycareOpen, partyOpen; extern uint8_t dcView, dcPage;
+extern bool daycareOpen, partyOpen; extern uint8_t dcView; extern uint16_t dcPage;
 int dcCardCenterX(uint8_t i); int dcCardCenterY();
 int dcBtnCenterX(uint8_t i); int dcBtnCenterY();
 int dcRowCenterY(uint8_t i);
 uint8_t dcPickedA(); uint8_t dcPickedB();
-void dcDebugPick(uint8_t a, uint8_t b);
+void dcDebugPick(uint16_t a, uint16_t b);
 
 static int bad=0;
 static void ck(bool ok,const char *s){printf("%s  %s\n",ok?"PASS":"FAIL",s);if(!ok)bad++;}

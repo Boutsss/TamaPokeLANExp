@@ -23,7 +23,7 @@ int FakeSerial::available(){return 0;}
 String FakeSerial::readStringUntil(char){return String("");}
 void setup(); void loop(); void render(); void onTap(int16_t,int16_t); void onSwipeV(int); void onRim(int);
 void emuFireInterrupt();
-uint8_t uiCurrentScreen(); uint8_t uiRimPages(); uint8_t uiRimPage();
+uint8_t uiCurrentScreen(); uint16_t uiRimPages(); uint16_t uiRimPage();
 extern const char *const SCREEN_NAME[];
 extern Pet pet; extern bool trainOpen, casinoOpen, arcadeOpen, playerOpen;
 extern uint8_t casShopKind, casShopPage;

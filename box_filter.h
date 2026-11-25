@@ -21,5 +21,5 @@ bool boxFilterMatch(const PartyMon &m, uint8_t filter);
 // filter, slot order) lists every slot, empty ones included, because that is
 // where a creature can be put; any other view lists only the matching
 // creatures, best first. Returns how many.
-uint8_t boxView(const Party &p, uint8_t filter, uint8_t sort, uint8_t *out);
+uint16_t boxView(const Party &p, uint8_t filter, uint8_t sort, uint16_t *out);
 inline bool boxViewPlain(uint8_t filter, uint8_t sort) { return filter == BF_ALL && sort == BS_SLOT; }

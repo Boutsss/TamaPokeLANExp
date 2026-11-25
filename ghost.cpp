@@ -8,7 +8,6 @@ static Ghost gNone;
 
 #define GHOST_VER 1
 #define GHOST_KEY "ghosts"
-#define GHOST_HDR 4
 
 uint8_t ghostCount() { return gN; }
 const Ghost &ghostAt(uint8_t i) { return i < gN ? g[i] : gNone; }

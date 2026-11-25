@@ -8,6 +8,7 @@
 #include "items.h"
 #include "party.h"
 #include "battle.h"
+#include "box_store.h"
 #include <chrono>
 #include <string>
 #include <deque>
@@ -183,7 +184,7 @@ void onTap(int16_t x, int16_t y);   // the first-boot shots tap their way in
 extern bool exploreOpen, gymOpen, playerOpen, martOpen, daycareOpen;
 extern uint8_t dcView;
 extern bool towerOpen, gymRematch, gymHard, chalOpen;
-void daycareOpened(); void dcDebugPick(uint8_t a, uint8_t b);
+void daycareOpened(); void dcDebugPick(uint16_t a, uint16_t b);
 #include "chain.h"
 #include "rank.h"
 extern ItemKey martConfirmItem;
@@ -321,7 +322,7 @@ static int shotMode(const char *screen, const char *out, int lvl, int iv, int de
     }
     daycareOpen = true; daycareOpened();
     dcDebugPick(0, 1);
-    if (!strcmp(screen, "dcpick")) { dcDebugPick(0, 0xFF); dcView = 1; }
+    if (!strcmp(screen, "dcpick")) { dcDebugPick(0, 0xFFFF); dcView = 1; }
   }
   else if (!strcmp(screen, "tower")) { pet.winBadge(0, 12, false); towerOpen = true; }
   else if (!strcmp(screen, "trade")) {
@@ -497,6 +498,11 @@ int main(int argc, char **argv) {
   if (shot) return shotMode(shot, shotOut, shotLvl, shotIv, shotDex);   // headless: no SDL at all
   g_crashFile = std::string(save) + ".crash";
   crashRestore();     // a simulated panic left its breadcrumb here
+  {   // the PC box file lives beside the save, so two saves never share a box
+    std::string sp(save);
+    size_t cut = sp.find_last_of('/');
+    boxStoreSetDir(cut == std::string::npos ? "." : sp.substr(0, cut).c_str());
+  }
   nvsLoad(save);
 
   if (SDL_Init(SDL_INIT_VIDEO) != 0) { fprintf(stderr, "SDL: %s\n", SDL_GetError()); return 1; }

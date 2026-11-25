@@ -17,6 +17,7 @@
 #define CARD_BOOK_CAP 12
 #define CARD_NAME_LEN 12
 #define CARD_WIRE_LEN 30
+#define CARD_BOOK_HDR 4
 
 struct TrainerCard {
   char name[CARD_NAME_LEN] = "";
@@ -31,6 +32,9 @@ struct TrainerCard {
   uint16_t bestStreak = 0;
   uint32_t fid = 0;         // their friend id (friends.h), 0 = unknown
 };
+
+// The largest "cards" blob, header included (save.cpp sizes the backup by it).
+#define CARD_BOOK_BLOB_MAX (CARD_BOOK_HDR + CARD_BOOK_CAP * sizeof(TrainerCard))
 
 class Pet;
 // Our own card, from the player's state.

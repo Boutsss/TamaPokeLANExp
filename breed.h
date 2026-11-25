@@ -51,7 +51,7 @@
 // breedBegin() recognises exactly that state -- an uncracked live egg of the
 // queued species -- and finishes step 3. The failure direction is "the same
 // egg twice", never "no egg".
-#define BREED_BANK (PARTY_SLOTS + BOX_SLOTS)   // banked index: party 0..5, box 6..23
+#define BREED_BANK (PARTY_SLOTS + BOX_SLOTS)   // banked index: party 0..5, box 6..1205 (16-bit)
 #define BREED_INHERIT 3          // IVs inherited without the Oval Charm (of 4)
 #define BREED_IV_ROLL 0xFF       // an IV the parents did not decide: rolled at hatch
 #define BREED_SHINY_BONUS 16     // both parents shiny: 1 in this many
@@ -90,10 +90,10 @@ int16_t breedEggSpecies(const PartyMon &a, const PartyMon &b);   // 0 unless BV_
 void breedInherit(const PartyMon &a, const PartyMon &b, bool ovalCharm, uint8_t out[4]);
 
 // ---- the daycare's state (NVS key "dcare", in SAVE_FIELDS)
-const PartyMon *breedBanked(uint8_t idx);      // nullptr if out of range
-BreedVerdict breedCheckIdx(uint8_t ia, uint8_t ib);
+const PartyMon *breedBanked(uint16_t idx);      // nullptr if out of range
+BreedVerdict breedCheckIdx(uint16_t ia, uint16_t ib);
 bool breedOnCooldown(uint32_t day);            // true = already bred today
-BreedResult breedMake(uint8_t ia, uint8_t ib, uint32_t day);   // emits EV_BREED
+BreedResult breedMake(uint16_t ia, uint16_t ib, uint32_t day);   // emits EV_BREED
 bool breedHasQueued();
 bool breedPossible();                          // a compatible pair exists and the queue is free
 const BredEgg &breedQueued();

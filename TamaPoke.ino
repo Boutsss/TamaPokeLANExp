@@ -169,16 +169,16 @@ uint8_t partyDetail = 0;   // 0 = the grid, else slot + 1
 bool boxOpen = false;
 uint8_t boxPage = 0;
 uint8_t boxSwapFrom = 0;   // party slot + 1, armed from the party side
-uint8_t boxSel = 0;        // box slot + 1, armed from the box side
+uint16_t boxSel = 0;       // box slot + 1, armed from the box side (16-bit: 1200 slots)
 // The box gets the same detail sheet the party has. Tapping a box slot used to
 // yank the creature into the party immediately, which is a surprising amount to
 // happen from one tap -- and left nowhere to put a RELEASE button.
-uint8_t boxDetail = 0;        // box slot + 1 whose sheet is open
+uint16_t boxDetail = 0;       // box slot + 1 whose sheet is open (16-bit: 1200 slots)
 // The RELEASE confirm, on whichever sheet is up. One flag rather than two,
 // because only one sheet can be open at a time and partyDetail/boxDetail
 // already say which.
 bool releaseConfirm = false;
-#define BOX_PER_PAGE 6
+#define BOX_PER_PAGE 30   // one PC box: 6 x 5
 uint32_t partyBannerUntil = 0;   // "<name> joined the party!"
 char partyBannerName[14] = "";
 // The party and box moved from a 2x3 grid to a RING; see partySlotPos(). A grid
@@ -276,8 +276,8 @@ uint8_t uiCurrentScreen();
 int uiTileIndex();
 void uiTileGo(int i);
 void onRim(int dir);
-uint8_t uiRimPages();
-uint8_t uiRimPage();
+uint16_t uiRimPages();
+uint16_t uiRimPage();
 bool uiOnRim(int16_t x, int16_t y);
 float uiRimAngle(int16_t x, int16_t y);
 void uiDrawRimBar();
@@ -295,7 +295,7 @@ void renderBox();
 // and the emulator's generated proto.h would hide that -- see the note above.
 void renderBag();
 void bagTap(int16_t x, int16_t y);
-static uint8_t bagHeldWhoCount();
+static uint16_t bagHeldWhoCount();
 void renderTasks();
 void tasksTap(int16_t x, int16_t y);
 uint8_t bagPages();
@@ -305,7 +305,7 @@ void renderDaycare();
 void daycareTap(int16_t x, int16_t y);
 void daycareOpened();
 uint8_t martPages();
-uint8_t dcPickPages();
+uint16_t dcPickPages();
 bool startWildBattle(uint8_t region, bool hard);
 void startTowerBattle();
 void startChallengeBattle();
@@ -638,7 +638,7 @@ uint8_t exploreRegion = 0xFF;
 bool bagOpen = false;
 uint8_t bagPage = 0;
 ItemKey bagHeldPick = ITEM_NONE;
-uint8_t bagHeldPage = 0;
+uint16_t bagHeldPage = 0;   // 16-bit with the PC box
 bool bagTakeMode = false;
 #define BAG_PER_PAGE 4
 #define BAG_ROW_Y(i) (112 + (i) * 58)
@@ -665,7 +665,8 @@ bool arcadeOpen = false;
 // Trading (Tubiana/TamaPoke's, storage-first fix: link.h). Reached from the LAN
 // screen once two boards are paired. tradeView 1 = choosing what to offer.
 bool tradeOpen = false;
-uint8_t tradeView = 0, tradePage = 0;
+uint8_t tradeView = 0;
+uint16_t tradePage = 0;   // 16-bit: 1206 creatures at 4 a page is 302 pages
 const char *arcadeTitle();
 bool arcadeEnabled();
 void arcadeOpenFromTrain();
@@ -676,7 +677,7 @@ void renderTrade();
 void tradeTap(int16_t x, int16_t y);
 void tradeLeave();
 void tradePoll();
-uint8_t tradePickPages();
+uint16_t tradePickPages();
 // Gifts and visits between two boards (ui_friends.ino, friends.cpp). Reached
 // from the LAN screen's FRIENDS button.
 extern bool friendsOpen;
@@ -719,12 +720,13 @@ bool boxFiltered();
 const char *boxFilterName(uint8_t f);
 const char *boxFilterWord();
 const char *boxFavLockLine();
-void boxFoundLine(char *out, size_t n, uint8_t found);
+void boxFoundLine(char *out, size_t n, uint16_t found);
 void boxSortLine(char *out, size_t n);
 void drawFavStar(int cx, int cy, int r, uint16_t col);
 void renderBoxFilter();
 void boxFilterTap(int16_t px, int16_t py);
-uint8_t boxViewNow(uint8_t *out);
+uint16_t boxViewNow(uint16_t *out);
+uint16_t boxViewCount();
 // THE answer for "may this stored creature be let go" -- the sheet's RELEASE
 // button, its YES, the make-room chooser and the trade list all ask it.
 static inline bool monReleasable(const PartyMon &m) { return !m.empty() && !m.isFav(); }
@@ -742,7 +744,7 @@ void arcadeSwipe(int dir);
 bool arcadeSwipeV(int dir);
 void arcadeClose();
 uint8_t dcView = 0;               // 0 home, 1 picker
-uint8_t dcPage = 0;               // the picker's page (uiRimTarget)
+uint16_t dcPage = 0;              // the picker's page (uiRimTarget); 16-bit, like tradePage
 uint8_t martPage = 0;
 // The item pending a buy confirmation; ITEM_NONE means no dialog is up. A
 // value rather than a bool, like partyDetail/galleryDetail, since the dialog
@@ -1584,9 +1586,10 @@ void handleSerial() {
     // Prints the whole save as a block of IMPORT commands. Pasting that block
     // back is the restore -- there is no separate format to get wrong, and no
     // single 2000-character line for a terminal to mangle.
-    static uint8_t buf[SAVE_TRANSFER_MAX];
-    size_t n = saveExport(buf, sizeof(buf));
-    if (!n) { Serial.println("EXPORT FAIL"); return; }
+    // From the heap (PSRAM on the board): 72 KB must not sit in internal RAM.
+    uint8_t *buf = (uint8_t *)malloc(SAVE_TRANSFER_MAX);
+    size_t n = buf ? saveExport(buf, SAVE_TRANSFER_MAX) : 0;
+    if (!n) { free(buf); Serial.println("EXPORT FAIL"); return; }
     Serial.printf("# TamaPoke save, %u bytes. Paste this whole block back.\n",
                   (unsigned)n);
     for (size_t i = 0; i < n; i += 48) {
@@ -1595,17 +1598,20 @@ void handleSerial() {
       Serial.println();
     }
     Serial.println("IMPORT");        // the empty one commits
+    free(buf);
   } else if (line.startsWith("IMPORT")) {
     // IMPORT <hex>   append a chunk
     // IMPORT         commit what has been appended
-    static uint8_t in[SAVE_TRANSFER_MAX];
+    static uint8_t *in = nullptr;    // from the heap on first use, kept: it is reused
     static size_t inN = 0;
+    if (!in) in = (uint8_t *)malloc(SAVE_TRANSFER_MAX);
+    if (!in) { Serial.println("IMPORT FULL"); return; }
     String hex = line.substring(6);
     hex.trim();
     if (hex.length()) {
       if (hex.length() & 1) { Serial.println("IMPORT ODD"); inN = 0; return; }
       for (size_t i = 0; i + 1 < (size_t)hex.length(); i += 2) {
-        if (inN >= sizeof(in)) { Serial.println("IMPORT FULL"); inN = 0; return; }
+        if (inN >= SAVE_TRANSFER_MAX) { Serial.println("IMPORT FULL"); inN = 0; return; }
         auto nyb = [](char c) -> int {
           if (c >= '0' && c <= '9') return c - '0';
           if (c >= 'A' && c <= 'F') return c - 'A' + 10;
@@ -2436,10 +2442,10 @@ void onSwipe(int dir) {
   if (trainOpen) { trainOpen = false; return; }
   if (bagOpen) {
     if (bagHeldPick || bagTakeMode) {
-      uint8_t n = bagHeldWhoCount(), pages = n ? (n + BAG_PER_PAGE - 1) / BAG_PER_PAGE : 1;
+      uint16_t n = bagHeldWhoCount(), pages = n ? (n + BAG_PER_PAGE - 1) / BAG_PER_PAGE : 1;
       int next = (int)bagHeldPage + (dir > 0 ? -1 : 1);
       if (next < 0 || next >= pages) { bagHeldPick = ITEM_NONE; bagTakeMode = false; bagHeldPage = 0; }
-      else bagHeldPage = (uint8_t)next;
+      else bagHeldPage = (uint16_t)next;
     } else bagOpen = false;
     return;
   }
@@ -3152,9 +3158,20 @@ void uiTileGo(int i) {
 // there are. Three separate switches over the same list -- one to draw the
 // scrollbar, one to page, one for the test -- is precisely the shape CLAUDE.md
 // warns about, so draw, input and test all come through here.
-static uint8_t *uiRimTarget(uint8_t *pages) {
-  uint8_t n = 1;
+// A page variable is one byte on most screens and two on the pickers that can
+// list the whole PC box (6 + 1200 creatures, 4 a page, is past 255 pages) --
+// CLAUDE.md trap 2 again. RimPage reads and writes either.
+struct RimPage {
+  uint8_t *p8 = nullptr;
+  uint16_t *p16 = nullptr;
+  bool ok() const { return p8 || p16; }
+  uint16_t get() const { return p16 ? *p16 : (p8 ? *p8 : 0); }
+  void set(uint16_t v) { if (p16) *p16 = v; else if (p8) *p8 = (uint8_t)v; }
+};
+static RimPage uiRimTarget(uint16_t *pages) {
+  uint16_t n = 1;
   uint8_t *p = nullptr;
+  RimPage r;
   switch (uiCurrentScreen()) {
     case SCR_GYM:     p = &gymPage;     n = (TRAINER_COUNT + GYM_ROWS - 1) / GYM_ROWS; break;
     case SCR_GALLERY: p = &galleryPage; n = (uint8_t)GAL_PAGES; break;
@@ -3162,9 +3179,9 @@ static uint8_t *uiRimTarget(uint8_t *pages) {
     case SCR_BOX:     p = &boxPage;     n = boxPages(); break;
     case SCR_BAGSCR:  p = &bagPage;     n = bagPages(); break;
     case SCR_MART:    p = &martPage;    n = martPages(); break;
-    case SCR_DCPICK:  p = &dcPage;      n = dcPickPages(); break;
+    case SCR_DCPICK:  r.p16 = &dcPage;  n = dcPickPages(); break;
     case SCR_TASKS:   p = &tasksPage;   n = 2; break;   // daily, weekly
-    case SCR_TRADEPICK: p = &tradePage; n = tradePickPages(); break;
+    case SCR_TRADEPICK: r.p16 = &tradePage; n = tradePickPages(); break;
     case SCR_CASSHOP: p = &casShopPage; n = casShopPages(); break;
     case SCR_CARDBOOK: p = &cardBookPage; n = cardBookPages(); break;
     case SCR_CARD:    p = &cardPage;    n = CARD_PAGES; break;
@@ -3184,33 +3201,34 @@ static uint8_t *uiRimTarget(uint8_t *pages) {
     default: break;
   }
   if (pages) *pages = n ? n : 1;
-  return p;
+  if (p) r.p8 = p;
+  return r;
 }
 
-uint8_t uiRimPages() {
-  uint8_t n = 1;
+uint16_t uiRimPages() {
+  uint16_t n = 1;
   if (rpickModeNow() != 0xFF) return rpickPageCount(rpickModeNow());
   uiRimTarget(&n);
   return n;
 }
 
-uint8_t uiRimPage() {
+uint16_t uiRimPage() {
   if (rpickModeNow() != 0xFF) return rpickPage;
-  uint8_t *p = uiRimTarget(nullptr);
-  return p ? *p : 0;
+  RimPage r = uiRimTarget(nullptr);
+  return r.get();
 }
 
 // dir > 0 is clockwise, which is forwards.
 void onRim(int dir) {
   if (rpickSwipe(-dir)) return;   // the chooser pages itself, and WRAPS
-  uint8_t n = 1;
-  uint8_t *p = uiRimTarget(&n);
-  if (!p || n < 2) return;
-  int v = (int)(*p) + dir;
+  uint16_t n = 1;
+  RimPage p = uiRimTarget(&n);
+  if (!p.ok() || n < 2) return;
+  int v = (int)p.get() + dir;
   if (v < 0) v = 0;
   if (v >= n) v = n - 1;          // CLAMPS: the rim can never close a screen
-  if (v == (int)(*p)) return;
-  *p = (uint8_t)v;
+  if (v == (int)p.get()) return;
+  p.set((uint16_t)v);
   if (uiCurrentScreen() == SCR_GALLERY) galleryDirty = true;
   sfxPlay(SFX_TAP);
 }
@@ -3262,9 +3280,9 @@ void uiDrawTileDots() {
 // longest, and dots show position without showing extent. Both this and the
 // rim drag read uiRimTarget(), so they cannot disagree about where you are.
 void uiDrawRimBar() {
-  uint8_t n = uiRimPages();
+  uint16_t n = uiRimPages();
   if (n < 2) return;
-  uint8_t p = uiRimPage();
+  uint16_t p = uiRimPage();
   if (p >= n) p = n - 1;
   int span = RIM_BAR_A1 - RIM_BAR_A0;
   int thumb = span / n;
@@ -6965,26 +6983,28 @@ uint8_t bagPages() {
   uint8_t n = bag.distinctCount();
   return n ? (uint8_t)((n + BAG_PER_PAGE - 1) / BAG_PER_PAGE) : 1;
 }
-static uint8_t bagHeldWhoAt(uint8_t wanted) {
-  uint8_t seen = 0;
-  if (holderExists(pet, party, HOLDER_PET) && seen++ == wanted) return HOLDER_PET;
-  for (uint8_t i = 0; i < PARTY_SLOTS; i++) {
-    uint8_t who = HOLDER_PARTY(i);
-    if (holderExists(pet, party, who) && seen++ == wanted) return who;
-  }
-  for (uint8_t i = 0; i < BOX_SLOTS; i++) {
-    uint8_t who = HOLDER_BOX(i);
-    if (holderExists(pet, party, who) && seen++ == wanted) return who;
-  }
+// Who the held-item picker lists. GIVE: the live pet and the party -- the
+// creatures that battle, as in the real games (a box creature is moved to the
+// party first). TAKE: those, plus any box creature that is holding something,
+// so an item is never stranded. With a 1200-slot box, listing every holder
+// would be 300 pages.
+static bool bagHeldListed(uint16_t who) {
+  if (!holderExists(pet, party, who)) return false;
+  if (who < HOLDER_BOX(0)) return true;
+  return bagTakeMode && heldBy(pet, party, who) != ITEM_NONE;
+}
+static uint16_t bagHeldWhoAt(uint16_t wanted) {
+  uint16_t seen = 0;
+  for (uint16_t who = 0; who < HOLDER_COUNT; who++)
+    if (bagHeldListed(who) && seen++ == wanted) return who;
   return HOLDER_COUNT;
 }
-static uint8_t bagHeldWhoCount() {
-  uint8_t n = holderExists(pet, party, HOLDER_PET) ? 1 : 0;
-  for (uint8_t i = 0; i < PARTY_SLOTS; i++) if (holderExists(pet, party, HOLDER_PARTY(i))) n++;
-  for (uint8_t i = 0; i < BOX_SLOTS; i++) if (holderExists(pet, party, HOLDER_BOX(i))) n++;
+static uint16_t bagHeldWhoCount() {
+  uint16_t n = 0;
+  for (uint16_t who = 0; who < HOLDER_COUNT; who++) if (bagHeldListed(who)) n++;
   return n;
 }
-static const char *bagHeldWhoName(uint8_t who) {
+static const char *bagHeldWhoName(uint16_t who) {
   if (who == HOLDER_PET) return pet.nick[0] ? pet.nick : DEX_TBL[pet.speciesId].name;
   const PartyMon &m = who < HOLDER_BOX(0) ? party.slots[who - HOLDER_PARTY(0)] : party.box[who - HOLDER_BOX(0)];
   return m.nick[0] ? m.nick : DEX_TBL[m.dex].name;
@@ -7034,13 +7054,13 @@ void renderBag() {
   if (bagTakeMode) {
     const char *title = "TAKE HELD ITEM";
     gfx->setCursor(CX - (int)strlen(title) * 6, 40); gfx->print(title);
-    uint8_t n = bagHeldWhoCount();
-    uint8_t pages = n ? (n + BAG_PER_PAGE - 1) / BAG_PER_PAGE : 1;
+    uint16_t n = bagHeldWhoCount();
+    uint16_t pages = n ? (n + BAG_PER_PAGE - 1) / BAG_PER_PAGE : 1;
     if (bagHeldPage >= pages) bagHeldPage = pages - 1;
     for (uint8_t i = 0; i < BAG_PER_PAGE; i++) {
-      uint8_t idx = bagHeldPage * BAG_PER_PAGE + i;
+      uint16_t idx = bagHeldPage * BAG_PER_PAGE + i;
       if (idx >= n) break;
-      uint8_t who = bagHeldWhoAt(idx);
+      uint16_t who = bagHeldWhoAt(idx);
       ItemKey current = heldBy(pet, party, who);
       char line[40];
       if (current) snprintf(line, sizeof(line), "%s: %s", bagHeldWhoName(who), itemEntry(current).name);
@@ -7063,13 +7083,13 @@ void renderBag() {
   if (bagHeldPick) {
     char title[32]; snprintf(title, sizeof(title), "GIVE %s", itemEntry(bagHeldPick).name);
     gfx->setCursor(CX - (int)strlen(title) * 6, 40); gfx->print(title);
-    uint8_t n = bagHeldWhoCount();
-    uint8_t pages = n ? (n + BAG_PER_PAGE - 1) / BAG_PER_PAGE : 1;
+    uint16_t n = bagHeldWhoCount();
+    uint16_t pages = n ? (n + BAG_PER_PAGE - 1) / BAG_PER_PAGE : 1;
     if (bagHeldPage >= pages) bagHeldPage = pages - 1;
     for (uint8_t i = 0; i < BAG_PER_PAGE; i++) {
-      uint8_t idx = bagHeldPage * BAG_PER_PAGE + i;
+      uint16_t idx = bagHeldPage * BAG_PER_PAGE + i;
       if (idx >= n) break;
-      uint8_t who = bagHeldWhoAt(idx);
+      uint16_t who = bagHeldWhoAt(idx);
       ItemKey current = heldBy(pet, party, who);
       char line[40];
       if (current) snprintf(line, sizeof(line), "%s: %s", bagHeldWhoName(who), itemEntry(current).name);
@@ -7149,13 +7169,13 @@ void renderBag() {
 
 void bagTap(int16_t x, int16_t y) {
   if (bagTakeMode) {
-    uint8_t n = bagHeldWhoCount();
+    uint16_t n = bagHeldWhoCount();
     for (uint8_t i = 0; i < BAG_PER_PAGE; i++) {
-      uint8_t idx = bagHeldPage * BAG_PER_PAGE + i;
+      uint16_t idx = bagHeldPage * BAG_PER_PAGE + i;
       if (idx >= n) break;
       int ry = BAG_ROW_Y(i);
       if (x < 76 || x > 390 || y < ry || y > ry + 50) continue;
-      uint8_t who = bagHeldWhoAt(idx);
+      uint16_t who = bagHeldWhoAt(idx);
       bool ok = heldTake(pet, party, who);
       sfxPlay(ok ? SFX_TAP : SFX_DENY);
       if (ok) bagTakeMode = false;
@@ -7165,13 +7185,13 @@ void bagTap(int16_t x, int16_t y) {
     return;
   }
   if (bagHeldPick) {
-    uint8_t n = bagHeldWhoCount();
+    uint16_t n = bagHeldWhoCount();
     for (uint8_t i = 0; i < BAG_PER_PAGE; i++) {
-      uint8_t idx = bagHeldPage * BAG_PER_PAGE + i;
+      uint16_t idx = bagHeldPage * BAG_PER_PAGE + i;
       if (idx >= n) break;
       int ry = BAG_ROW_Y(i);
       if (x < 76 || x > 390 || y < ry || y > ry + 50) continue;
-      uint8_t who = bagHeldWhoAt(idx);
+      uint16_t who = bagHeldWhoAt(idx);
       ItemKey current = heldBy(pet, party, who);
       bool ok = current == bagHeldPick ? heldTake(pet, party, who) : heldGive(pet, party, who, bagHeldPick);
       sfxPlay(ok ? SFX_MEDAL : SFX_DENY);
@@ -7348,7 +7368,7 @@ void martTap(int16_t x, int16_t y) {
 // Geometry lives in the dc*Rect()/dc*At() functions below and nowhere else, so
 // draw, tap and daycare_ui_test all ask the same answer (CLAUDE.md: a test that
 // keeps its own copy of a layout proves the transcription).
-#define DC_NONE 0xFF
+#define DC_NONE 0xFFFF
 #define DC_PER_PAGE 4
 #define DC_CARD_Y 96
 #define DC_CARD_H 100
@@ -7359,7 +7379,7 @@ void martTap(int16_t x, int16_t y) {
 #define DC_MSG_MS 4000UL
 
 static uint8_t dcPickFor = 0;                  // 0 = parent A, 1 = parent B
-static uint8_t dcA = DC_NONE, dcB = DC_NONE;   // banked index (breed.h BREED_BANK)
+static uint16_t dcA = DC_NONE, dcB = DC_NONE;   // banked index (breed.h BREED_BANK)
 static StrId dcMsg = STR_COUNT;                // STR_COUNT = nothing to say
 static uint32_t dcMsgUntil = 0;
 static uint32_t dcSwapArmUntil = 0;            // SWAP IN takes two taps: it replaces an egg
@@ -7394,22 +7414,22 @@ int dcBtnCenterY() { return DC_BTN_Y + DC_BTN_H / 2; }
 int dcRowCenterY(uint8_t i) { return DC_ROW_Y(i) + DC_ROW_H / 2; }
 uint8_t dcPickedA() { return dcA; }
 // The emulator's --shot and the UI test set up a pair without tapping through it.
-void dcDebugPick(uint8_t a, uint8_t b) { dcA = a; dcB = b; }
+void dcDebugPick(uint16_t a, uint16_t b) { dcA = a; dcB = b; }
 uint8_t dcPickedB() { return dcB; }
 
 // Banked indices that hold a creature, in party-then-box order.
-static uint8_t dcList(uint8_t *out) {
-  uint8_t n = 0;
-  for (uint8_t i = 0; i < BREED_BANK; i++) {
+static uint16_t dcList(uint16_t *out) {
+  uint16_t n = 0;
+  for (uint16_t i = 0; i < BREED_BANK; i++) {
     const PartyMon *m = breedBanked(i);
     if (m && !m->empty()) out[n++] = i;
   }
   return n;
 }
-uint8_t dcPickPages() {
-  uint8_t list[BREED_BANK];
-  uint8_t n = dcList(list);
-  return n ? (uint8_t)((n + DC_PER_PAGE - 1) / DC_PER_PAGE) : 1;
+uint16_t dcPickPages() {
+  static uint16_t list[BREED_BANK];
+  uint16_t n = dcList(list);
+  return n ? (uint16_t)((n + DC_PER_PAGE - 1) / DC_PER_PAGE) : 1;
 }
 
 static const char *dcName(const PartyMon &m) { return m.nick[0] ? m.nick : DEX_TBL[m.dex].name; }
@@ -7472,7 +7492,7 @@ static void dcTitle(const char *t) {
   dcCenter(t, sz == 3 ? 50 : 54, sz);
 }
 
-static void dcCard(uint8_t i, uint8_t idx) {
+static void dcCard(uint8_t i, uint16_t idx) {
   int x0, x1;
   dcCardRect(i, &x0, &x1);
   const PartyMon *m = idx == DC_NONE ? nullptr : breedBanked(idx);
@@ -7555,18 +7575,18 @@ static void renderDcHome() {
 }
 
 static void renderDcPick() {
-  uint8_t list[BREED_BANK];
-  uint8_t n = dcList(list);
+  static uint16_t list[BREED_BANK];
+  uint16_t n = dcList(list);
   uint8_t pages = dcPickPages();
   if (dcPage >= pages) dcPage = pages - 1;
   char head[24];
   snprintf(head, sizeof(head), "%s %c", T(S_DC_PICK), 'A' + dcPickFor);
   dcTitle(head);
   if (!n) { gfx->setTextColor(UI_BAR_WARN); dcCenter(T(S_DC_NONE), 200, 2); }
-  uint8_t other = dcPickFor == 0 ? dcB : dcA;
+  uint16_t other = dcPickFor == 0 ? dcB : dcA;
   const PartyMon *om = other == DC_NONE ? nullptr : breedBanked(other);
   for (uint8_t r = 0; r < DC_PER_PAGE; r++) {
-    uint8_t k = (uint8_t)(dcPage * DC_PER_PAGE + r);
+    uint16_t k = (uint16_t)(dcPage * DC_PER_PAGE + r);
     if (k >= n) break;
     const PartyMon &m = *breedBanked(list[k]);
     bool locked = list[k] == other;
@@ -7633,11 +7653,11 @@ static void dcTapPick(int16_t x, int16_t y) {
   if (y >= 392) { sfxPlay(SFX_TAP); dcView = 0; return; }
   int r = dcRowAt(x, y);
   if (r < 0) return;
-  uint8_t list[BREED_BANK];
-  uint8_t n = dcList(list);
-  uint8_t k = (uint8_t)(dcPage * DC_PER_PAGE + r);
+  static uint16_t list[BREED_BANK];
+  uint16_t n = dcList(list);
+  uint16_t k = (uint16_t)(dcPage * DC_PER_PAGE + r);
   if (k >= n) return;
-  uint8_t other = dcPickFor == 0 ? dcB : dcA;
+  uint16_t other = dcPickFor == 0 ? dcB : dcA;
   if (list[k] == other) { sfxPlay(SFX_DENY); return; }
   sfxPlay(SFX_TAP);
   if (dcPickFor == 0) dcA = list[k]; else dcB = list[k];
@@ -7663,7 +7683,7 @@ void daycareTap(int16_t x, int16_t y) {
 #define TRD_BTN_H UI_TAP_FINGER
 #define TRD_BTN_W 220
 #define TRD_PER_PAGE 4
-static int8_t trdWhere = -1;        // where my offered creature lives (breed.h indices)
+static int16_t trdWhere = -1;        // where my offered creature lives (breed.h indices)
 static StrId trdMsg = STR_COUNT;
 static char trdMsgArg[16] = "";
 static uint32_t trdMsgUntil = 0;
@@ -7676,20 +7696,20 @@ static void trdSay(StrId s, const char *arg = "") {
   trdMsg = s; snprintf(trdMsgArg, sizeof(trdMsgArg), "%s", arg ? arg : "");
   trdMsgUntil = millis() + 5000;
 }
-static const PartyMon *trdBanked(uint8_t i) {
+static const PartyMon *trdBanked(uint16_t i) {
   return i < PARTY_SLOTS ? &party.slots[i] : (i < PARTY_SLOTS + BOX_SLOTS ? &party.box[i - PARTY_SLOTS] : nullptr);
 }
-static uint8_t trdList(uint8_t *out) {
-  uint8_t n = 0;
+static uint16_t trdList(uint16_t *out) {
+  uint16_t n = 0;
   // A favourite is never offered: it stays until it is unstarred.
-  for (uint8_t i = 0; i < PARTY_SLOTS + BOX_SLOTS; i++) { const PartyMon *m = trdBanked(i); if (m && !m->empty() && monReleasable(*m)) out[n++] = i; }
+  for (uint16_t i = 0; i < PARTY_SLOTS + BOX_SLOTS; i++) { const PartyMon *m = trdBanked(i); if (m && !m->empty() && monReleasable(*m)) out[n++] = i; }
   return n;
 }
 // How many creatures the trade picker would offer (tests: a favourite is not one).
-uint8_t tradeOfferableCount() { uint8_t l[PARTY_SLOTS + BOX_SLOTS]; return trdList(l); }
-uint8_t tradePickPages() {
-  uint8_t l[PARTY_SLOTS + BOX_SLOTS]; uint8_t n = trdList(l);
-  return n ? (uint8_t)((n + TRD_PER_PAGE - 1) / TRD_PER_PAGE) : 1;
+uint16_t tradeOfferableCount() { static uint16_t l[PARTY_SLOTS + BOX_SLOTS]; return trdList(l); }
+uint16_t tradePickPages() {
+  static uint16_t l[PARTY_SLOTS + BOX_SLOTS]; uint16_t n = trdList(l);
+  return n ? (uint16_t)((n + TRD_PER_PAGE - 1) / TRD_PER_PAGE) : 1;
 }
 
 void tradeLeave() {
@@ -7708,7 +7728,7 @@ void tradePoll() {
     PartyMon m = lan.tTheirs;
     int16_t evo = tradeEvolution(m.dex);
     if (evo) m.dex = evo;
-    int8_t at = -1;
+    int16_t at = -1;
     bool full = party.firstFree() < 0 && party.boxFirstFree() < 0;
     if (full) { if (trdMsg != S_TRD_NOROOM) trdSay(S_TRD_NOROOM); return; }   // no DONE: they keep theirs
     if (!party.storeDurably(m, &at)) { trdSay(S_TRD_FAIL); return; }        // retried next poll
@@ -7747,11 +7767,11 @@ static void trdCard(uint8_t i, const char *head, const PartyMon *m, const char *
 }
 
 static void renderTradePick() {
-  uint8_t list[PARTY_SLOTS + BOX_SLOTS]; uint8_t n = trdList(list);
+  static uint16_t list[PARTY_SLOTS + BOX_SLOTS]; uint16_t n = trdList(list);
   uint8_t pages = tradePickPages(); if (tradePage >= pages) tradePage = pages - 1;
   dcTitle(T(S_TRD_YOU));
   for (uint8_t r = 0; r < TRD_PER_PAGE; r++) {
-    uint8_t k = (uint8_t)(tradePage * TRD_PER_PAGE + r); if (k >= n) break;
+    uint16_t k = (uint16_t)(tradePage * TRD_PER_PAGE + r); if (k >= n) break;
     const PartyMon &m = *trdBanked(list[k]);
     int y = DC_ROW_Y(r);
     gfx->fillRoundRect(76, y, 314, DC_ROW_H, 10, list[k] == trdWhere ? UI_BAR_OK : UI_WHITE);
@@ -7791,8 +7811,8 @@ void tradeTap(int16_t x, int16_t y) {
   if (y >= 392) { sfxPlay(SFX_TAP); if (tradeView) tradeView = 0; else tradeLeave(); return; }
   if (tradeView) {                       // choosing what to offer
     int r = dcRowAt(x, y); if (r < 0) return;
-    uint8_t list[PARTY_SLOTS + BOX_SLOTS]; uint8_t n = trdList(list);
-    uint8_t k = (uint8_t)(tradePage * TRD_PER_PAGE + r); if (k >= n) return;
+    static uint16_t list[PARTY_SLOTS + BOX_SLOTS]; uint16_t n = trdList(list);
+    uint16_t k = (uint16_t)(tradePage * TRD_PER_PAGE + r); if (k >= n) return;
     trdWhere = (int8_t)list[k];
     lan.tradeOffer(*trdBanked(list[k]));
     sfxPlay(SFX_TAP);
@@ -8127,55 +8147,120 @@ void renderTrain() {
 // Storage past the six that fight. A creature is moved by picking a party slot
 // and then a box slot, which swaps them -- so one gesture covers deposit,
 // withdraw and exchange rather than needing three.
+// The PC BOX screen: one box of 30 a page, 6 x 5, the rim moving between the
+// 40 boxes (or between pages of a filtered view, 30 a page across all of them).
+// boxCellPos()/boxCellAt() are THE geometry: the renderer, the taps and the
+// tests all ask them.
+#define BOX_COLS 6
+#define BOX_ROWS 5
+#define BOX_CELL 56          // pitch; each cell is drawn 54 across
+#define BOX_GRID_X (CX - BOX_COLS * BOX_CELL / 2)
+#define BOX_GRID_Y 80
+#define BOX_PILL_Y 370
+#define BOX_PILL_H 46
+#define BOX_PILL_W 200
+static_assert(BOX_COLS * BOX_ROWS == BOX_PER_PAGE, "the grid IS a page");
+void boxCellPos(uint8_t i, int *cx, int *cy) {
+  if (cx) *cx = BOX_GRID_X + (i % BOX_COLS) * BOX_CELL + BOX_CELL / 2;
+  if (cy) *cy = BOX_GRID_Y + (i / BOX_COLS) * BOX_CELL + BOX_CELL / 2;
+}
+int boxCellAt(int16_t x, int16_t y) {
+  if (x < BOX_GRID_X || y < BOX_GRID_Y) return -1;
+  int c = (x - BOX_GRID_X) / BOX_CELL, r = (y - BOX_GRID_Y) / BOX_CELL;
+  if (c >= BOX_COLS || r >= BOX_ROWS) return -1;
+  return r * BOX_COLS + c;
+}
+bool boxPillAt(int16_t x, int16_t y) {
+  return y >= BOX_PILL_Y && y < BOX_PILL_Y + BOX_PILL_H && x >= CX - BOX_PILL_W / 2 && x <= CX + BOX_PILL_W / 2;
+}
+void boxPillCentre(int *x, int *y) { if (x) *x = CX; if (y) *y = BOX_PILL_Y + BOX_PILL_H / 2; }
+
+static void drawBoxCell(uint8_t i, const PartyMon *m) {
+  int cx, cy;
+  boxCellPos(i, &cx, &cy);
+  int x = cx - 27, y = cy - 27;
+  if (!m || m->empty()) {
+    gfx->fillRoundRect(x, y, 54, 54, 8, UI_TRACK);
+    return;
+  }
+  gfx->fillRoundRect(x, y, 54, 54, 8, UI_WHITE);
+  gfx->drawRoundRect(x, y, 54, 54, 8, m->shiny ? UI_BAR_WARN : UI_INK);
+  const uint8_t *th = thumbs.get(m->dex);
+  if (th) drawThumb(th, cx - 24, cy - 26, 1, false);
+  else {
+    char d[8];
+    snprintf(d, sizeof(d), "%03d", (int)m->dex);
+    gfx->setTextColor(DEX_TBL[m->dex].accent);
+    gfx->setTextSize(1);
+    gfx->setCursor(cx - (int)strlen(d) * 3, cy - 8);
+    gfx->print(d);
+  }
+  char lv[8];
+  snprintf(lv, sizeof(lv), "%u", (unsigned)m->level);
+  gfx->fillRoundRect(x + 54 - (int)strlen(lv) * 6 - 5, y + 42, (int)strlen(lv) * 6 + 4, 11, 3, UI_WHITE);
+  gfx->setTextColor(UI_INK);
+  gfx->setTextSize(1);
+  gfx->setCursor(x + 54 - (int)strlen(lv) * 6 - 3, y + 44);
+  gfx->print(lv);
+  if (m->isFav()) {
+    drawFavStar(x + 9, y + 9, 8, UI_INK);
+    drawFavStar(x + 9, y + 9, 6, 0xFEA0);
+  }
+}
+
 void renderBox() {
   gfx->fillScreen(RGB565_BLACK);
   gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
-  char head[32];
-  uint8_t view[BOX_SLOTS];
-  uint8_t shown = boxViewNow(view);
-  if (boxFiltered()) boxFoundLine(head, sizeof(head), shown);
-  else snprintf(head, sizeof(head), T(S_BOX_FMT), party.boxCount(), BOX_SLOTS);
+  if (boxPage >= boxPages()) boxPage = 0;   // a filter can shrink the view under you
+  char head[32], sub[48];
+  uint16_t shown = boxViewCount();
+  if (boxFiltered()) {
+    boxFoundLine(head, sizeof(head), shown);
+    snprintf(sub, sizeof(sub), "%s  %u/%u", boxFilterName(boxFilter), (unsigned)(boxPage + 1), (unsigned)boxPages());
+  } else {
+    snprintf(head, sizeof(head), "%s %u", T(S_BOX_BTN), (unsigned)(boxPage + 1));
+    snprintf(sub, sizeof(sub), T(S_BOX_FMT), (unsigned)party.boxCount(), (unsigned)BOX_SLOTS);
+  }
   gfx->setTextColor(UI_INK);
   gfx->setTextSize(2);
-  gfx->setCursor(CX - (int)strlen(head) * 6, 40);
+  gfx->setCursor(CX - (int)strlen(head) * 6, 28);
   gfx->print(head);
-  if (!boxSwapFrom && boxSort != BS_SLOT) {   // what the order is, under the title
-    char so[40];
-    boxSortLine(so, sizeof(so));
-    gfx->setTextColor(UI_INK_SOFT);
-    gfx->setTextSize(1);
-    gfx->setCursor(CX - (int)strlen(so) * 3, PSLOT_PROMPT_Y);
-    gfx->print(so);
-  }
+  gfx->setTextColor(UI_INK_SOFT);
+  gfx->setTextSize(1);
+  gfx->setCursor(CX - (int)strlen(sub) * 3, 50);
+  gfx->print(sub);
+  // one line under that: the swap waiting to happen, else the sort in force
+  char line[48] = "";
   if (boxSwapFrom) {
     const PartyMon &p = party.slots[boxSwapFrom - 1];
-    char sub[40];
-    snprintf(sub, sizeof(sub), T(S_BOX_SWAP),
-             p.empty() ? "-" : (p.nick[0] ? p.nick : DEX_TBL[p.dex].name));
-    gfx->setTextColor(UI_INK);
-    gfx->setTextSize(1);
-    gfx->setCursor(CX - (int)strlen(sub) * 3, PSLOT_PROMPT_Y);
-    gfx->print(sub);
+    snprintf(line, sizeof(line), T(S_BOX_SWAP), p.empty() ? "-" : (p.nick[0] ? p.nick : DEX_TBL[p.dex].name));
+  } else if (boxSort != BS_SLOT) {
+    boxSortLine(line, sizeof(line));
   }
-  if (boxPage >= boxPages()) boxPage = 0;   // a filter can shrink the view under you
+  if (line[0]) {
+    gfx->setTextColor(UI_INK);
+    gfx->setCursor(CX - (int)strlen(line) * 3, 64);
+    gfx->print(line);
+  }
   for (uint8_t i = 0; i < BOX_PER_PAGE; i++) {
     int idx = boxIndexAt(i);
-    if (idx < 0) break;
-    drawPartySlot(i, party.box[idx]);
+    drawBoxCell(i, idx < 0 ? nullptr : &party.box[idx]);
   }
-  // The hub is the FILTER button: it names what is shown. While a party
-  // creature waits to come in it shows the page, as before.
-  if (boxSwapFrom) {
-    char pg[12];
-    snprintf(pg, sizeof(pg), "%u/%u", (unsigned)(boxPage + 1), (unsigned)boxPages());
-    drawPartyHub(pg, T(S_BOX_BTN), true);
-  } else {
-    drawPartyHub(boxFilterName(boxFilter), boxFilterWord(), boxFiltered());
+  // FILTER: names what is shown; greyed while a party creature waits to come in
+  // (that shows the plain box, where the empty slots are).
+  {
+    char pl[32];
+    snprintf(pl, sizeof(pl), "%s: %s", boxFilterWord(), boxFilterName(boxFilter));
+    bool live = !boxSwapFrom;
+    gfx->fillRoundRect(CX - BOX_PILL_W / 2, BOX_PILL_Y, BOX_PILL_W, BOX_PILL_H, 16,
+                       !live ? UI_TRACK : boxFiltered() ? (uint16_t)0xFF98 : UI_WHITE);
+    gfx->drawRoundRect(CX - BOX_PILL_W / 2, BOX_PILL_Y, BOX_PILL_W, BOX_PILL_H, 16, UI_INK);
+    gfx->setTextColor(live ? UI_INK : 0x8410);
+    gfx->setTextSize(strlen(pl) * 12 <= BOX_PILL_W - 16 ? 2 : 1);
+    int sz = strlen(pl) * 12 <= BOX_PILL_W - 16 ? 2 : 1;
+    gfx->setCursor(CX - (int)strlen(pl) * 3 * sz, BOX_PILL_Y + BOX_PILL_H / 2 - 4 * sz);
+    gfx->print(pl);
   }
-  gfx->setTextColor(UI_INK_SOFT);
-  gfx->setTextSize(2);
-  gfx->setCursor(CX - strlen(T(S_BACK)) * 6, 392);
-  gfx->print(T(S_BACK));
   uiChrome();
   gfx->flush();
 }
@@ -8206,16 +8291,17 @@ void boxTap(int16_t x, int16_t y) {
     sfxPlay(SFX_TAP);
     return;
   }
-  if (!boxSwapFrom && partyHubAt(x, y)) {   // the hub: FILTER and SORT
+  if (!boxSwapFrom && boxPillAt(x, y)) {   // FILTER and SORT
     boxFilterOpen = true;
     sfxPlay(SFX_TAP);
     return;
   }
-  for (uint8_t i = 0; i < BOX_PER_PAGE; i++) {
-    int vi = boxIndexAt(i);
-    if (vi < 0) break;
-    uint8_t idx = (uint8_t)vi;
-    if (partySlotAt(x, y) != (int)i) continue;
+  {
+    int i = boxCellAt(x, y);
+    int vi = i < 0 ? -1 : boxIndexAt((uint8_t)i);
+    if (i >= 0 && vi < 0) { sfxPlay(SFX_DENY); return; }   // a cell past the end of a filtered view
+    if (vi >= 0) {
+    uint16_t idx = (uint16_t)vi;
     if (boxSwapFrom) {           // a party slot is waiting: complete the trade
       if (party.slots[boxSwapFrom - 1].empty() && party.box[idx].empty()) {
         sfxPlay(SFX_DENY);
@@ -8241,6 +8327,7 @@ void boxTap(int16_t x, int16_t y) {
     releaseConfirm = false;
     sfxPlay(SFX_TAP);
     return;
+    }
   }
   boxOpen = false;               // anywhere else backs out
   boxSwapFrom = 0;

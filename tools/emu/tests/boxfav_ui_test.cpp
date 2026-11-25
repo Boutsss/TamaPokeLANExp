@@ -21,11 +21,11 @@ int FakeSerial::available(){return 0;}
 String FakeSerial::readStringUntil(char){return String("");}
 void setup(); void render(); void onSwipeV(int); void onRim(int);
 void boxTap(int16_t,int16_t); void partyTap(int16_t,int16_t);
-uint8_t uiCurrentScreen(); uint8_t uiRimPages();
+uint8_t uiCurrentScreen(); uint16_t uiRimPages();
 extern const char *const SCREEN_NAME[];
 extern Pet pet; extern Party party;
 extern bool partyOpen, boxOpen, boxFilterOpen, partyPick, releaseConfirm;
-extern uint8_t boxPage, boxDetail, partyDetail, boxFilter, boxSort, boxSwapFrom;
+extern uint8_t boxPage, partyDetail, boxFilter, boxSort, boxSwapFrom; extern uint16_t boxDetail;
 int boxIndexAt(uint8_t pos);
 void partySlotPos(int i, int *cx, int *cy);
 void bfChip(uint8_t i, int *x, int *y, int *w, int *h);

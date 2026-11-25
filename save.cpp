@@ -3,6 +3,9 @@
 #include <Preferences.h>
 #include <string.h>
 #include "party.h"   // MAX_VAL is derived from the box, see below
+#include "ghost.h"
+#include "card.h"
+#include "box_store.h"
 #include "nvsinfo.h" // logKeyFailure(): writeField() (the IMPORT path) used to be silent too
 
 // Every key the firmware persists. Adding one here is the whole job of adding
@@ -79,7 +82,17 @@ const uint16_t SAVE_FIELD_COUNT = sizeof(SAVE_FIELDS) / sizeof(SAVE_FIELDS[0]);
 // 42 bytes, and the moment the record grew the box silently stopped being
 // restored while every other field still was -- a backup that is quietly
 // partial is worse than none. save_test caught exactly that.
-#define MAX_VAL (sizeof(PartyMon) * BOX_SLOTS)
+//
+// With the 1200-slot PC box the box is no longer one NVS value: it travels as
+// one "pcNN" field per box of 30, occupied slots only ([slot in box][record]).
+// MAX_VAL is the largest of everything that does travel as one value -- each
+// size DERIVED from its own header, never restated here.
+#define PC_REC (1 + sizeof(PartyMon))
+#define PC_FIELD_MAX (BOX_PER_BOX * PC_REC)
+static constexpr size_t cmax(size_t a, size_t b) { return a > b ? a : b; }
+#define MAX_VAL cmax(cmax(sizeof(PartyMon) * BOX_LEGACY_SLOTS, PC_FIELD_MAX), \
+                     cmax(GHOST_BLOB_MAX, CARD_BOOK_BLOB_MAX))
+static_assert(sizeof(PartyMon) * PARTY_SLOTS <= MAX_VAL, "the party must fit a field");
 
 static uint16_t crc16(const uint8_t *p, size_t n) {
   uint16_t c = 0xFFFF;
@@ -179,6 +192,7 @@ size_t saveExportSize() {
   size_t n = SAVE_HDR + 2;
   for (uint16_t i = 0; i < SAVE_FIELD_COUNT; i++)
     n += 1 + strlen(SAVE_FIELDS[i].key) + 1 + 2 + MAX_VAL / 16;
+  n += BOX_BOXES * (1 + 4 + 1 + 2 + PC_FIELD_MAX);   // the PC box, if every box were full
   return n + 1024;                   // the two big blobs
 }
 
@@ -188,7 +202,7 @@ size_t saveExport(uint8_t *out, size_t cap) {
   p.begin("tamapoke", true);
   size_t at = SAVE_HDR;
   uint16_t count = 0;
-  uint8_t val[MAX_VAL];
+  static uint8_t val[MAX_VAL];
   for (uint16_t i = 0; i < SAVE_FIELD_COUNT; i++) {
     const SaveField &f = SAVE_FIELDS[i];
     int n = readField(p, f, val);
@@ -205,6 +219,28 @@ size_t saveExport(uint8_t *out, size_t cap) {
     count++;
   }
   p.end();
+  // The PC box: one field per box that holds anything.
+  for (uint16_t b = 0; party.box && b < BOX_BOXES; b++) {
+    size_t vn = 0;
+    for (uint8_t k = 0; k < BOX_PER_BOX; k++) {
+      const PartyMon &m = party.box[b * BOX_PER_BOX + k];
+      if (m.empty()) continue;
+      val[vn++] = k;
+      memcpy(val + vn, &m, sizeof(PartyMon)); vn += sizeof(PartyMon);
+    }
+    if (!vn) continue;
+    char key[8];
+    snprintf(key, sizeof(key), "pc%02u", (unsigned)b);
+    size_t klen = strlen(key);
+    if (at + 1 + klen + 1 + 2 + vn + 2 > cap) return 0;
+    out[at++] = (uint8_t)klen;
+    memcpy(out + at, key, klen); at += klen;
+    out[at++] = SK_BYTES;
+    out[at++] = (uint8_t)(vn & 0xFF);
+    out[at++] = (uint8_t)(vn >> 8);
+    memcpy(out + at, val, vn); at += vn;
+    count++;
+  }
   out[0] = SAVE_MAGIC0; out[1] = SAVE_MAGIC1;
   out[2] = SAVE_MAGIC2; out[3] = SAVE_MAGIC3;
   out[4] = SAVE_VERSION;
@@ -224,6 +260,13 @@ static const SaveField *fieldFor(const char *key, uint8_t kind) {
     if (SAVE_FIELDS[i].kind == kind && !strcmp(SAVE_FIELDS[i].key, key))
       return &SAVE_FIELDS[i];
   return nullptr;
+}
+
+// "pc00".."pc39": a box of the PC box. -1 if the key is anything else.
+static int pcBoxOf(const char *key, uint8_t klen) {
+  if (klen != 4 || key[0] != 'p' || key[1] != 'c' || key[2] < '0' || key[2] > '9' || key[3] < '0' || key[3] > '9') return -1;
+  int b = (key[2] - '0') * 10 + (key[3] - '0');
+  return b < BOX_BOXES ? b : -1;
 }
 
 bool saveImport(const uint8_t *in, size_t n) {
@@ -250,6 +293,12 @@ bool saveImport(const uint8_t *in, size_t n) {
     if (vat + 3 + vlen > n - 2) return false;
     uint8_t w = widthOf(kind);
     if (w && vlen != w) return false;          // a scalar of the wrong width
+    // a box of the PC box: whole records, each in a real slot of that box
+    if (pcBoxOf((const char *)in + at + 1, klen) >= 0) {
+      if (kind != SK_BYTES || vlen % PC_REC) return false;
+      for (uint16_t r = 0; r < vlen; r += PC_REC)
+        if (in[vat + 3 + r] >= BOX_PER_BOX) return false;
+    }
     at = vat + 3 + vlen;
     seen++;
   }
@@ -260,6 +309,12 @@ bool saveImport(const uint8_t *in, size_t n) {
   Preferences p;
   p.begin("tamapoke", false);
   p.clear();
+  // The PC box is replaced too: emptied here, filled from the pcNN fields
+  // below, written ONCE at the end. A backup from before the PC box carries
+  // the old "box" key instead, which the next boot migrates.
+  if (party.box) for (uint16_t i = 0; i < BOX_SLOTS; i++) party.box[i] = PartyMon();
+  boxStoreWipe();
+  bool pcAny = false;
   at = SAVE_HDR;
   while (at + 4 <= n - 2) {
     uint8_t klen = in[at];
@@ -268,10 +323,23 @@ bool saveImport(const uint8_t *in, size_t n) {
     size_t vat = at + 1 + klen;
     uint8_t kind = in[vat];
     uint16_t vlen = (uint16_t)in[vat + 1] | ((uint16_t)in[vat + 2] << 8);
-    const SaveField *f = fieldFor(key, kind);
-    if (f) writeField(p, *f, in + vat + 3, vlen);
+    int pb = pcBoxOf(key, klen);
+    if (pb >= 0 && party.box) {
+      for (uint16_t r = 0; r < vlen; r += PC_REC) {
+        PartyMon m;
+        memcpy(&m, in + vat + 3 + r + 1, sizeof(PartyMon));
+        if (m.dex < 1 || m.dex > DEX_COUNT) continue;   // never index a table with junk
+        m.nick[sizeof(m.nick) - 1] = 0;
+        party.box[pb * BOX_PER_BOX + in[vat + 3 + r]] = m;
+        pcAny = true;
+      }
+    } else {
+      const SaveField *f = fieldFor(key, kind);
+      if (f) writeField(p, *f, in + vat + 3, vlen);
+    }
     at = vat + 3 + vlen;
   }
   p.end();
+  if (pcAny) party.boxSave();
   return true;
 }

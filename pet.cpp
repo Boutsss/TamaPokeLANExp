@@ -5,7 +5,8 @@
 #include "avatar_names.h"   // counts only: no pixels in this TU
 #include "dex.h"
 #include "moves.h"
-#include "noart.h"   // speciesHasArt(): the egg pool skips what cannot be drawn
+#include "noart.h"
+#include "box_store.h"   // speciesHasArt(): the egg pool skips what cannot be drawn
 #include "audio.h"
 #include "nvsinfo.h"  // headroom numbers on a checkpoint failure -- see saveCoreSnapshot()
 #include <stddef.h>
@@ -2535,4 +2536,12 @@ void Pet::load() {
   checkLearnGates();
   // siembra: la mascota actual cuenta como criada (guardados antiguos)
   if (speciesId >= 1) registerSpecies(speciesId);
+}
+
+// WIPE: the PC box is emptied with everything else. In RAM too, so a caller
+// that keeps going after the wipe (the console test does) sees an empty box.
+void Pet::factoryResetBox() {
+  if (party.box) for (uint16_t i = 0; i < BOX_SLOTS; i++) party.box[i] = PartyMon();
+  party.boxGen++;
+  boxStoreWipe();
 }

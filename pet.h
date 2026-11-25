@@ -568,11 +568,13 @@ public:
   // flush hooks that are the actual risk -- one guard, where the callers are.
   void factoryReset() {
     prefs.clear();
+    factoryResetBox();   // the PC box lives in a file, not in NVS (box_store.h)
     saveGeneration = 0;
     playerGeneration = 0;
     saveFailures = 0;
     pendingSave = false;
   }
+  void factoryResetBox();
   void dbgRunawayReady() { fullness = joy = energy = hygiene = 0; neglectTicks = RUNAWAY_TICKS; }  // test
   // test: force what the egg holds and hatch it now (serial command EGG).
   // The legendary/shiny IV guarantees only fire inside hatch(), so without

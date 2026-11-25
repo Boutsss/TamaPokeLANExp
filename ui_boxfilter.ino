@@ -12,20 +12,39 @@ bool boxFilterOpen = false;
 
 // The view the box screen shows right now. A creature waiting to come in from
 // the party needs the EMPTY slots, so an armed swap always shows the plain box.
-uint8_t boxViewNow(uint8_t *out) {
-  if (boxSwapFrom) return boxView(party, BF_ALL, BS_SLOT, out);
-  return boxView(party, boxFilter, boxSort, out);
+// Cached: sorting 1200 creatures once per drawn slot would be far too slow, so
+// the list is rebuilt only when the filter, the sort, the armed swap or the
+// box itself (Party::boxGen) has changed.
+static uint16_t bfCache[BOX_SLOTS];
+static uint16_t bfCacheN = 0;
+static uint32_t bfCacheKey = 0xFFFFFFFFu, bfCacheGen = 0xFFFFFFFFu;
+static const uint16_t *boxViewCached(uint16_t *nOut) {
+  uint8_t f = boxSwapFrom ? BF_ALL : boxFilter, s = boxSwapFrom ? BS_SLOT : boxSort;
+  uint32_t key = ((uint32_t)f << 8) | s;
+  if (key != bfCacheKey || party.boxGen != bfCacheGen) {
+    bfCacheN = boxView(party, f, s, bfCache);
+    bfCacheKey = key;
+    bfCacheGen = party.boxGen;
+  }
+  *nOut = bfCacheN;
+  return bfCache;
 }
+uint16_t boxViewNow(uint16_t *out) {
+  uint16_t n;
+  const uint16_t *v = boxViewCached(&n);
+  if (out) memcpy(out, v, n * sizeof(uint16_t));
+  return n;
+}
+uint16_t boxViewCount() { uint16_t n; boxViewCached(&n); return n; }
 uint8_t boxPages() {
-  uint8_t v[BOX_SLOTS];
-  uint8_t n = boxViewNow(v);
+  uint16_t n = boxViewCount();
   return n ? (uint8_t)((n + BOX_PER_PAGE - 1) / BOX_PER_PAGE) : 1;
 }
-// The box index shown at ring position `pos` of the current page, -1 if none.
+// The box index shown at grid cell `pos` of the current page, -1 if none.
 int boxIndexAt(uint8_t pos) {
-  uint8_t v[BOX_SLOTS];
-  uint8_t n = boxViewNow(v);
-  uint16_t k = (uint16_t)boxPage * BOX_PER_PAGE + pos;
+  uint16_t n;
+  const uint16_t *v = boxViewCached(&n);
+  uint32_t k = (uint32_t)boxPage * BOX_PER_PAGE + pos;
   return k < n ? v[k] : -1;
 }
 bool boxFiltered() { return !boxSwapFrom && !boxViewPlain(boxFilter, boxSort); }
@@ -54,7 +73,7 @@ const char *boxSortName(uint8_t s) {
 }
 const char *boxFilterWord() { return T(S_BF_FILTER); }
 const char *boxFavLockLine() { return T(S_BF_FAVLOCK); }
-void boxFoundLine(char *out, size_t n, uint8_t found) { snprintf(out, n, T(S_BF_FOUND_FMT), (unsigned)found); }
+void boxFoundLine(char *out, size_t n, uint16_t found) { snprintf(out, n, T(S_BF_FOUND_FMT), (unsigned)found); }
 void boxSortLine(char *out, size_t n) { snprintf(out, n, T(S_BF_SORT_FMT), boxSortName(boxSort)); }
 
 // A small five-pointed star, the favourite's mark.
