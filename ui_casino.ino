@@ -34,7 +34,20 @@ static uint32_t casOpenedAt = 0;      // the secret door opens from here
 enum : uint8_t { DM_IDLE = 0, DM_DEAL, DM_LAUGH, DM_GRUMBLE };
 static uint8_t casMood = DM_IDLE;
 static uint32_t casMoodAt = 0;
-static void casSetMood(uint8_t m) { casMood = m; casMoodAt = millis(); }
+// The marquee flashes when the PLAYER wins -- which is exactly when the dealer
+// scowls, so DM_GRUMBLE is the one hook and no game needs its own call.
+// A separate flag rather than "0 = never": a stamp nudged off zero (millis() | 1)
+// lands a millisecond in the FUTURE half the time, and now - stamp then wraps
+// to four billion -- the flash simply never showed. casino_lights_ui_test.
+static uint32_t casWinFlashAt = 0;
+static bool casWinFlashed = false;
+#define CAS_FLASH_MS 1500
+static void casSetMood(uint8_t m) {
+  casMood = m; casMoodAt = millis();
+  if (m == DM_GRUMBLE) { casWinFlashAt = millis(); casWinFlashed = true; }
+}
+static bool casFlashingAt(uint32_t now) { return casWinFlashed && now - casWinFlashAt < CAS_FLASH_MS; }
+bool casLightsFlashing() { return casFlashingAt(millis()); }
 
 // the hidden door: a finger held on the ARCADE row
 static uint32_t casHoldAt = 0;
@@ -417,14 +430,56 @@ void casDrawDealer(int cx, int top, int scale) {
 }
 
 // The felt table every casino screen sits on, with the coin counter.
+// ---------------------------------------------------------------- the marquee
+// A ring of bulbs on a dark band round the felt, like the frame of a casino
+// sign. Kept to a slow chase -- one bulb in four lit, a step every 140 ms --
+// so it reads as glamour, not a strobe; a WIN lights them all, blinking, for
+// CAS_FLASH_MS. Every bulb is drawn dim first, so the ring is always visible.
+#define CAS_BULBS 40
+#define CAS_BULB_R 221           // the ring's radius: inside the 233 glass
+#define CAS_FELT_R 210           // the felt stops short of it
+static const uint16_t CAS_BAND = 0x1800;                          // near-black maroon
+static const uint16_t CAS_BULB_ON[3]  = { 0xFF00, 0xFC60, 0xF8A3 };   // yellow, orange, red
+static const uint16_t CAS_BULB_DIM[3] = { 0x52A0, 0x5180, 0x4821 };
+uint8_t casBulbLit(uint8_t i, uint32_t now) {   // 0 dim, 1 lit -- also what the tests ask
+  if (casFlashingAt(now)) return ((now / 120) % 2) == 0;
+  return ((i + now / 140) % 4) == 0;
+}
+void casBulbPos(uint8_t i, int *x, int *y) {
+  float a = (float)i * 6.2831853f / CAS_BULBS - 1.5707963f;
+  *x = CX + (int)lroundf(CAS_BULB_R * cosf(a));
+  *y = CY + (int)lroundf(CAS_BULB_R * sinf(a));
+}
+static void casMarquee() {
+  const uint32_t now = millis();
+  gfx->fillCircle(CX, CY, 231, CAS_BAND);
+  for (uint8_t i = 0; i < CAS_BULBS; i++) {
+    int x, y; casBulbPos(i, &x, &y);
+    uint8_t c = i % 3;
+    if (casBulbLit(i, now)) {
+      gfx->fillCircle(x, y, 7, CAS_BULB_DIM[c]);    // the glow
+      gfx->fillCircle(x, y, 5, CAS_BULB_ON[c]);
+      gfx->fillCircle(x - 1, y - 1, 2, 0xFFF6);     // the hot centre
+    } else {
+      gfx->fillCircle(x, y, 4, CAS_BULB_DIM[c]);
+    }
+  }
+}
+// A neon title: an orange glow under a yellow core.
+static void casNeon(int x, int y, const char *t) {
+  static const int8_t D[4][2] = { { -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 } };
+  for (auto &d : D) casText(x + d[0], y + d[1], t, 0xFC60, 2);
+  casText(x, y, t, 0xFF00, 2);
+}
+
 static void casTable(const char *title) {
   gfx->fillScreen(RGB565_BLACK);
-  gfx->fillCircle(CX, CY, 231, CAS_FELT);
-  gfx->drawCircle(CX, CY, 222, CAS_GOLD);
-  gfx->drawCircle(CX, CY, 221, CAS_GOLD);
+  casMarquee();
+  gfx->fillCircle(CX, CY, CAS_FELT_R, CAS_FELT);
+  gfx->drawCircle(CX, CY, CAS_FELT_R, CAS_GOLD);
   // the R in the felt, faint
   casMotif(CM_ROCKET, CX, CY + 20, 180, CAS_FELT_D, CAS_FELT_D);
-  casText(CX, 26, title, CAS_GOLD, 2);
+  casNeon(CX, 26, title);
   char b[32];
   snprintf(b, sizeof(b), T(S_CAS_COINS_FMT), (unsigned)pet.coins);
   gfx->fillRoundRect(CX - 70, 46, 140, 20, 8, CAS_FELT_D);
