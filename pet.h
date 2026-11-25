@@ -285,6 +285,9 @@ public:
   // of rolling a new one. With no stash, a creature that already paid cannot
   // be retired or released for a fresh egg (eggEndAllowed()).
   bool eggPaid = false;
+  // A favourite stays one while it is raised (PartyMon::fav travels in and out
+  // with it), and while live it cannot be released or retired early.
+  bool favorite = false;
   bool eggStashed = false;
   int16_t stashTarget = 0;
   bool stashShiny = false;
@@ -488,6 +491,10 @@ public:
   void eggTap();  // tocar el huevo: 3 toques y eclosiona
   void newEgg();   // empezar de cero con un inicial aleatorio
   void release();  // soltar (pulsacion larga + confirmar)
+  // THE answer for the long-press release, asked by release() itself and by
+  // the hold that offers it: not a companion, not a favourite, and only if
+  // its ending is allowed to leave an egg (eggEndAllowed()).
+  bool releaseAllowed() const { return !frozen && !favorite && eggEndAllowed(); }
   void syncClock(uint32_t nowEpoch);  // aplica el tiempo transcurrido apagado
   void setClock(uint32_t nowEpoch);   // fija la hora sin aplicar progresion
   void startFarewell();  // tambien usable desde la consola serie (BYE)

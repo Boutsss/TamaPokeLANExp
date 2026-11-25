@@ -74,7 +74,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "PRACTICAR", "TOCA UN RIVAL PARA PRACTICAR", "LUCHA EN LAN PRIMERO",
      "TARJETAS", "%u / %u GUARDADAS", "INTERCAMBIAR", "ALBUM", "UNE DOS PLACAS EN AMIGOS", "AUN NO HAY TARJETAS", "MEDALLAS %u", "POKEDEX %u", "LOGROS %u", "MEJOR RACHA %u", "TARJETAS CAMBIADAS!",
      "RULETA", "ROJO", "NEGRO", "IMPAR", "PAR", "TEAM ROCKET",
-     "VERDE", },
+     "VERDE",
+     "TODOS", "FAVORITOS", "VARIOCOLOR", "CON OBJETO", "NIVEL", "IV TOTAL", "ATAQUE", "DEFENSA", "VELOCIDAD", "PS", "N. POKEDEX", "NOMBRE", "CASILLA", "FILTRO", "FAVORITO: QUITALO PARA SOLTAR", "%u ENCONTRADOS", "ORDEN: %s", },
   // ---------------- EN ----------------
   {
     "Evolving!", "Yum yum!", "It likes it!", "It's hungry!", "Needs a bath!",
@@ -140,7 +141,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "PRACTICE", "TAP A RIVAL TO PRACTICE", "LAN BATTLE SOMEONE FIRST",
      "TRAINER CARDS", "%u / %u COLLECTED", "EXCHANGE", "CARD BOOK", "PAIR TWO BOARDS ON FRIENDS", "NO CARDS YET", "BADGES %u", "POKEDEX %u", "MEDALS %u", "BEST STREAK %u", "CARDS SWAPPED!",
      "ROULETTE", "RED", "BLACK", "ODD", "EVEN", "TEAM ROCKET",
-     "GREEN", },
+     "GREEN",
+     "ALL", "FAVOURITES", "SHINY", "HOLDING", "LEVEL", "IV TOTAL", "ATTACK", "DEFENCE", "SPEED", "HP", "DEX NO.", "NAME", "SLOT", "FILTER", "FAVOURITE: UNSTAR TO RELEASE", "%u FOUND", "SORT: %s", },
   // ---------------- FR ----------------
   {
     "Il evolue!", "Miam miam!", "Il aime ca!", "Il a faim!", "Besoin d'un bain!",
@@ -205,7 +207,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "ENTRAINEMENT", "TOUCHE UN RIVAL", "COMBATS EN LAN D'ABORD",
      "CARTES", "%u / %u GARDEES", "ECHANGER", "ALBUM", "APPAIRER EN AMIS", "AUCUNE CARTE", "BADGES %u", "POKEDEX %u", "MEDAILLES %u", "MEILLEURE SERIE %u", "CARTES ECHANGEES!",
      "ROULETTE", "ROUGE", "NOIR", "IMPAIR", "PAIR", "TEAM ROCKET",
-     "VERT", },
+     "VERT",
+     "TOUS", "FAVORIS", "CHROMATIQUE", "OBJET TENU", "NIVEAU", "IV TOTAL", "ATTAQUE", "DEFENSE", "VITESSE", "PV", "N. POKEDEX", "NOM", "CASE", "FILTRE", "FAVORI: RETIRE L'ETOILE", "%u TROUVES", "TRI: %s", },
   // ---------------- DE ----------------
   {
     "Entwickelt sich!", "Mampf mampf!", "Gefaellt ihm!", "Hat Hunger!", "Braucht ein Bad!",
@@ -270,7 +273,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "TRAINING", "RIVALEN ANTIPPEN", "ERST EIN LAN-KAMPF",
      "TRAINERKARTEN", "%u / %u GESAMMELT", "TAUSCHEN", "KARTENBUCH", "IN FREUNDE KOPPELN", "NOCH KEINE KARTEN", "ORDEN %u", "POKEDEX %u", "MEDAILLEN %u", "BESTE SERIE %u", "KARTEN GETAUSCHT!",
      "ROULETTE", "ROT", "SCHWARZ", "UNGERADE", "GERADE", "TEAM ROCKET",
-     "GRUEN", },
+     "GRUEN",
+     "ALLE", "FAVORITEN", "SCHILLERND", "MIT ITEM", "LEVEL", "DV GESAMT", "ANGRIFF", "VERTEIDIGUNG", "INITIATIVE", "KP", "DEX-NR.", "NAME", "FACH", "FILTER", "FAVORIT: STERN WEG ZUM FREILASSEN", "%u GEFUNDEN", "SORTIERT: %s", },
   // ---------------- IT ----------------
   {
     "Si evolve!", "Gnam gnam!", "Gli piace!", "Ha fame!", "Vuole un bagno!",
@@ -335,7 +339,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "ALLENAMENTO", "TOCCA UN RIVALE", "PRIMA UNA LOTTA LAN",
      "TESSERE", "%u / %u RACCOLTE", "SCAMBIA", "ALBUM", "COLLEGA IN AMICI", "NESSUNA TESSERA", "MEDAGLIE %u", "POKEDEX %u", "TROFEI %u", "SERIE MIGLIORE %u", "TESSERE SCAMBIATE!",
      "ROULETTE", "ROSSO", "NERO", "DISPARI", "PARI", "TEAM ROCKET",
-     "VERDE", },
+     "VERDE",
+     "TUTTI", "PREFERITI", "CROMATICI", "CON OGGETTO", "LIVELLO", "IV TOTALE", "ATTACCO", "DIFESA", "VELOCITA", "PS", "N. POKEDEX", "NOME", "POSTO", "FILTRO", "PREFERITO: TOGLI LA STELLA", "%u TROVATI", "ORDINE: %s", },
   // ---------------- PT ----------------
   {
     "Evoluindo!", "Nham nham!", "Ele gosta!", "Esta com fome!", "Precisa de banho!",
@@ -400,7 +405,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "TREINO", "TOQUE UM RIVAL", "LUTE EM LAN PRIMEIRO",
      "CARTOES", "%u / %u GUARDADOS", "TROCAR", "ALBUM", "PAREAR EM AMIGOS", "NENHUM CARTAO", "INSIGNIAS %u", "POKEDEX %u", "MEDALHAS %u", "MELHOR SEQ %u", "CARTOES TROCADOS!",
      "ROLETA", "VERMELHO", "PRETO", "IMPAR", "PAR", "EQUIPE ROCKET",
-     "VERDE", },
+     "VERDE",
+     "TODOS", "FAVORITOS", "BRILHANTE", "COM ITEM", "NIVEL", "IV TOTAL", "ATAQUE", "DEFESA", "VELOCIDADE", "PS", "N. POKEDEX", "NOME", "CASA", "FILTRO", "FAVORITO: TIRE A ESTRELA", "%u ACHADOS", "ORDEM: %s", },
 };
 
 // Nombres de medalla en sus tres longitudes [idioma][medalla].

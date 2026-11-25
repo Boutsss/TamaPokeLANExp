@@ -268,7 +268,8 @@ static constexpr size_t PET_V3_FLAGS = 0;       // bit0 eggPaid, bit1 eggStashed
 static constexpr size_t PET_V3_SSHINY = 1;      // u8  stashed egg is shiny
 static constexpr size_t PET_V3_STARGET = 2;     // i16 stashed egg's species
 static constexpr size_t PET_V3_SEVOPEN = 4;     // u8  stashed egg's evolution debt
-static constexpr size_t PET_V3_LEN = 6;         // [5] reserved
+static constexpr size_t PET_V3_FAV = 5;         // u8  1 = a favourite (was reserved: old saves read 0)
+static constexpr size_t PET_V3_LEN = 6;
 static constexpr size_t PET_BODY = PET_TAIL_MON + sizeof(PartyMon) + PET_V3_LEN;
 static_assert(PET_BODY + CKPT_CRC <= PET_CORE_CAP, "raise PET_CORE_CAP");
 
@@ -602,6 +603,7 @@ void Pet::newEgg() {
     eggStashed = false;
   }
   eggPaid = false;   // a new creature has earned nothing yet
+  favorite = false;
   eggTaps = 0;
   fullness = 80;
   joy = 80;
@@ -819,6 +821,7 @@ void Pet::reviveFrom(const PartyMon &m) {
   if (m.empty()) return;
   stashLiveEgg();
   eggPaid = m.paidEgg();
+  favorite = m.isFav();
   ceremony = CER_NONE;
   neglectTicks = 0;
   speciesId = m.dex;
@@ -890,6 +893,7 @@ PartyMon Pet::toPartyMon() const {
   m.held = held;
   m.persona = persona;
   m.eggPaid = eggPaid ? PM_EGG_PAID : 0;
+  m.fav = favorite ? PM_FAV : 0;
   return m;
 }
 
@@ -900,6 +904,7 @@ bool Pet::switchTo(const PartyMon &m) {
   if (m.empty()) return false;
   stashLiveEgg();
   eggPaid = m.paidEgg();
+  favorite = m.isFav();
   ceremony = CER_NONE;
   neglectTicks = 0;
   speciesId = m.dex;
@@ -1621,6 +1626,9 @@ bool Pet::canRunawayNow() const {
 
 bool Pet::canRetireNow() const {
   if (frozen) return false;     // a companion is never given up
+  // A favourite may still be retired when that BANKS it (a farewell earned or
+  // already paid), never when an early retire would give it up for good.
+  if (favorite && !eggPaid && !canFarewellNow()) return false;
   return !isEgg() && !sleeping && ceremony == CER_NONE && !starterPick && eggEndAllowed();
 }
 
@@ -1671,7 +1679,7 @@ void Pet::startRunaway() {
 
 void Pet::release() {
   if (isEgg() || ceremony != CER_NONE) return;
-  if (frozen || !eggEndAllowed()) return;   // the same gate as retire
+  if (!releaseAllowed()) return;   // the same gates the long-press asks
   lastEnd = CER_RELEASE;
   ceremony = CER_RELEASE;
   ceremonyUntil = millis() + CEREMONY_MS;
@@ -2164,6 +2172,7 @@ bool Pet::saveCoreSnapshot() {
     v3[PET_V3_SSHINY] = stashShiny ? 1 : 0;
     ckptWr16(v3 + PET_V3_STARGET, (uint16_t)stashTarget);
     v3[PET_V3_SEVOPEN] = stashEvoPen;
+    v3[PET_V3_FAV] = favorite ? 1 : 0;
   }
 
   uint16_t total = ckptSeal(buf, PET_BODY, PET_CORE_MAGIC, PET_CORE_VERSION, nextGen);
@@ -2216,6 +2225,7 @@ bool Pet::loadCoreSnapshot() {
   endedKind = CER_NONE;
   endedMon = PartyMon();
   eggPaid = eggStashed = stashShiny = false;
+  favorite = false;
   stashTarget = 0;
   stashEvoPen = 0;
   if (body >= PET_TAIL_MON) {
@@ -2229,6 +2239,7 @@ bool Pet::loadCoreSnapshot() {
       stashTarget = eggStashed ? t : 0;
       stashShiny = eggStashed && v3[PET_V3_SSHINY];
       stashEvoPen = eggStashed ? v3[PET_V3_SEVOPEN] : 0;
+      favorite = v3[PET_V3_FAV] == 1;
     }
     if (monLen && PET_TAIL_MON + monLen <= body) {
       // Prefix rule again: a record from before PartyMon grew lands in the front

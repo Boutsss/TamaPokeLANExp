@@ -52,6 +52,7 @@
 #include "casino_art.h"
 #include "ghost.h"
 #include "card.h"
+#include "box_filter.h"
 #include "noart.h"   // speciesHasArt(): the friends visit draws a number when no art
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
@@ -259,7 +260,7 @@ enum : uint8_t {
   SCR_STARTER = 0, SCR_REGION, SCR_GALLERY, SCR_DEXPICK, SCR_MOVEPICK, SCR_BOX,
   SCR_PARTY, SCR_KEYBOARD, SCR_CARD, SCR_PLAYER, SCR_CLOCK, SCR_GYM, SCR_GYMPICK,
   SCR_EXPLORE, SCR_MART, SCR_LAN, SCR_PICK, SCR_BATTLE, SCR_WIN, SCR_LEARN, SCR_TRAIN, SCR_MENU,
-  SCR_BAGSCR, SCR_GAME, SCR_MAIN, SCR_TASKS, SCR_DAYCARE, SCR_DCPICK, SCR_TOWER, SCR_CHAL, SCR_ARCADE, SCR_TRADE, SCR_TRADEPICK, SCR_FRIENDS, SCR_CASINO, SCR_CASSHOP, SCR_CARDBOOK, SCR_COUNT
+  SCR_BAGSCR, SCR_GAME, SCR_MAIN, SCR_TASKS, SCR_DAYCARE, SCR_DCPICK, SCR_TOWER, SCR_CHAL, SCR_ARCADE, SCR_TRADE, SCR_TRADEPICK, SCR_FRIENDS, SCR_CASINO, SCR_CASSHOP, SCR_CARDBOOK, SCR_BOXFILTER, SCR_COUNT
 };
 extern const char *const SCREEN_NAME[SCR_COUNT];   // const is internal linkage in C++
 
@@ -322,7 +323,7 @@ const char *const SCREEN_NAME[SCR_COUNT] = {
   "starter", "region", "gallery", "dexpick", "movepick", "box",
   "party", "keyboard", "card", "player", "clock", "gym", "gympick",
   "explore", "mart", "lan", "pick", "battle", "win", "learn", "train", "menu",
-  "bag", "minigame", "main", "tasks", "daycare", "dcpick", "tower", "challenge", "arcade", "trade", "tradepick", "friends", "casino", "casshop", "cardbook"
+  "bag", "minigame", "main", "tasks", "daycare", "dcpick", "tower", "challenge", "arcade", "trade", "tradepick", "friends", "casino", "casshop", "cardbook", "boxfilter"
 };
 
 // Badge art for a region, or nullptr when that region has none yet.
@@ -488,8 +489,10 @@ uint8_t btlMyAct = 0;        // host: our own action, latched until theirs lands
 #define PDET_BTN_H 48
 #define PDET_L_X 70
 #define PDET_L_W 180
-#define PDET_R_X 266
-#define PDET_R_W 120
+#define PDET_S_X 256     // the favourite star, between the two
+#define PDET_S_W 50
+#define PDET_R_X 312
+#define PDET_R_W 74
 static_assert(PDET_L_X < 233 && 233 < PDET_L_X + PDET_L_W,
               "the panel centre must land on the sheet's PRIMARY button, not between the two");
 static_assert(PDET_R_X > PDET_L_X + PDET_L_W + 8,
@@ -707,6 +710,33 @@ void renderPlayerCards();
 bool playerCardsTap(int16_t x, int16_t y);
 void friendsOpenFromPlayer();
 void cardsFriendsPoll(uint32_t now);
+// Box filters and favourites (ui_boxfilter.ino, box_filter.cpp).
+extern bool boxFilterOpen;
+extern uint8_t boxFilter, boxSort;
+uint8_t boxPages();
+int boxIndexAt(uint8_t pos);
+bool boxFiltered();
+const char *boxFilterName(uint8_t f);
+const char *boxFilterWord();
+const char *boxFavLockLine();
+void boxFoundLine(char *out, size_t n, uint8_t found);
+void boxSortLine(char *out, size_t n);
+void drawFavStar(int cx, int cy, int r, uint16_t col);
+void renderBoxFilter();
+void boxFilterTap(int16_t px, int16_t py);
+uint8_t boxViewNow(uint8_t *out);
+// THE answer for "may this stored creature be let go" -- the sheet's RELEASE
+// button, its YES, the make-room chooser and the trade list all ask it.
+static inline bool monReleasable(const PartyMon &m) { return !m.empty() && !m.isFav(); }
+// A creature waiting for a slot (a farewell into a full party and box) may be
+// let go -- unless it is a favourite. The one exception is a party with no
+// non-favourite to replace, where refusing would leave nowhere to go. Asked by
+// all three ways out of the chooser: the exit button, swipe down and sideways.
+static bool handoverMayDecline() {
+  if (!pet.endedMon.isFav()) return true;
+  for (int i = 0; i < PARTY_SLOTS; i++) if (monReleasable(party.slots[i])) return false;
+  return true;
+}
 void arcadeTap(int16_t x, int16_t y);
 void arcadeSwipe(int dir);
 bool arcadeSwipeV(int dir);
@@ -1833,7 +1863,7 @@ static void touchStep(bool pressed, int16_t x, int16_t y) {
       // A creature whose ending already produced its egg cannot be released
       // for another (Pet::eggEndAllowed()): say no instead of opening a dialog
       // whose YES would do nothing.
-      if (pet.eggEndAllowed()) confirmUntil = millis() + 10000;
+      if (pet.releaseAllowed()) confirmUntil = millis() + 10000;
       else sfxPlay(SFX_DENY);
       holdFired = true;
     }
@@ -1880,7 +1910,12 @@ void onSwipeV(int dir) {
   if (trainOpen)    { if (back) trainOpen = false; return; }
   if (bagOpen)      { if (back) bagOpen = false; return; }
   if (movePickOpen) { if (back) movePickOpen = false; return; }
-  if (boxOpen)      { if (back) { boxOpen = false; boxSel = 0; } return; }
+  if (boxOpen)      {
+    if (!back) return;
+    if (boxFilterOpen) { boxFilterOpen = false; return; }   // the sheet, then the box
+    boxOpen = false; boxSel = 0;
+    return;
+  }
   // Either minigame exits on a swipe, keeping what was earned. A swipe cannot
   // be confused with a ball hit -- the gesture resolver separates them -- which
   // the header tap no longer could once the ball became hittable up there.
@@ -1971,7 +2006,10 @@ void onSwipeV(int dir) {
   if (partyOpen) {
     if (partyDetail) { if (back) partyDetail = 0; return; }
     if (back) {
-      if (partyPick) { heldReturn(pet.endedMon.held); partyPick = false; pet.clearEnded(); }
+      if (partyPick) {
+        if (!handoverMayDecline()) { sfxPlay(SFX_DENY); return; }   // a favourite: choose who it replaces
+        heldReturn(pet.endedMon.held); partyPick = false; pet.clearEnded();
+      }
       uiTileGo(TILE_PET);
     }
     return;
@@ -2042,14 +2080,28 @@ void renderMonSheet(const PartyMon &m, bool fromBox) {
                  PDET_BTN_Y + PDET_BTN_H / 2 - 8);
   gfx->print(leftLbl);
 
-  gfx->fillRoundRect(PDET_R_X, PDET_BTN_Y, PDET_R_W, PDET_BTN_H, 10, UI_BAR_BAD);
+  // the favourite star: filled gold when it is one
+  gfx->fillRoundRect(PDET_S_X, PDET_BTN_Y, PDET_S_W, PDET_BTN_H, 10, m.isFav() ? (uint16_t)0xFF98 : UI_WHITE);
+  gfx->drawRoundRect(PDET_S_X, PDET_BTN_Y, PDET_S_W, PDET_BTN_H, 10, UI_INK);
+  drawFavStar(PDET_S_X + PDET_S_W / 2, PDET_BTN_Y + PDET_BTN_H / 2 + 2, 17, UI_INK);
+  drawFavStar(PDET_S_X + PDET_S_W / 2, PDET_BTN_Y + PDET_BTN_H / 2 + 2, 14, m.isFav() ? 0xFEA0 : UI_WHITE);
+
+  bool canGo = monReleasable(m);
+  gfx->fillRoundRect(PDET_R_X, PDET_BTN_Y, PDET_R_W, PDET_BTN_H, 10, canGo ? UI_BAR_BAD : UI_TRACK);
   gfx->drawRoundRect(PDET_R_X, PDET_BTN_Y, PDET_R_W, PDET_BTN_H, 10, UI_INK);
-  gfx->setTextColor(UI_WHITE);
+  gfx->setTextColor(canGo ? UI_WHITE : 0x8410);
   gfx->setTextSize(1);
   gfx->setCursor(PDET_R_X + PDET_R_W / 2 - (int)strlen(T(S_RELEASE_BTN)) * 3,
                  PDET_BTN_Y + PDET_BTN_H / 2 - 4);
   gfx->print(T(S_RELEASE_BTN));
 
+  if (!canGo) {                          // why RELEASE is grey
+    const char *lk = boxFavLockLine();
+    gfx->setTextColor(UI_BAR_WARN);
+    gfx->setTextSize(1);
+    gfx->setCursor(CX - (int)strlen(lk) * 3, PDET_BTN_Y - (leftOk ? 14 : 28));
+    gfx->print(lk);
+  }
   if (!leftOk) {
     const char *why = fromBox ? T(S_PARTY_FULL) : T(S_FOCUS_NOW);
     gfx->setTextColor(UI_BAR_WARN);
@@ -2153,6 +2205,26 @@ void partyButtonRects(int *boxTop, int *boxBot, int *closeTop, int *closeBot) {
 // Which of the detail sheet's two buttons a tap landed on. One answer for the
 // party and the box, off the same PDET_* constants the sheet is DRAWN with, so
 // the graphic and the hit area cannot drift apart.
+// The star between the two: toggles the favourite and saves it. True if the
+// tap was the star's.
+// Centres of the sheet's three buttons, for tests: asked, never restated.
+void monSheetCentres(int *left, int *star, int *right, int *cy) {
+  if (left) *left = PDET_L_X + PDET_L_W / 2;
+  if (star) *star = PDET_S_X + PDET_S_W / 2;
+  if (right) *right = PDET_R_X + PDET_R_W / 2;
+  if (cy) *cy = PDET_BTN_Y + PDET_BTN_H / 2;
+}
+bool monSheetStarAt(int16_t x, int16_t y) {
+  return y >= PDET_BTN_Y && y <= PDET_BTN_Y + PDET_BTN_H && x >= PDET_S_X && x <= PDET_S_X + PDET_S_W;
+}
+bool monSheetFavTap(int16_t x, int16_t y, PartyMon &m, bool fromBox) {
+  if (!monSheetStarAt(x, y) || m.empty()) return false;
+  m.fav = m.isFav() ? 0 : PM_FAV;
+  if (fromBox) party.boxSave(); else party.save();
+  sfxPlay(m.isFav() ? SFX_MEDAL : SFX_TAP);
+  return true;
+}
+
 bool monSheetBtn(int16_t x, int16_t y, bool left) {
   if (y < PDET_BTN_Y || y > PDET_BTN_Y + PDET_BTN_H) return false;
   int x0 = left ? PDET_L_X : PDET_R_X;
@@ -2170,6 +2242,8 @@ bool monSheetConfirmTap(int16_t x, int16_t y, bool fromBox) {
   uiConfirmRects(&c1t, &c1b, &c2t, &c2b);
   if (x < CONFIRM_BTN_X || x > CONFIRM_BTN_X + CONFIRM_BTN_W) return false;
   if (y >= c1t && y <= c1b) {            // YES -- and it does not come back
+    const PartyMon &who = fromBox ? party.box[boxDetail - 1] : party.slots[partyDetail - 1];
+    if (!monReleasable(who)) { releaseConfirm = false; sfxPlay(SFX_DENY); return true; }
     if (fromBox) { party.boxReleaseAt(boxDetail - 1); boxDetail = 0; }
     else { party.releaseAt(partyDetail - 1); partyDetail = 0; }
     // A half-finished swap named a slot that may now be empty, so disarm both
@@ -2241,7 +2315,9 @@ void partyTap(int16_t x, int16_t y) {
       sfxPlay(SFX_HATCH);
       return;
     }
-    if (monSheetBtn(x, y, false)) {          // RELEASE -- ask first, always
+    if (monSheetFavTap(x, y, party.slots[partyDetail - 1], false)) return;
+    if (monSheetBtn(x, y, false)) {          // RELEASE -- ask first, always; never a favourite
+      if (!monReleasable(party.slots[partyDetail - 1])) { sfxPlay(SFX_DENY); return; }
       releaseConfirm = true;
       sfxPlay(SFX_TAP);
       return;
@@ -2272,6 +2348,7 @@ void partyTap(int16_t x, int16_t y) {
   if ((y >= PARTYCLOSE_Y && y <= PARTYCLOSE_Y + PARTYCLOSE_H &&
        x >= PARTYCLOSE_X && x <= PARTYCLOSE_X + PARTYCLOSE_W) || y < 34) {
     if (partyPick) {                 // declined the swap: the pet is let go
+      if (!handoverMayDecline()) { sfxPlay(SFX_DENY); return; }
       heldReturn(pet.endedMon.held);
       partyPick = false;
       pet.clearEnded();
@@ -2301,6 +2378,8 @@ void partyTap(int16_t x, int16_t y) {
       sfxPlay(SFX_TAP);
       return;
     }
+    // Making room never takes a favourite: it has to be unstarred first.
+    if (!monReleasable(party.slots[i])) { sfxPlay(SFX_DENY); return; }
     heldReturn(party.slots[i].held);  // the replaced creature leaves the team
     party.replaceAt(i, pet.endedMon);
     snprintf(partyBannerName, sizeof(partyBannerName), "%s",
@@ -2338,7 +2417,10 @@ void onSwipe(int dir) {
     // A sheet drawn on top of a tile closes first; the axis is underneath it.
     if (galleryDetail) { galleryDetail = 0; galleryPmd.unload(); galleryDirty = true; return; }
     if (partyDetail) { partyDetail = 0; return; }
-    if (partyPick) { heldReturn(pet.endedMon.held); partyPick = false; pet.clearEnded(); }
+    if (partyPick) {
+      if (!handoverMayDecline()) { sfxPlay(SFX_DENY); return; }   // bumps: choose who it replaces
+      heldReturn(pet.endedMon.held); partyPick = false; pet.clearEnded();
+    }
     if (pet.ceremony || confirmUntil || martConfirmItem) return;
     int n = t - dir;   // the content follows the finger
     // IT BUMPS. This is the whole point of the axis: a horizontal swipe can no
@@ -2955,7 +3037,7 @@ uint8_t uiCurrentScreen() {
   if (pet.awaitingStarter()) return starterRegionDone ? SCR_STARTER : SCR_REGION;
   if (galleryOpen) return galleryPick ? SCR_DEXPICK : SCR_GALLERY;
   if (movePickOpen) return SCR_MOVEPICK;
-  if (partyOpen) return boxOpen ? SCR_BOX : SCR_PARTY;
+  if (partyOpen) return boxOpen ? (boxFilterOpen ? SCR_BOXFILTER : SCR_BOX) : SCR_PARTY;
   if (bagOpen) return SCR_BAGSCR;
   if (kbOpen) return SCR_KEYBOARD;
   if (cardOpen) return SCR_CARD;
@@ -3077,7 +3159,7 @@ static uint8_t *uiRimTarget(uint8_t *pages) {
     case SCR_GYM:     p = &gymPage;     n = (TRAINER_COUNT + GYM_ROWS - 1) / GYM_ROWS; break;
     case SCR_GALLERY: p = &galleryPage; n = (uint8_t)GAL_PAGES; break;
     case SCR_PLAYER:  p = &playerPage;  n = PLAYER_PAGES; break;
-    case SCR_BOX:     p = &boxPage;     n = BOX_SLOTS / BOX_PER_PAGE; break;
+    case SCR_BOX:     p = &boxPage;     n = boxPages(); break;
     case SCR_BAGSCR:  p = &bagPage;     n = bagPages(); break;
     case SCR_MART:    p = &martPage;    n = martPages(); break;
     case SCR_DCPICK:  p = &dcPage;      n = dcPickPages(); break;
@@ -3471,6 +3553,7 @@ void render() {
   if (partyOpen) {
     if (boxOpen) {
       if (boxDetail) renderBoxDetail();
+      else if (boxFilterOpen) renderBoxFilter();
       else renderBox();
     } else if (partyDetail) renderPartyDetail();
     else renderParty();
@@ -7598,9 +7681,12 @@ static const PartyMon *trdBanked(uint8_t i) {
 }
 static uint8_t trdList(uint8_t *out) {
   uint8_t n = 0;
-  for (uint8_t i = 0; i < PARTY_SLOTS + BOX_SLOTS; i++) { const PartyMon *m = trdBanked(i); if (m && !m->empty()) out[n++] = i; }
+  // A favourite is never offered: it stays until it is unstarred.
+  for (uint8_t i = 0; i < PARTY_SLOTS + BOX_SLOTS; i++) { const PartyMon *m = trdBanked(i); if (m && !m->empty() && monReleasable(*m)) out[n++] = i; }
   return n;
 }
+// How many creatures the trade picker would offer (tests: a favourite is not one).
+uint8_t tradeOfferableCount() { uint8_t l[PARTY_SLOTS + BOX_SLOTS]; return trdList(l); }
 uint8_t tradePickPages() {
   uint8_t l[PARTY_SLOTS + BOX_SLOTS]; uint8_t n = trdList(l);
   return n ? (uint8_t)((n + TRD_PER_PAGE - 1) / TRD_PER_PAGE) : 1;
@@ -8045,11 +8131,22 @@ void renderBox() {
   gfx->fillScreen(RGB565_BLACK);
   gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
   char head[32];
-  snprintf(head, sizeof(head), T(S_BOX_FMT), party.boxCount(), BOX_SLOTS);
+  uint8_t view[BOX_SLOTS];
+  uint8_t shown = boxViewNow(view);
+  if (boxFiltered()) boxFoundLine(head, sizeof(head), shown);
+  else snprintf(head, sizeof(head), T(S_BOX_FMT), party.boxCount(), BOX_SLOTS);
   gfx->setTextColor(UI_INK);
   gfx->setTextSize(2);
   gfx->setCursor(CX - (int)strlen(head) * 6, 40);
   gfx->print(head);
+  if (!boxSwapFrom && boxSort != BS_SLOT) {   // what the order is, under the title
+    char so[40];
+    boxSortLine(so, sizeof(so));
+    gfx->setTextColor(UI_INK_SOFT);
+    gfx->setTextSize(1);
+    gfx->setCursor(CX - (int)strlen(so) * 3, PSLOT_PROMPT_Y);
+    gfx->print(so);
+  }
   if (boxSwapFrom) {
     const PartyMon &p = party.slots[boxSwapFrom - 1];
     char sub[40];
@@ -8060,16 +8157,20 @@ void renderBox() {
     gfx->setCursor(CX - (int)strlen(sub) * 3, PSLOT_PROMPT_Y);
     gfx->print(sub);
   }
+  if (boxPage >= boxPages()) boxPage = 0;   // a filter can shrink the view under you
   for (uint8_t i = 0; i < BOX_PER_PAGE; i++) {
-    uint8_t idx = boxPage * BOX_PER_PAGE + i;
-    if (idx >= BOX_SLOTS) break;
+    int idx = boxIndexAt(i);
+    if (idx < 0) break;
     drawPartySlot(i, party.box[idx]);
   }
-  {
+  // The hub is the FILTER button: it names what is shown. While a party
+  // creature waits to come in it shows the page, as before.
+  if (boxSwapFrom) {
     char pg[12];
-    snprintf(pg, sizeof(pg), "%u/%u", (unsigned)(boxPage + 1),
-             (unsigned)(BOX_SLOTS / BOX_PER_PAGE));
-    drawPartyHub(pg, T(S_BOX_BTN), boxSwapFrom != 0);
+    snprintf(pg, sizeof(pg), "%u/%u", (unsigned)(boxPage + 1), (unsigned)boxPages());
+    drawPartyHub(pg, T(S_BOX_BTN), true);
+  } else {
+    drawPartyHub(boxFilterName(boxFilter), boxFilterWord(), boxFiltered());
   }
   gfx->setTextColor(UI_INK_SOFT);
   gfx->setTextSize(2);
@@ -8080,6 +8181,7 @@ void renderBox() {
 }
 
 void boxTap(int16_t x, int16_t y) {
+  if (boxFilterOpen) { boxFilterTap(x, y); return; }
   // The sheet is checked first and is modal in the same way the party's is.
   if (boxDetail) {
     if (releaseConfirm) { monSheetConfirmTap(x, y, true); return; }
@@ -8092,7 +8194,9 @@ void boxTap(int16_t x, int16_t y) {
       sfxPlay(SFX_MEDAL);
       return;
     }
-    if (monSheetBtn(x, y, false)) {         // RELEASE -- ask first, always
+    if (monSheetFavTap(x, y, party.box[boxDetail - 1], true)) return;
+    if (monSheetBtn(x, y, false)) {         // RELEASE -- ask first, always; never a favourite
+      if (!monReleasable(party.box[boxDetail - 1])) { sfxPlay(SFX_DENY); return; }
       releaseConfirm = true;
       sfxPlay(SFX_TAP);
       return;
@@ -8102,9 +8206,15 @@ void boxTap(int16_t x, int16_t y) {
     sfxPlay(SFX_TAP);
     return;
   }
+  if (!boxSwapFrom && partyHubAt(x, y)) {   // the hub: FILTER and SORT
+    boxFilterOpen = true;
+    sfxPlay(SFX_TAP);
+    return;
+  }
   for (uint8_t i = 0; i < BOX_PER_PAGE; i++) {
-    uint8_t idx = boxPage * BOX_PER_PAGE + i;
-    if (idx >= BOX_SLOTS) break;
+    int vi = boxIndexAt(i);
+    if (vi < 0) break;
+    uint8_t idx = (uint8_t)vi;
     if (partySlotAt(x, y) != (int)i) continue;
     if (boxSwapFrom) {           // a party slot is waiting: complete the trade
       if (party.slots[boxSwapFrom - 1].empty() && party.box[idx].empty()) {
@@ -8172,6 +8282,10 @@ void drawPartySlot(int i, const PartyMon &m) {
   gfx->setTextSize(2);
   gfx->setCursor(cx - (int)strlen(lv) * 6, cy + 20);
   gfx->print(lv);
+  if (m.isFav()) {                    // a favourite: a gold star on its rim
+    drawFavStar(cx + 32, cy - 32, 12, UI_INK);
+    drawFavStar(cx + 32, cy - 32, 10, 0xFEA0);
+  }
 }
 
 // The hub in the middle of the ring. On the party it is the BOX button; in the
@@ -8182,8 +8296,9 @@ void drawPartyHub(const char *top, const char *bot, bool armed) {
   gfx->drawCircle(CX, PSLOT_CY, PSLOT_HUB_R, UI_INK);
   gfx->drawCircle(CX, PSLOT_CY, PSLOT_HUB_R - 1, UI_INK);
   gfx->setTextColor(UI_INK);
-  gfx->setTextSize(2);
-  gfx->setCursor(CX - (int)strlen(top) * 6, PSLOT_CY - 14);
+  int big = (int)strlen(top) * 12 <= PSLOT_HUB_R * 2 - 10 ? 2 : 1;   // a long word drops a size
+  gfx->setTextSize(big);
+  gfx->setCursor(CX - (int)strlen(top) * 3 * big, PSLOT_CY - 7 * big);
   gfx->print(top);
   gfx->setTextSize(1);
   gfx->setCursor(CX - (int)strlen(bot) * 3, PSLOT_CY + 10);

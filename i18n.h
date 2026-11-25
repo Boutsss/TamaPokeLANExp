@@ -406,6 +406,23 @@ enum StrId : uint16_t {
   S_CAS_EVEN,      // the Game Corner
   S_CAS_ROCKET,    // the Game Corner
   S_CAS_GREEN,     // the Game Corner
+  S_BF_ALL,        // box filters and favourites
+  S_BF_FAV,        // box filters and favourites
+  S_BF_SHINY,      // box filters and favourites
+  S_BF_HELD,       // box filters and favourites
+  S_BF_S_LEVEL,    // box filters and favourites
+  S_BF_S_IV,       // box filters and favourites
+  S_BF_S_ATK,      // box filters and favourites
+  S_BF_S_DEF,      // box filters and favourites
+  S_BF_S_SPE,      // box filters and favourites
+  S_BF_S_HP,       // box filters and favourites
+  S_BF_S_DEX,      // box filters and favourites
+  S_BF_S_NAME,     // box filters and favourites
+  S_BF_S_SLOT,     // box filters and favourites
+  S_BF_FILTER,     // box filters and favourites
+  S_BF_FAVLOCK,    // box filters and favourites
+  S_BF_FOUND_FMT,  // box filters and favourites
+  S_BF_SORT_FMT,   // box filters and favourites
   STR_COUNT
 };
 

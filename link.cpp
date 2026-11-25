@@ -596,6 +596,7 @@ bool tradeSanitize(PartyMon &m) {
   if (m.poops > 3) m.poops = 3;
   if (!itemIsHeld(m.held)) m.held = 0;           // an item this build does not know
   if (!personaValid(m.persona)) m.persona = 0;
+  m.fav = 0;   // a favourite is the KEEPER's choice: one that arrives is not yet one of ours
   // A level that disagrees with the age would make it level up (or down) the
   // moment it is raised: the age follows the level, the one the screen showed.
   uint32_t minAge = (uint32_t)(m.level - 1) * MINUTES_PER_LEVEL;

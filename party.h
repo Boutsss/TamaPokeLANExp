@@ -25,6 +25,7 @@
 // off instead of handing back a blanked-out copy. Freezing is now a property of
 // where the record lives, not of the record itself.
 #define PM_EGG_PAID 0xE9
+#define PM_FAV 0xF7      // PartyMon::fav: a magic value, for the same reason as PM_EGG_PAID
 struct PartyMon {
   int16_t dex = 0;      // Pokedex number, 0 = empty slot
   uint16_t level = 1;   // cached from ageMinutes so lists need not recompute it
@@ -66,11 +67,21 @@ struct PartyMon {
   // padding in records banked before this field existed is not guaranteed to
   // be zero, and a stray 1 must not read as "already paid".
   uint8_t eggPaid = 0;
+  // PM_FAV: a FAVOURITE, which cannot be released, replaced to make room or
+  // traded away until it is unfavourited. The last byte of what was padding,
+  // so the record is still 52 bytes (see the static_assert below).
+  uint8_t fav = 0;
 
   bool empty() const { return dex < 1; }
   bool paidEgg() const { return eggPaid == PM_EGG_PAID; }
+  bool isFav() const { return fav == PM_FAV; }
   bool hasCareState() const { return stateVersion >= 1; }
 };
+
+// sizeof(PartyMon) is load-bearing in four places (CLAUDE.md section 5), and
+// eggPaid and fav were placed in old padding precisely so it would not move.
+// If this fires, read that section before touching anything else.
+static_assert(sizeof(PartyMon) == 52, "PartyMon grew: party/box migration, MAX_VAL, the link tag and the pet tail all depend on it");
 
 class Party {
 public:
