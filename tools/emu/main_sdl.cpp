@@ -208,6 +208,7 @@ extern uint8_t playerPage;
 extern bool gymHard, pickOpen;
 extern uint8_t partyDetail;
 extern uint8_t monStats;
+extern bool boxListOpen, boxFilterOpen; extern uint16_t boxDetail;
 void arcadeOpenFromTrain(); void arcStart(uint8_t); void arcSkipIntro();
 Pinball &arcPinball(); bool pinStep(uint32_t); uint8_t surfStep(uint32_t); void surfPeek(bool, int16_t);
 enum : uint8_t { MS_NONE_ = 0, MS_LIVE_, MS_PARTY_, MS_BOX_ };
@@ -402,6 +403,15 @@ static int shotMode(const char *screen, const char *out, int lvl, int iv, int de
       btlMyAct = LINK_ACT_MOVE(0);      // tapped, rival has not chosen yet
     }
     else lanOpen = true;
+  }
+  else if (!strcmp(screen, "boxlist") || !strcmp(screen, "boxsheet") || !strcmp(screen, "boxfilter")) {
+    for (int i = 0; i < 400; i += 3) { PartyMon m; m.dex = 1 + (i * 7) % 151; m.level = 20 + i % 60; party.box[i] = m; }
+    party.setBoxName(0, "STARTERS"); party.setBoxName(3, "WATER");
+    party.boxSave();
+    partyOpen = true; boxOpen = true;
+    if (!strcmp(screen, "boxlist")) boxListOpen = true;
+    if (!strcmp(screen, "boxsheet")) boxDetail = 4;
+    if (!strcmp(screen, "boxfilter")) boxFilterOpen = true;
   }
   else if (!strcmp(screen, "box")) {
     static const int f[]={9,25,143,94,131,3};

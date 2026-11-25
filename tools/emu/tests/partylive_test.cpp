@@ -34,6 +34,8 @@ int partySlotAt(int16_t x, int16_t y); bool partyLiveAt(int16_t x, int16_t y);
 void boxCellPos(uint8_t i, int *cx, int *cy);
 void monSheetStatsCentre(int *x, int *y);
 void kbKeyCentre(int i, int *x, int *y);
+void boxListRenameBtn(int *x, int *y, int *w, int *h);
+
 bool monStatsSubject(PartyMon *out);
 static int bad=0;
 static void ck(bool ok,const char*w){printf("%s  %s\n",ok?"PASS":"FAIL",w); if(!ok)bad++;}
@@ -47,6 +49,8 @@ static void typeName(const char *s) {
   for (const char *c = s; *c; c++) { int x, y; kbKeyCentre(*c - 'A', &x, &y); tap(x, y); }
   int x, y; kbKeyCentre(29, &x, &y); tap(x, y);
 }
+
+static void openRename() { tap(233, 36); int x, y, w, h; boxListRenameBtn(&x, &y, &w, &h); tap(x + w / 2, y + h / 2); }
 
 int main(){
   setup();
@@ -119,7 +123,9 @@ int main(){
   ck(on("box"), "back on the box");
   { char n[16]; party.boxNameOf(0, n, sizeof(n)); ck(!strcmp(n, "BOX 1"), "a box is BOX n until it is named"); }
   tap(233, 36);
-  ck(kbOpen && on("keyboard"), "tapping the box title opens the keyboard on top of it");
+  ck(on("boxlist"), "tapping the box title opens the overview of every box");
+  { int x, y, w, h; boxListRenameBtn(&x, &y, &w, &h); tap(x + w / 2, y + h / 2); }
+  ck(kbOpen && on("keyboard"), "its RENAME opens the keyboard on top of the box");
   typeName("WATER");
   { char n[16]; party.boxNameOf(0, n, sizeof(n));
     ck(!kbOpen && on("box") && !strcmp(n, "WATER"), "OK names it and returns to the box"); }
@@ -131,7 +137,7 @@ int main(){
     ck(!strcmp(nm, "WATER"), "and carries the box's name"); }
   party.begin();
   boxPage = 1; render();
-  tap(233, 36); typeName("");
+  openRename(); typeName("");
   { char n[16]; party.boxNameOf(1, n, sizeof(n)); ck(!strcmp(n, "BOX 2"), "an empty name keeps the default"); }
 
   printf("%s\n", bad?"FAILURES":"all good");

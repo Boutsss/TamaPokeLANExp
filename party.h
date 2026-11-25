@@ -142,6 +142,7 @@ public:
   // Swaps a party slot with a box slot. Either may be empty, so this doubles as
   // deposit and withdraw rather than needing three separate operations.
   void swapPartyBox(uint8_t partyIdx, uint16_t boxIdx);
+  void swapBoxBox(uint16_t a, uint16_t b);   // MOVE within the PC box: swap two slots (either may be empty)
   // WIPE / IMPORT: the box is emptied and its file removed.
   void boxWipe();
 

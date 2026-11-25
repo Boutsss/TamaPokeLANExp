@@ -89,6 +89,7 @@ uint8_t learnableFor(int16_t dex, uint8_t lvl, uint8_t *out, uint8_t max);
 extern bool casinoOpen; extern uint8_t casShopKind, casShopPage;
 extern const char *const SCREEN_NAME[];
 extern bool cardBookOpen; extern uint8_t cardBookPage;
+extern bool boxListOpen; extern uint8_t boxListPage;
 void casinoOpenNow(); void casinoClose(); void onTap(int16_t,int16_t); void casinoDbgSkipDoor();
 void casLobbyBtn(uint8_t i, int *x, int *y, int *w, int *h);
 
@@ -108,6 +109,9 @@ int main(){
   clearAll(); gymOpen=true; gymPick=false;        check("gyms",     &gymOpen,      &gymPage);
   clearAll(); playerOpen=true;                    check("player",   &playerOpen,   &playerPage);
   clearAll(); partyOpen=true; boxOpen=true;       check("box",      &boxOpen,      &boxPage);
+  // the 40-box overview (tap the box's title): three pages of sixteen
+  clearAll(); partyOpen=true; boxOpen=true; boxListOpen=true; check("boxlist", &boxListOpen, &boxListPage);
+  boxListOpen=false;
   clearAll(); movePickOpen=true; movePickParty=0; movePickSlot=0;
                                                   check("movepick", &movePickOpen, &movePickPage);
   clearAll(); pickTrainer=7; pickHard=false; pickDefault(squadCap(7,false)); pickOpen=true;

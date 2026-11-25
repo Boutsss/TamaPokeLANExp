@@ -1,10 +1,37 @@
 #include "box_filter.h"
 #include "dex.h"
 #include <string.h>
+#include <ctype.h>
 #include <algorithm>
+
+static char gQuery[BF_QUERY_LEN] = "";
+static uint32_t gQueryGen = 0;
+void boxSearchSet(const char *q) {
+  size_t n = 0;
+  for (; q && q[n] && n < BF_QUERY_LEN - 1; n++) gQuery[n] = (char)toupper((unsigned char)q[n]);
+  gQuery[n] = 0;
+  gQueryGen++;
+}
+const char *boxSearchQuery() { return gQuery; }
+uint32_t boxSearchGen() { return gQueryGen; }
+
+// Case-insensitive "contains".
+static bool containsCI(const char *hay, const char *needle) {
+  if (!needle[0]) return true;
+  for (; *hay; hay++) {
+    size_t k = 0;
+    while (needle[k] && hay[k] && toupper((unsigned char)hay[k]) == needle[k]) k++;
+    if (!needle[k]) return true;
+  }
+  return false;
+}
 
 bool boxFilterMatch(const PartyMon &m, uint8_t f) {
   if (m.empty()) return false;
+  if (f == BF_SEARCH) {
+    if (m.dex < 1 || m.dex > DEX_COUNT) return false;
+    return containsCI(DEX_TBL[m.dex].name, gQuery) || (m.nick[0] && containsCI(m.nick, gQuery));
+  }
   switch (f) {
     case BF_ALL: return true;
     case BF_FAV: return m.isFav();

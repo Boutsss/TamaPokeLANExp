@@ -13,7 +13,14 @@
 // A-Z by name (the nickname if it has one).
 
 enum : uint8_t { BF_ALL = 0, BF_FAV, BF_SHINY, BF_HELD, BF_TYPE0 };   // BF_TYPE0 + t for type t
-#define BF_COUNT (BF_TYPE0 + TYPE_COUNT)
+// SEARCH: the name (nickname or species) contains the query, typed on the
+// keyboard. After the types, so their indices did not move.
+#define BF_SEARCH (BF_TYPE0 + TYPE_COUNT)
+#define BF_COUNT (BF_SEARCH + 1)
+#define BF_QUERY_LEN 12
+void boxSearchSet(const char *q);       // the SEARCH filter's query ("" matches everything)
+const char *boxSearchQuery();
+uint32_t boxSearchGen();                // bumped by every boxSearchSet(), for caches
 enum : uint8_t { BS_SLOT = 0, BS_LEVEL, BS_IV, BS_ATK, BS_DEF, BS_SPE, BS_HP, BS_DEX, BS_NAME, BS_COUNT };
 
 bool boxFilterMatch(const PartyMon &m, uint8_t filter);

@@ -297,6 +297,14 @@ void Party::swapPartyBox(uint8_t partyIdx, uint16_t boxIdx) {
   boxSave();
 }
 
+void Party::swapBoxBox(uint16_t a, uint16_t b) {
+  if (!box || a >= BOX_SLOTS || b >= BOX_SLOTS || a == b) return;
+  PartyMon t = box[a];
+  box[a] = box[b];
+  box[b] = t;
+  boxSave();
+}
+
 uint8_t Party::count() const {
   uint8_t n = 0;
   for (int i = 0; i < PARTY_BANKED; i++)

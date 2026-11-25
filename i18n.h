@@ -441,6 +441,10 @@ enum StrId : uint16_t {
   S_PB_BANK,       // the arcade: PINBALL
   S_PB_ORBIT,      // the arcade: PINBALL
   S_PB_CATCH,      // the arcade: PINBALL
+  S_BOX_MOVE,      // the PC box: move, overview, search
+  S_BOX_MOVE_FMT,  // the PC box: move, overview, search
+  S_BOX_RENAME_FMT, // the PC box: move, overview, search
+  S_BF_SEARCH,     // the PC box: move, overview, search
   STR_COUNT
 };
 

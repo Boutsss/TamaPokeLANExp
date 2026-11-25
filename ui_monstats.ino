@@ -13,14 +13,23 @@ uint8_t monStats = MS_NONE;
 
 // The button on the sheet. Geometry asked, never restated: the renderer, the
 // taps and the tests all use this.
-bool monSheetStatsAt(int16_t x, int16_t y) {
-  return x >= MSTATS_BTN_X && x <= MSTATS_BTN_X + MSTATS_BTN_W &&
-         y >= MSTATS_BTN_Y && y <= MSTATS_BTN_Y + MSTATS_BTN_H;
+// On a BOX sheet the row holds two pills, STATS and MOVE; on a party sheet
+// STATS alone, centred. monSheetPill() is the one answer for both.
+void monSheetPill(uint8_t which, int *x, int *y, int *w, int *h) {
+  bool box = boxOpen && boxDetail;
+  *y = MSTATS_BTN_Y; *h = MSTATS_BTN_H;
+  if (!box) { *x = MSTATS_BTN_X; *w = MSTATS_BTN_W; return; }
+  *w = 132;
+  *x = which ? CX + 6 : CX - 6 - 132;
 }
-void monSheetStatsCentre(int *x, int *y) {
-  if (x) *x = MSTATS_BTN_X + MSTATS_BTN_W / 2;
-  if (y) *y = MSTATS_BTN_Y + MSTATS_BTN_H / 2;
+static bool inPill(uint8_t which, int16_t px, int16_t py) {
+  int x, y, w, h; monSheetPill(which, &x, &y, &w, &h);
+  return px >= x && px <= x + w && py >= y && py <= y + h;
 }
+bool monSheetStatsAt(int16_t x, int16_t y) { return inPill(0, x, y); }
+bool monSheetMoveAt(int16_t x, int16_t y) { return boxOpen && boxDetail && inPill(1, x, y); }
+void monSheetStatsCentre(int *x, int *y) { int a, b, w, h; monSheetPill(0, &a, &b, &w, &h); if (x) *x = a + w / 2; if (y) *y = b + h / 2; }
+void monSheetMoveCentre(int *x, int *y) { int a, b, w, h; monSheetPill(1, &a, &b, &w, &h); if (x) *x = a + w / 2; if (y) *y = b + h / 2; }
 
 // The creature the page is about, or false if it has gone (released, swapped).
 bool monStatsSubject(PartyMon *out) {

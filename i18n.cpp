@@ -80,7 +80,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "DATOS", "AT.E", "DF.E", "IV TOTAL %u/124", "LLEVA: %s", "CARACTER: %s", "LAZO %u  MEDALLAS %u", "ENT %u/%u",
      "PINBALL", "manten un lado para golpear", "PUNTOS %lu",
      "SURF", "arrastra arriba y abajo", "BOLA %u/%u",
-     "BLANCOS +2500", "ORBITA!", "ATRAPADO! +2000", },
+     "BLANCOS +2500", "ORBITA!", "ATRAPADO! +2000",
+     "MOVER", "mover %s: elige hueco", "NOMBRE %u", "BUSCAR", },
   // ---------------- EN ----------------
   {
     "Evolving!", "Yum yum!", "It likes it!", "It's hungry!", "Needs a bath!",
@@ -152,7 +153,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "STATS", "SP.A", "SP.D", "IV TOTAL %u/124", "HOLDS: %s", "PERSONALITY: %s", "BOND %u  MEDALS %u", "TR %u/%u",
      "PINBALL", "hold a side to flip", "SCORE %lu",
      "SURF", "drag up and down to steer", "BALL %u/%u",
-     "TARGETS +2500", "ORBIT!", "CAUGHT! +2000", },
+     "TARGETS +2500", "ORBIT!", "CAUGHT! +2000",
+     "MOVE", "move %s: pick a slot", "RENAME %u", "SEARCH", },
   // ---------------- FR ----------------
   {
     "Il evolue!", "Miam miam!", "Il aime ca!", "Il a faim!", "Besoin d'un bain!",
@@ -223,7 +225,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "STATS", "AT.S", "DF.S", "IV TOTAL %u/124", "TIENT: %s", "CARACTERE: %s", "LIEN %u  MEDAILLES %u", "ENT %u/%u",
      "FLIPPER", "maintiens un cote", "SCORE %lu",
      "SURF", "glisse haut et bas", "BILLE %u/%u",
-     "CIBLES +2500", "ORBITE!", "ATTRAPE! +2000", },
+     "CIBLES +2500", "ORBITE!", "ATTRAPE! +2000",
+     "BOUGER", "deplacer %s: choisis", "NOMMER %u", "CHERCHER", },
   // ---------------- DE ----------------
   {
     "Entwickelt sich!", "Mampf mampf!", "Gefaellt ihm!", "Hat Hunger!", "Braucht ein Bad!",
@@ -294,7 +297,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "WERTE", "SP.A", "SP.V", "IV SUMME %u/124", "TRAEGT: %s", "WESEN: %s", "BAND %u  ORDEN %u", "TR %u/%u",
      "FLIPPER", "eine Seite halten", "PUNKTE %lu",
      "SURFEN", "nach oben/unten ziehen", "KUGEL %u/%u",
-     "ZIELE +2500", "ORBIT!", "GEFANGEN! +2000", },
+     "ZIELE +2500", "ORBIT!", "GEFANGEN! +2000",
+     "BEWEGEN", "%s bewegen: Platz waehlen", "NAME %u", "SUCHEN", },
   // ---------------- IT ----------------
   {
     "Si evolve!", "Gnam gnam!", "Gli piace!", "Ha fame!", "Vuole un bagno!",
@@ -365,7 +369,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "STATS", "AT.S", "DF.S", "IV TOTALE %u/124", "TIENE: %s", "CARATTERE: %s", "LEGAME %u  MEDAGLIE %u", "ALL %u/%u",
      "FLIPPER", "tieni premuto un lato", "PUNTI %lu",
      "SURF", "trascina su e giu", "PALLA %u/%u",
-     "BERSAGLI +2500", "ORBITA!", "PRESO! +2000", },
+     "BERSAGLI +2500", "ORBITA!", "PRESO! +2000",
+     "SPOSTA", "sposta %s: scegli", "NOME %u", "CERCA", },
   // ---------------- PT ----------------
   {
     "Evoluindo!", "Nham nham!", "Ele gosta!", "Esta com fome!", "Precisa de banho!",
@@ -436,7 +441,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
      "DADOS", "AT.E", "DF.E", "IV TOTAL %u/124", "SEGURA: %s", "PERSONALIDADE: %s", "LACO %u  MEDALHAS %u", "TR %u/%u",
      "PINBALL", "segura um lado", "PONTOS %lu",
      "SURF", "arrasta para cima e baixo", "BOLA %u/%u",
-     "ALVOS +2500", "ORBITA!", "APANHADO! +2000", },
+     "ALVOS +2500", "ORBITA!", "APANHADO! +2000",
+     "MOVER", "mover %s: escolhe", "NOME %u", "BUSCAR", },
 };
 
 // Nombres de medalla en sus tres longitudes [idioma][medalla].

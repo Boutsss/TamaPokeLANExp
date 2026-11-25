@@ -144,7 +144,7 @@ int16_t galleryDetail = 0;  // dex en vista detalle, 0 = rejilla
 bool screenOff = false;       // pulsacion corta del boton PWR
 bool cardOpen = false;        // ficha del bicho (deslizar vertical)
 bool kbOpen = false;
-enum : uint8_t { KB_PET = 0, KB_TRAINER, KB_BOX };
+enum : uint8_t { KB_PET = 0, KB_TRAINER, KB_BOX, KB_SEARCH };
 uint8_t kbTarget = KB_PET;          // teclado para renombrar al bicho
 char nameBuf[12] = "";
 uint8_t nameLen = 0;
@@ -183,6 +183,10 @@ uint8_t partyDetail = 0;   // 0 = the grid, else slot + 1
 bool boxOpen = false;
 uint8_t boxPage = 0;
 uint8_t boxSwapFrom = 0;   // party slot + 1, armed from the party side
+uint16_t boxMoveFrom = 0;  // box slot + 1 being MOVED within the box (its sheet's MOVE)
+bool boxListOpen = false;  // the 40-box overview (tap the box's title)
+uint8_t boxListPage = 0;
+#define BOX_LIST_PER 16       // boxes a page on that overview (4 x 4)
 uint16_t boxSel = 0;       // box slot + 1, armed from the box side (16-bit: 1200 slots)
 // The box gets the same detail sheet the party has. Tapping a box slot used to
 // yank the creature into the party immediately, which is a surprising amount to
@@ -274,7 +278,7 @@ enum : uint8_t {
   SCR_STARTER = 0, SCR_REGION, SCR_GALLERY, SCR_DEXPICK, SCR_MOVEPICK, SCR_BOX,
   SCR_PARTY, SCR_KEYBOARD, SCR_CARD, SCR_PLAYER, SCR_CLOCK, SCR_GYM, SCR_GYMPICK,
   SCR_EXPLORE, SCR_MART, SCR_LAN, SCR_PICK, SCR_BATTLE, SCR_WIN, SCR_LEARN, SCR_TRAIN, SCR_MENU,
-  SCR_BAGSCR, SCR_GAME, SCR_MAIN, SCR_TASKS, SCR_DAYCARE, SCR_DCPICK, SCR_TOWER, SCR_CHAL, SCR_ARCADE, SCR_TRADE, SCR_TRADEPICK, SCR_FRIENDS, SCR_CASINO, SCR_CASSHOP, SCR_CARDBOOK, SCR_BOXFILTER, SCR_MONSTATS, SCR_COUNT
+  SCR_BAGSCR, SCR_GAME, SCR_MAIN, SCR_TASKS, SCR_DAYCARE, SCR_DCPICK, SCR_TOWER, SCR_CHAL, SCR_ARCADE, SCR_TRADE, SCR_TRADEPICK, SCR_FRIENDS, SCR_CASINO, SCR_CASSHOP, SCR_CARDBOOK, SCR_BOXFILTER, SCR_MONSTATS, SCR_BOXLIST, SCR_COUNT
 };
 extern const char *const SCREEN_NAME[SCR_COUNT];   // const is internal linkage in C++
 
@@ -337,7 +341,7 @@ const char *const SCREEN_NAME[SCR_COUNT] = {
   "starter", "region", "gallery", "dexpick", "movepick", "box",
   "party", "keyboard", "card", "player", "clock", "gym", "gympick",
   "explore", "mart", "lan", "pick", "battle", "win", "learn", "train", "menu",
-  "bag", "minigame", "main", "tasks", "daycare", "dcpick", "tower", "challenge", "arcade", "trade", "tradepick", "friends", "casino", "casshop", "cardbook", "boxfilter", "monstats"
+  "bag", "minigame", "main", "tasks", "daycare", "dcpick", "tower", "challenge", "arcade", "trade", "tradepick", "friends", "casino", "casshop", "cardbook", "boxfilter", "monstats", "boxlist"
 };
 
 // Badge art for a region, or nullptr when that region has none yet.
@@ -735,6 +739,9 @@ extern bool boxFilterOpen;
 extern uint8_t monStats;           // ui_monstats.ino: 0, or which creature the STATS page shows
 enum : uint8_t { MS_NONE = 0, MS_LIVE, MS_PARTY, MS_BOX };
 bool monSheetStatsAt(int16_t x, int16_t y);
+bool monSheetMoveAt(int16_t x, int16_t y);
+void monSheetPill(uint8_t which, int *x, int *y, int *w, int *h);
+void renderBoxList(); void boxListTap(int16_t x, int16_t y); uint8_t boxListPages();
 void renderMonStats();
 extern uint8_t boxFilter, boxSort;
 uint8_t boxPages();
@@ -1991,6 +1998,8 @@ void onSwipeV(int dir) {
   if (boxOpen)      {
     if (!back) return;
     if (boxFilterOpen) { boxFilterOpen = false; return; }   // the sheet, then the box
+    if (boxListOpen) { boxListOpen = false; return; }       // the overview, then the box
+    if (boxMoveFrom) { boxMoveFrom = 0; return; }           // a move in progress is put down
     boxOpen = false; boxSel = 0;
     return;
   }
@@ -2131,12 +2140,16 @@ void renderMonSheet(const PartyMon &m, bool fromBox) {
     drawMoveRow(78 + i * 52, m.moves[i], false, m.dex);
 
   // STATS: the full page, the same one the creature you raise gets
-  gfx->fillRoundRect(MSTATS_BTN_X, MSTATS_BTN_Y, MSTATS_BTN_W, MSTATS_BTN_H, 12, 0xFF98);   // pale gold
-  gfx->drawRoundRect(MSTATS_BTN_X, MSTATS_BTN_Y, MSTATS_BTN_W, MSTATS_BTN_H, 12, UI_INK);
-  gfx->setTextColor(UI_INK);
-  gfx->setTextSize(2);
-  gfx->setCursor(CX - (int)strlen(T(S_MS_BTN)) * 6, MSTATS_BTN_Y + MSTATS_BTN_H / 2 - 7);
-  gfx->print(T(S_MS_BTN));
+  for (uint8_t k = 0; k < (fromBox ? 2 : 1); k++) {   // STATS, and on a box sheet MOVE
+    int px, py, pw, ph; monSheetPill(k, &px, &py, &pw, &ph);
+    const char *lbl = k ? T(S_BOX_MOVE) : T(S_MS_BTN);
+    gfx->fillRoundRect(px, py, pw, ph, 12, k ? (uint16_t)0xBF1F : (uint16_t)0xFF98);   // pale blue / pale gold
+    gfx->drawRoundRect(px, py, pw, ph, 12, UI_INK);
+    gfx->setTextColor(UI_INK);
+    gfx->setTextSize(2);
+    gfx->setCursor(px + pw / 2 - (int)strlen(lbl) * 6, py + ph / 2 - 7);
+    gfx->print(lbl);
+  }
 
   // Which creature you are RAISING is now a choice you can make at any time.
   // It is a true exchange -- the one on the main screen takes the slot this one
@@ -2543,7 +2556,7 @@ void onSwipe(int dir) {
     return;
   }
   if (movePickOpen) { movePickOpen = false; return; }
-  if (boxOpen) { boxOpen = false; boxSel = 0; return; }
+  if (boxOpen) { if (boxListOpen) { boxListOpen = false; return; } if (boxMoveFrom) { boxMoveFrom = 0; return; } boxOpen = false; boxSel = 0; return; }
   if (gameOpen) { leaveGame(); return; }   // swipe out, keeping what you earned
   if (spdOpen) { leaveSpeed(); return; }
   if (kbOpen || clockOpen) return;
@@ -3140,7 +3153,7 @@ uint8_t uiCurrentScreen() {
   if (movePickOpen) return SCR_MOVEPICK;
   if (kbOpen && partyOpen) return SCR_KEYBOARD;   // naming a PC box: on top of it
   if (monStats && partyOpen) return SCR_MONSTATS;
-  if (partyOpen) return boxOpen ? (boxFilterOpen ? SCR_BOXFILTER : SCR_BOX) : SCR_PARTY;
+  if (partyOpen) return boxOpen ? (boxFilterOpen ? SCR_BOXFILTER : boxListOpen ? SCR_BOXLIST : SCR_BOX) : SCR_PARTY;
   if (bagOpen) return SCR_BAGSCR;
   if (kbOpen) return SCR_KEYBOARD;
   if (cardOpen) return SCR_CARD;
@@ -3264,6 +3277,7 @@ static RimPage uiRimTarget(uint16_t *pages) {
     case SCR_GALLERY: p = &galleryPage; n = (uint8_t)GAL_PAGES; break;
     case SCR_PLAYER:  p = &playerPage;  n = PLAYER_PAGES; break;
     case SCR_BOX:     p = &boxPage;     n = boxPages(); break;
+    case SCR_BOXLIST: p = &boxListPage; n = boxListPages(); break;
     case SCR_BAGSCR:  p = &bagPage;     n = bagPages(); break;
     case SCR_MART:    p = &martPage;    n = martPages(); break;
     case SCR_DCPICK:  r.p16 = &dcPage;  n = dcPickPages(); break;
@@ -3661,6 +3675,7 @@ void render() {
     if (boxOpen) {
       if (boxDetail) renderBoxDetail();
       else if (boxFilterOpen) renderBoxFilter();
+      else if (boxListOpen) renderBoxList();
       else renderBox();
     } else if (partyDetail) renderPartyDetail();
     else renderParty();
@@ -8346,7 +8361,7 @@ void boxPillCentre(int *x, int *y) { if (x) *x = CX; if (y) *y = BOX_PILL_Y + BO
 #define BOX_NAME_Y0 18
 #define BOX_NAME_Y1 62
 bool boxNameAt(int16_t x, int16_t y) {
-  return !boxFiltered() && !boxSwapFrom && y >= BOX_NAME_Y0 && y < BOX_NAME_Y1 && x >= CX - 120 && x <= CX + 120;
+  return !boxFiltered() && !boxSwapFrom && !boxMoveFrom && y >= BOX_NAME_Y0 && y < BOX_NAME_Y1 && x >= CX - 120 && x <= CX + 120;
 }
 
 #define GAL_CELL 80   // the square drawThumb() centres a sprite in (gallery, box)
@@ -8411,7 +8426,10 @@ void renderBox() {
   gfx->print(sub);
   // one line under that: the swap waiting to happen, else the sort in force
   char line[48] = "";
-  if (boxSwapFrom) {
+  if (boxMoveFrom) {
+    const PartyMon &p = party.box[boxMoveFrom - 1];
+    snprintf(line, sizeof(line), T(S_BOX_MOVE_FMT), p.empty() ? "-" : (p.nick[0] ? p.nick : DEX_TBL[p.dex].name));
+  } else if (boxSwapFrom) {
     const PartyMon &p = party.slots[boxSwapFrom - 1];
     snprintf(line, sizeof(line), T(S_BOX_SWAP), p.empty() ? "-" : (p.nick[0] ? p.nick : DEX_TBL[p.dex].name));
   } else if (boxSort != BS_SLOT) {
@@ -8425,13 +8443,19 @@ void renderBox() {
   for (uint8_t i = 0; i < BOX_PER_PAGE; i++) {
     int idx = boxIndexAt(i);
     drawBoxCell(i, idx < 0 ? nullptr : &party.box[idx]);
+    if (boxMoveFrom && idx == (int)boxMoveFrom - 1) {   // the one being moved
+      int cx, cy; boxCellPos(i, &cx, &cy);
+      uint16_t c = (millis() / 250) & 1 ? (uint16_t)0x041F : UI_BAR_WARN;
+      gfx->drawRoundRect(cx - 28, cy - 28, 56, 56, 9, c);
+      gfx->drawRoundRect(cx - 29, cy - 29, 58, 58, 10, c);
+    }
   }
   // FILTER: names what is shown; greyed while a party creature waits to come in
   // (that shows the plain box, where the empty slots are).
   {
     char pl[32];
     snprintf(pl, sizeof(pl), "%s: %s", boxFilterWord(), boxFilterName(boxFilter));
-    bool live = !boxSwapFrom;
+    bool live = !boxSwapFrom && !boxMoveFrom;
     gfx->fillRoundRect(CX - BOX_PILL_W / 2, BOX_PILL_Y, BOX_PILL_W, BOX_PILL_H, 16,
                        !live ? UI_TRACK : boxFiltered() ? (uint16_t)0xFF98 : UI_WHITE);
     gfx->drawRoundRect(CX - BOX_PILL_W / 2, BOX_PILL_Y, BOX_PILL_W, BOX_PILL_H, 16, UI_INK);
@@ -8447,6 +8471,7 @@ void renderBox() {
 
 void boxTap(int16_t x, int16_t y) {
   if (boxFilterOpen) { boxFilterTap(x, y); return; }
+  if (boxListOpen) { boxListTap(x, y); return; }
   // The sheet is checked first and is modal in the same way the party's is.
   if (boxDetail) {
     if (releaseConfirm) { monSheetConfirmTap(x, y, true); return; }
@@ -8461,6 +8486,14 @@ void boxTap(int16_t x, int16_t y) {
     }
     if (monSheetFavTap(x, y, party.box[boxDetail - 1], true)) return;
     if (monSheetStatsAt(x, y)) { monStats = MS_BOX; sfxPlay(SFX_TAP); return; }
+    if (monSheetMoveAt(x, y)) {              // MOVE: pick where it goes, in any box
+      boxMoveFrom = boxDetail;
+      boxPage = (uint8_t)((boxDetail - 1) / BOX_PER_PAGE);
+      boxDetail = 0;
+      releaseConfirm = false;
+      sfxPlay(SFX_TAP);
+      return;
+    }
     if (monSheetBtn(x, y, false)) {         // RELEASE -- ask first, always; never a favourite
       if (!monReleasable(party.box[boxDetail - 1])) { sfxPlay(SFX_DENY); return; }
       releaseConfirm = true;
@@ -8472,12 +8505,22 @@ void boxTap(int16_t x, int16_t y) {
     sfxPlay(SFX_TAP);
     return;
   }
-  if (boxNameAt(x, y)) {                    // the title: rename this box
-    openKeyboardFor(KB_BOX);
+  if (boxMoveFrom) {                        // MOVING: the next cell is where it goes
+    int i = boxCellAt(x, y);
+    if (i < 0) return;                       // only a cell answers; the rim pages
+    uint16_t to = (uint16_t)(boxPage * BOX_PER_PAGE + i);
+    if (to != boxMoveFrom - 1) { party.swapBoxBox(boxMoveFrom - 1, to); sfxPlay(SFX_MEDAL); }
+    else sfxPlay(SFX_TAP);                   // its own slot: put back, nothing moves
+    boxMoveFrom = 0;
+    return;
+  }
+  if (boxNameAt(x, y)) {                    // the title: every box at a glance
+    boxListOpen = true;
+    boxListPage = (uint8_t)(boxPage / BOX_LIST_PER);
     sfxPlay(SFX_TAP);
     return;
   }
-  if (!boxSwapFrom && boxPillAt(x, y)) {   // FILTER and SORT
+  if (!boxSwapFrom && !boxMoveFrom && boxPillAt(x, y)) {   // FILTER and SORT
     boxFilterOpen = true;
     sfxPlay(SFX_TAP);
     return;
@@ -8686,7 +8729,8 @@ void openKeyboardFor(uint8_t target) {
   kbTarget = target;
   kbOpen = true;
   const char *cur = (target == KB_TRAINER) ? pet.trainerName
-                  : (target == KB_BOX) ? party.boxNames[boxPage % BOX_BOXES] : pet.nick;
+                  : (target == KB_BOX) ? party.boxNames[boxPage % BOX_BOXES]
+                  : (target == KB_SEARCH) ? boxSearchQuery() : pet.nick;
   strncpy(nameBuf, cur, sizeof(nameBuf) - 1);
   nameBuf[sizeof(nameBuf) - 1] = 0;
   nameLen = strlen(nameBuf);
@@ -8741,6 +8785,12 @@ void keyboardTap(int16_t x, int16_t y) {
   } else if (i == 29) {  // OK
     if (kbTarget == KB_TRAINER) pet.renameTrainer(nameBuf);
     else if (kbTarget == KB_BOX) party.setBoxName(boxPage % BOX_BOXES, nameBuf);   // empty = "BOX n" again
+    else if (kbTarget == KB_SEARCH) {        // the box's SEARCH filter: show what matches
+      boxSearchSet(nameBuf);
+      boxFilter = nameBuf[0] ? BF_SEARCH : BF_ALL;
+      boxPage = 0;
+      boxFilterOpen = false;
+    }
     else pet.rename(nameBuf);
     kbOpen = false;
   } else if (nameLen < sizeof(nameBuf) - 1) {
