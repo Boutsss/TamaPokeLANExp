@@ -1,6 +1,6 @@
 {
-  "name": "TamaPoke v3.43",
-  "version": "3.43",
+  "name": "TamaPoke v3.44",
+  "version": "3.44",
   "new_install_prompt_erase": true,
   "builds": [
     {
@@ -19,7 +19,7 @@
           "offset": 57344
         },
         {
-          "path": "firmware/app.bin.enc?v=d0a26b454e0c26dc",
+          "path": "firmware/app.bin.enc?v=1c50da864d3124a4",
           "offset": 65536
         }
       ]
@@ -29,9 +29,9 @@
     "v": 1,
     "kdf": "PBKDF2-SHA256",
     "iterations": 600000,
-    "salt": "CL1spaBMwOsdbUQuqzyosQ==",
-    "check": "VFBMSy4dPThE6GDe2zJ26mT6hJznyYjCyEWhb+ZWy+B+Dr0RycA6wO85oLUgSX3q",
-    "size": 2623008,
-    "sha256": "36408e92c2e656403b4eb58472d5de6cf3c1aaef3a0906f3fc40047e66477264"
+    "salt": "VaVnpRooIz5pAct7hJ4qCA==",
+    "check": "VFBMS6ccKeB6iucH+HoghLQcqtc+m/UQZiTt6roQKNZ/O3kI7ngtxSWcfRX2C0Aq",
+    "size": 2669040,
+    "sha256": "23c3979b47bd5054850277f217369ed63f5104a9c282338b6f374863455fbc1c"
   }
 }

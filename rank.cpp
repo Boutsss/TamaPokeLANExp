@@ -159,7 +159,7 @@ bool rankAvatarUnlocked(uint8_t avatar) {
 }
 
 uint8_t rankNextAvatar(uint8_t cur) {
-  for (uint8_t k = 1; k <= AVATAR_COUNT; k++) {
+  for (uint16_t k = 1; k <= AVATAR_COUNT; k++) {   // uint16_t: AVATAR_COUNT can be 255
     uint8_t a = (uint8_t)((cur + k) % AVATAR_COUNT);
     if (rankAvatarUnlocked(a)) return a;
   }

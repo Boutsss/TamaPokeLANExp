@@ -124,15 +124,21 @@ const char *casinoPrizeName(uint8_t kind, uint8_t i);
 // the free default and is always owned.
 #define CASINO_BACKS_MAX 32
 #define CASINO_BGS_MAX 64
-#define CASINO_AVATARS_MAX 128
+// Avatar ownership is split: the first 128 bits sit where they always have in
+// the stored record, and bits 128..255 were APPENDED at its end (v3.44) -- the
+// record is append-only, so growing the first array would have moved every
+// field after it. Always go through casinoOwns()/the buy path, never index these.
+#define CASINO_AVATARS_LO 128
+#define CASINO_AVATARS_MAX 256
 struct CasinoState {
   uint32_t backs = 1;                    // bit i = back i owned
   uint8_t bgs[CASINO_BGS_MAX / 8] = { 1 };
-  uint8_t avatars[CASINO_AVATARS_MAX / 8] = { 0 };
+  uint8_t avatars[CASINO_AVATARS_LO / 8] = { 0 };
   uint8_t back = 0, bg = 0;              // equipped
   uint16_t hlBest = 0;                   // best High/Low streak
   uint16_t bjWins = 0;
   uint32_t slotBest = 0;                 // biggest single slot payout
+  uint8_t avatarsHi[(CASINO_AVATARS_MAX - CASINO_AVATARS_LO) / 8] = { 0 };
 };
 extern CasinoState casino;
 

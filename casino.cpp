@@ -258,12 +258,17 @@ static_assert(CARD_BACK_COUNT <= CASINO_BACKS_MAX, "raise CASINO_BACKS_MAX (appe
 static_assert(CARD_BG_COUNT <= CASINO_BGS_MAX, "raise CASINO_BGS_MAX (append-only bitmask)");
 static_assert(SHOP_AVATAR_COUNT <= CASINO_AVATARS_MAX, "raise CASINO_AVATARS_MAX");
 
+// The one place that knows ownership is two arrays (see casino.h).
+static uint8_t *avatarByte(uint8_t i) {
+  return i < CASINO_AVATARS_LO ? &casino.avatars[i / 8] : &casino.avatarsHi[(i - CASINO_AVATARS_LO) / 8];
+}
+
 bool casinoOwns(uint8_t kind, uint8_t i) {
   if (i >= casinoPrizeCount(kind)) return false;
   switch (kind) {
     case PK_BACK: return i == 0 || (casino.backs >> i) & 1;
     case PK_CARDBG: return i == 0 || (casino.bgs[i / 8] >> (i % 8)) & 1;
-    case PK_AVATAR: return (casino.avatars[i / 8] >> (i % 8)) & 1;
+    case PK_AVATAR: return (*avatarByte(i) >> (i % 8)) & 1;
     default: return false;
   }
 }
@@ -272,7 +277,7 @@ static void own(uint8_t kind, uint8_t i) {
   switch (kind) {
     case PK_BACK: casino.backs |= (1UL << i); break;
     case PK_CARDBG: casino.bgs[i / 8] |= (uint8_t)(1u << (i % 8)); break;
-    case PK_AVATAR: casino.avatars[i / 8] |= (uint8_t)(1u << (i % 8)); break;
+    case PK_AVATAR: *avatarByte(i) |= (uint8_t)(1u << (i % 8)); break;
   }
 }
 
@@ -298,7 +303,7 @@ void casinoEquip(uint8_t kind, uint8_t i) {
 #define CASINO_VER 1
 #define CASINO_KEY "casino"
 
-static size_t pack(uint8_t *b) {   // <= 96 bytes: 2+4+8+16+2+2+2+4 = 40
+static size_t pack(uint8_t *b) {   // <= 96 bytes: 2+4+8+16+2+2+2+4+16 = 56
   size_t n = 2;
   memcpy(b + n, &casino.backs, 4); n += 4;
   memcpy(b + n, casino.bgs, sizeof(casino.bgs)); n += sizeof(casino.bgs);
@@ -308,6 +313,7 @@ static size_t pack(uint8_t *b) {   // <= 96 bytes: 2+4+8+16+2+2+2+4 = 40
   memcpy(b + n, &casino.hlBest, 2); n += 2;
   memcpy(b + n, &casino.bjWins, 2); n += 2;
   memcpy(b + n, &casino.slotBest, 4); n += 4;
+  memcpy(b + n, casino.avatarsHi, sizeof(casino.avatarsHi)); n += sizeof(casino.avatarsHi);
   b[0] = CASINO_VER;
   b[1] = (uint8_t)n;
   return n;
@@ -335,6 +341,7 @@ void casinoBegin() {
     memcpy(&casino.hlBest, cur + at, 2); at += 2;
     memcpy(&casino.bjWins, cur + at, 2); at += 2;
     memcpy(&casino.slotBest, cur + at, 4); at += 4;
+    memcpy(casino.avatarsHi, cur + at, sizeof(casino.avatarsHi)); at += sizeof(casino.avatarsHi);
   }
   casino.backs |= 1;                          // the defaults are always owned
   casino.bgs[0] |= 1;

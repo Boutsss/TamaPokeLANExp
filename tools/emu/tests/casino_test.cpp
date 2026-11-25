@@ -115,6 +115,34 @@ int main(){
     ck(inR, "every spin lands in a pocket");
   }
 
+  // ---- a casino record from before avatar ownership grew past 128 bits.
+  // Layout then: [ver][len] backs(4) bgs(8) avatars(16) back bg hlBest(2)
+  // bjWins(2) slotBest(4) = 40 bytes. Its bits must keep their meaning and the
+  // appended high block must come up empty, never read from past its end.
+  {
+    nvs().clear();
+    uint8_t old[40] = { 1, 40 };
+    old[2] = 0x03;                       // backs 0 and 1
+    old[6] = 0x01;                       // bg 0
+    old[14] = 0x20;                      // avatar 5 (bgs end at 14)
+    old[14 + 15] = 0x80;                 // avatar 127, the last old bit
+    old[30] = 1;                         // back 1 equipped
+    old[34] = 9;                         // bjWins 9
+    { Preferences p; p.begin("tamapoke", false); p.putBytes("casino", old, sizeof(old)); p.end(); }
+    casinoBegin();
+    bool hiEmpty = true;
+    for (int i = 128; i < SHOP_AVATAR_COUNT; i++) if (casinoOwns(PK_AVATAR, i)) hiEmpty = false;
+    ck(casinoOwns(PK_AVATAR, 5) && casinoOwns(PK_AVATAR, 127) && !casinoOwns(PK_AVATAR, 6) && hiEmpty &&
+       casino.back == 1 && casino.bjWins == 9,
+       "an old 40-byte casino record loads unchanged, owning nothing past 128");
+    static_assert(SHOP_AVATAR_COUNT > 128, "this check needs avatars in the appended block");
+    uint16_t c = 60000; wallet = c; spendWorks = true;
+    ck(casinoBuy(PK_AVATAR, 200, c, spend), "an avatar past 128 can be bought");
+    casinoBegin();
+    ck(casinoOwns(PK_AVATAR, 200) && casinoOwns(PK_AVATAR, 5) && !casinoOwns(PK_AVATAR, 72),
+       "and survives a reload, beside the old bits, without setting bit 200 - 128");
+  }
+
   // ---- the prize shop
   {
     nvs().clear(); casinoBegin();
@@ -160,6 +188,24 @@ int main(){
       ck(champ >= 0 && casinoPrizeRetired(PK_AVATAR, champ) && !listed && !casinoBuy(PK_AVATAR, champ, c2, spend) && c2 == 60000,
          "CHAMP RED (the same sprite as RED) is not listed and cannot be bought");
       ck(casinoShopAt(PK_AVATAR, casinoShopCount(PK_AVATAR)) == -1, "the list ends where it says it does");
+      // Two listed prizes that draw the same (pixels AND colours) would be paying
+      // twice for one look.
+      int twins = 0;
+      for (uint8_t p = 0; p < casinoShopCount(PK_AVATAR); p++)
+        for (uint8_t q = p + 1; q < casinoShopCount(PK_AVATAR); q++) {
+          int i = casinoShopAt(PK_AVATAR, p), j = casinoShopAt(PK_AVATAR, q);
+          const AvatarArt &x = AVATARS[SHOP_AVATAR_FIRST + i], &y = AVATARS[SHOP_AVATAR_FIRST + j];
+          if (!memcmp(x.idx, y.idx, AVATAR_PX * AVATAR_PX) && !memcmp(x.pal, y.pal, 3 * sizeof(uint16_t))) {
+            printf("      %s and %s draw the same\n", SHOP_AVATAR_NAMES[i], SHOP_AVATAR_NAMES[j]);
+            twins++;
+          }
+        }
+      ck(twins == 0, "every listed shop avatar is its own art");
+      // Ownership is a bit per shop index, so the order is FROZEN: pin a few
+      // landmarks, including where the project's own drawings start.
+      ck(!strcmp(SHOP_AVATAR_NAMES[0], "AGATHA") && !strcmp(SHOP_AVATAR_NAMES[3], "LANCE") &&
+         !strcmp(SHOP_AVATAR_NAMES[81], "CAL") && SHOP_AVATAR_COUNT > 82 && !strcmp(SHOP_AVATAR_NAMES[82], "NINJA"),
+         "the shop's frozen order is unchanged and new avatars were appended");
     }
     bool ascii = true;
     for (uint8_t k=0;k<PK_KINDS;k++) for (uint8_t i=0;i<casinoPrizeCount(k);i++)
