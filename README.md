@@ -803,6 +803,44 @@ accept it.
 
 After any ending, a **new egg** appears.
 
+### Finding creatures in the box, and favourites
+
+**Filter and sort.** On the box screen, tap the **hub** (the circle in the
+middle) to open the FILTER sheet. Pick one chip to show only those creatures:
+
+| Filter | Shows |
+|---|---|
+| ALL | everything (the normal box, empty slots included) |
+| FAVOURITES | the ones you have starred |
+| SHINY | shinies |
+| HOLDING | creatures holding an item |
+| any of the 18 types | that type; a dual type counts for both of its types |
+
+The **SORT** pill at the bottom of the sheet cycles through: SLOT (the box's
+own order), LEVEL, IV TOTAL, ATTACK, DEFENCE, SPEED, HP (each highest first),
+DEX NO. and NAME (A-Z, by nickname if it has one). Creatures that tie keep
+their box order. With a filter or a sort on, the box shows only the matches,
+best first, the title says how many were found, and the rim pages through
+them. The hub names the active filter. While you are moving a party creature
+into the box, it shows the plain box, because that is where the empty slots
+are.
+
+**Favourites.** Every creature's sheet (party or box) has a **star** between
+its two buttons. Tap it to mark the creature a favourite, and again to unmark
+it. A favourite shows a gold star on its slot, and until you unstar it:
+
+- **RELEASE** is greyed out, and says why.
+- It is never offered as the one to replace when a farewell arrives with a
+  full party and box.
+- If the creature waiting for a slot is itself a favourite, it cannot simply
+  be let go either (unless every party member is a favourite, so you are never
+  stuck).
+- It cannot be offered in a trade. A creature you receive by trade arrives
+  unstarred.
+- Raised with RAISE THIS ONE, it stays a favourite: it cannot be released
+  with the long-press, nor retired early (which would lose it). A farewell it
+  has earned still banks it as normal.
+
 ### The Poké Mart
 
 On the tile axis between EXPLORE and the gyms, it turns real steps (the
