@@ -2503,7 +2503,7 @@ void Pet::load() {
   wallet = prefs.getUInt("wlt", 0);
   if (wallet > WALLET_CAP) wallet = WALLET_CAP;
   stepsTotal = prefs.getUInt("stps", 0);
-  // "coin2" is the full count (v3.46); absent on older saves, where "coin" is.
+  // "coin2" is the full count (v3.47); absent on older saves, where "coin" is.
   coins = prefs.isKey("coin2") ? prefs.getUInt("coin2", 0) : prefs.getUShort("coin", 0);
   if (coins > COIN_CAP) coins = COIN_CAP;
   prefs.getString("nick", nick, sizeof(nick));
@@ -2522,8 +2522,7 @@ void Pet::load() {
   lastLearnLevel = prefs.getUChar("mvlv", 0);
   frozen = prefs.getBool("froz", false);
   // "avt2" is the full index (v3.45); absent on older saves, where "avtr" is.
-  avatar = prefs.getUShort("avt2", 0xFFFF);
-  if (avatar == 0xFFFF) avatar = prefs.getUChar("avtr", 0);
+  avatar = prefs.isKey("avt2") ? prefs.getUShort("avt2", 0) : prefs.getUChar("avtr", 0);
   // Absent on a Kanto-only save, which leaves both arrays zeroed -- exactly
   // "no Johto or Hoenn badges yet".
   loadBlob(prefs, "badgX", badgesX, sizeof(badgesX));
