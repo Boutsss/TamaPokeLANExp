@@ -114,6 +114,7 @@ DEALER = (RED, 'rocket')   # all six frames: the casino dealer animates
 # RED: the rank avatars stay rank-only, so it is not a prize.
 RETIRED = {'CHAMP RED'}
 
+AVFX_AURA = 1
 OUTLINE = 0x18C4     # same ink as the rest of the UI
 HIGHLIGHT = 0xEF7D   # a soft off-white, so it reads on the cream card
 
@@ -228,18 +229,20 @@ def main():
     names = []
     for fn, label, accent in PICKS:
         sym = 'AV_' + fn.upper()
-        names.append((sym, label, fn))
+        names.append((sym, label, fn, 0))
         emit(out, sym, [OUTLINE, accent, HIGHLIGHT], frames(RED, fn, accent)[0])
     shopNames = []
     for repo, fn, label, accent in SHOP:
         sym = 'AV_%s_%s' % ('G1' if repo == RED else 'G2', fn.upper())
-        names.append((sym, label, repo + '/' + fn))
+        names.append((sym, label, repo + '/' + fn, 0))
         shopNames.append(label)
         emit(out, sym, [OUTLINE, accent, HIGHLIGHT], frames(repo, fn, accent)[0])
     # Original art, after every pret entry so no shop index moves.
     CODE = {'.': 0xFF, '#': 0, 'a': 1, 'w': 2}
     seen = {}
-    for k, (label, accent, grid) in enumerate(ORIGINAL + costumes()):
+    towerShop = []   # shop indices of the legendary costumes: tower prizes, never sold
+    for k, (label, accent, grid, *rest) in enumerate(ORIGINAL + costumes()):
+        legendary = bool(rest and rest[0])
         if len(grid) != SIZE or any(len(r) != SIZE for r in grid) or len(label) > 10 \
                 or not label.isascii() or label in shopNames:
             raise SystemExit('original avatar %s: not 16x16, label too long/non-ASCII or taken' % label)
@@ -248,7 +251,9 @@ def main():
             raise SystemExit('original avatar %s draws exactly like %s' % (label, seen[key]))
         seen[key] = label
         sym = 'AV_OG%03d' % k
-        names.append((sym, label, 'original art'))
+        if legendary:
+            towerShop.append(len(shopNames))
+        names.append((sym, label, 'original art' + (', legendary: aura' if legendary else ''), AVFX_AURA if legendary else 0))
         shopNames.append(label)
         emit(out, sym, [OUTLINE, accent, HIGHLIGHT], [CODE[c] for r in grid for c in r])
     # Avatar indices are uint16_t (v3.45); the real ceiling is the casino's
@@ -263,11 +268,13 @@ def main():
     out.append('  const uint8_t *idx;')
     out.append('  const uint16_t *pal;')
     out.append('  const char *name;')
+    out.append('  uint8_t fx;               // AVFX_* bits: how drawAvatar() dresses it')
     out.append('};')
+    out.append('#define AVFX_AURA %d             // a glowing, pulsing outline (the legendary costumes)' % AVFX_AURA)
     out.append('#define AVATAR_PX %d' % SIZE)
     out.append('static const AvatarArt AVATARS[AVATAR_COUNT] = {')
-    for sym, label, src in names:
-        out.append('  { %s_IDX, %s_PAL, "%s" },   // %s' % (sym, sym, label, src))
+    for sym, label, src, fx in names:
+        out.append('  { %s_IDX, %s_PAL, "%s", %d },   // %s' % (sym, sym, label, fx, src))
     out.append('};')
     out.append('')
     open(outPath, 'w').write('\n'.join(out))
@@ -290,6 +297,12 @@ def main():
     nm.append('#define SHOP_AVATAR_RETIRED_COUNT %d' % len(ret))
     nm.append('static const uint16_t SHOP_AVATAR_RETIRED[SHOP_AVATAR_RETIRED_COUNT] = { %s };'
               % ', '.join('%d' % i for i in ret) + '   // ' + ', '.join(shopNames[i] for i in ret))
+    nm.append('// The legendary costumes: won at the Battle Tower (TOWER_AVATAR_FLOOR), never sold.')
+    nm.append('#define TOWER_AVATAR_COUNT %d' % len(towerShop))
+    nm.append('static const uint16_t TOWER_AVATARS[TOWER_AVATAR_COUNT] = {   // shop indices')
+    for i in range(0, len(towerShop), 12):
+        nm.append('  ' + ' '.join('%d,' % v for v in towerShop[i:i + 12]))
+    nm.append('};')
     nm.append('')
     open(namesPath, 'w').write('\n'.join(nm))
     sys.stderr.write('wrote %s (%d avatars, %d in the shop)\n' % (outPath, len(names), len(shopNames)))

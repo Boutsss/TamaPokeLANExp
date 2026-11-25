@@ -73,7 +73,7 @@ struct RimPage {
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
-#define FW_VERSION "3.45"
+#define FW_VERSION "3.46"
 
 Arduino_DataBus *bus = new Arduino_ESP32QSPI(
   LCD_CS, LCD_SCLK, LCD_SDIO0, LCD_SDIO1, LCD_SDIO2, LCD_SDIO3);
@@ -649,7 +649,7 @@ uint8_t btlTeamN = 0;
 uint8_t btlTeamIv = EASY_IV;
 bool btlSmart = false;        // the AI reads the type chart (hard mode, high tower floors)
 char btlFoeName[16] = "";
-TowerReward btlReward = { { 0 }, { 0 }, 0 };   // what a tower/rematch win put in the bag
+TowerReward btlReward = { { 0 }, { 0 }, 0, -1 };   // what a tower/rematch win put in the bag
 bool btlHard = false;
 Combatant btlSquad[TRAINER_TEAM_MAX + 1];
 uint8_t btlSquadN = 0, btlSquadAt = 0;
@@ -5567,6 +5567,20 @@ void renderWin() {
       gfx->setCursor(CX - (int)strlen(l) * 6, 196 + i * 26);
       gfx->print(l);
     }
+    // Floor TOWER_AVATAR_FLOOR: the legendary costume this run unlocked,
+    // drawn large with its aura (which needs 2 cells of room each side).
+    if (btlKind == BK_TOWER && btlReward.avatar >= 0) {
+      int ty = 196 + btlReward.n * 26;
+      gfx->setTextColor(UI_BAR_WARN);
+      gfx->setTextSize(2);
+      gfx->setCursor(CX - (int)strlen(T(S_TW_COSTUME)) * 6, ty);
+      gfx->print(T(S_TW_COSTUME));
+      drawAvatar((uint16_t)btlReward.avatar, CX - AVATAR_PX * 2, ty + 34, 4);
+      const char *an = AVATARS[btlReward.avatar % AVATAR_COUNT].name;
+      gfx->setTextColor(UI_INK);
+      gfx->setCursor(CX - (int)strlen(an) * 6, ty + 34 + AVATAR_PX * 4 + 14);
+      gfx->print(an);
+    }
   }
   // the badge, large, with the hard-mode halo if that is how it was won
   if (btlKind == BK_GYM && btlTrainer < TRAINER_GYMS) {
@@ -9904,8 +9918,44 @@ const char *statusMsg() {
 
 // dibuja un mapa de n x n pixeles escalado; silhouette=true lo pinta en tinta
 // An 8bpp indexed avatar, same shape as the badge art: 0xFF is transparent.
+// AVFX_AURA (the legendary costumes) adds a glow around the silhouette, drawn
+// OUTSIDE the 16x16 box by up to 2 cells: a solid inner ring in a light tint of
+// the costume's own colour that breathes over 1.6 s, and a sparse, drifting
+// sparkle ring beyond it. Callers leave 2*s px of room around it.
+static uint16_t avBlend(uint16_t a, uint16_t b, uint8_t t) {   // t/255 of b
+  int ar = a >> 11, ag = (a >> 5) & 63, ab = a & 31;
+  int br = b >> 11, bg = (b >> 5) & 63, bb = b & 31;
+  return (uint16_t)(((ar + (br - ar) * t / 255) << 11) | ((ag + (bg - ag) * t / 255) << 5) | (ab + (bb - ab) * t / 255));
+}
+static void drawAvatarAura(const AvatarArt &a, int x, int y, int s) {
+  auto solid = [&](int r, int c) {
+    return r >= 0 && c >= 0 && r < AVATAR_PX && c < AVATAR_PX && a.idx[r * AVATAR_PX + c] != 0xFF;
+  };
+  uint32_t ph = millis() % 1600;
+  uint8_t pulse = (uint8_t)(ph < 800 ? ph * 255 / 800 : (1600 - ph) * 255 / 800);
+  uint16_t inner = avBlend(a.pal[1], 0xFFFF, (uint8_t)(110 + pulse * 100 / 255));
+  uint16_t outer = avBlend(a.pal[1], 0xFFFF, 200);
+  uint8_t drift = (uint8_t)((millis() / 200) % 3);
+  int half = s > 1 ? s / 2 : 1;
+  for (int r = -2; r < AVATAR_PX + 2; r++)
+    for (int c = -2; c < AVATAR_PX + 2; c++) {
+      if (solid(r, c)) continue;
+      int d = 3;
+      for (int dr = -2; dr <= 2; dr++)
+        for (int dc = -2; dc <= 2; dc++)
+          if (solid(r + dr, c + dc)) {
+            int m = abs(dr) > abs(dc) ? abs(dr) : abs(dc);
+            if (m < d) d = m;
+          }
+      if (d == 1) gfx->fillRect(x + c * s, y + r * s, s, s, inner);
+      else if (d == 2 && (r + c + drift) % 3 == 0)
+        gfx->fillRect(x + c * s + (s - half) / 2, y + r * s + (s - half) / 2, half, half, outer);
+    }
+}
+
 void drawAvatar(uint16_t which, int x, int y, int s) {
   const AvatarArt &a = AVATARS[which % AVATAR_COUNT];
+  if (a.fx & AVFX_AURA) drawAvatarAura(a, x, y, s);
   for (int r = 0; r < AVATAR_PX; r++)
     for (int c = 0; c < AVATAR_PX; c++) {
       uint8_t v = a.idx[r * AVATAR_PX + c];

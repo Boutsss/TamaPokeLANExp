@@ -6,6 +6,8 @@
 #include "inventory.h"
 #include "game_events.h"
 #include "moves.h"
+#include "casino.h"
+#include "avatar_names.h"
 
 // ---------- state ----------
 // Everything here is player-wide, like the badges: it outlives every creature.
@@ -227,6 +229,7 @@ static void rwAdd(TowerReward &r, uint8_t item, uint8_t q) {
 // every 14th adds a held item, cycling LEFTOVERS, FOCUS SASH, QUICK CLAW.
 bool towerRewardFor(uint16_t streak, TowerReward &r) {
   r.n = 0;
+  r.avatar = -1;
   if (!streak || streak % TOWER_REWARD_EVERY) return false;
   uint16_t k = streak / TOWER_REWARD_EVERY;
   rwAdd(r, IT_ULTRABALL, 3);
@@ -242,6 +245,19 @@ static void bagReward(const TowerReward &r) {
   for (uint8_t i = 0; i < r.n; i++) bag.add(r.item[i], r.qty[i]);
 }
 
+int16_t towerGrantAvatar() {
+  uint16_t left = 0;
+  for (uint16_t k = 0; k < TOWER_AVATAR_COUNT; k++) if (!casinoOwns(PK_AVATAR, TOWER_AVATARS[k])) left++;
+  if (!left) return -1;
+  uint16_t pick = (uint16_t)random(left);
+  for (uint16_t k = 0; k < TOWER_AVATAR_COUNT; k++) {
+    uint16_t i = TOWER_AVATARS[k];
+    if (casinoOwns(PK_AVATAR, i)) continue;
+    if (pick-- == 0) return casinoGrantAvatar(i) ? (int16_t)(AVATAR_BASE_COUNT + i) : -1;
+  }
+  return -1;
+}
+
 uint16_t towerWin(TowerReward *got) {
   if (s_streak < TOWER_STREAK_MAX) s_streak++;
   if (s_streak > s_best) s_best = s_streak;
@@ -252,6 +268,10 @@ uint16_t towerWin(TowerReward *got) {
   bool any = towerRewardFor(s_streak, r);
   if (any) bagReward(r);
   if (got) { if (any) *got = r; else got->n = 0; }
+  // After the save, like the items: a reset in between loses the costume
+  // rather than handing out two.
+  int16_t av = s_streak == TOWER_AVATAR_FLOOR ? towerGrantAvatar() : -1;
+  if (got) got->avatar = av;
   gameEvent(EV_TOWER_WIN, (int16_t)s_streak);
   return s_streak;
 }
@@ -361,6 +381,7 @@ uint8_t rematchTop(uint8_t region, uint8_t idx, uint8_t *count) {
 // BALLs from a gym leader, 3 from the Elite 4, LEFTOVERS from the champion.
 bool rematchRewardFor(uint8_t idx, bool first, TowerReward &r) {
   r.n = 0;
+  r.avatar = -1;
   if (idx >= TRAINER_COUNT) return false;
   bool champ = idx == TRAINER_COUNT - 1, e4 = idx >= TRAINER_GYMS && !champ;
   rwAdd(r, champ ? IT_LUM_BERRY : e4 ? IT_SITRUS_BERRY : IT_ORAN_BERRY, 1);

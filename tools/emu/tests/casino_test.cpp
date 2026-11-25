@@ -137,10 +137,12 @@ int main(){
        "an old 40-byte casino record loads unchanged, owning nothing past 128");
     static_assert(SHOP_AVATAR_COUNT > 128, "this check needs avatars in the appended block");
     uint16_t c = 60000; wallet = c; spendWorks = true;
-    ck(casinoBuy(PK_AVATAR, 200, c, spend), "an avatar past 128 can be bought");
+    const uint16_t HI = 150;   // sold, and in the 128-255 block
+    static_assert(HI < SHOP_AVATAR_COUNT, "");
+    ck(casinoPrizeSold(PK_AVATAR, HI) && casinoBuy(PK_AVATAR, HI, c, spend), "an avatar past 128 can be bought");
     casinoBegin();
-    ck(casinoOwns(PK_AVATAR, 200) && casinoOwns(PK_AVATAR, 5) && !casinoOwns(PK_AVATAR, 72),
-       "and survives a reload, beside the old bits, without setting bit 200 - 128");
+    ck(casinoOwns(PK_AVATAR, HI) && casinoOwns(PK_AVATAR, 5) && !casinoOwns(PK_AVATAR, HI - 128),
+       "and survives a reload, beside the old bits, without setting bit HI - 128");
   }
 
   // ---- the prize shop
@@ -156,16 +158,17 @@ int main(){
     ck(casinoBuy(PK_BACK,1,coins,spend) && wallet==20000-CASINO_PRICE && casinoOwns(PK_BACK,1), "TEAM ROCKET back bought for 9999");
     coins = wallet;
     ck(!casinoBuy(PK_BACK,1,coins,spend), "and not twice");
-    ck(casinoBuy(PK_AVATAR,SHOP_AVATAR_COUNT-1,coins,spend) || wallet < CASINO_PRICE, "the last shop avatar is buyable");
+    const int lastSold = casinoShopAt(PK_AVATAR, casinoShopCount(PK_AVATAR) - 1);
+    ck(lastSold > 0 && casinoBuy(PK_AVATAR,(uint16_t)lastSold,coins,spend), "the last avatar the shop lists is buyable");
     casinoEquip(PK_CARDBG, 5);
     ck(casino.bg == 0, "an unowned background cannot be equipped");
     casinoEquip(PK_BACK, 1);
     casinoBegin();
     ck(casinoOwns(PK_BACK,1) && casino.back==1, "ownership and the equipped back survive a reload");
-    ck(casinoOwns(PK_AVATAR,SHOP_AVATAR_COUNT-1), "and the avatar");
+    ck(casinoOwns(PK_AVATAR,(uint16_t)lastSold), "and the avatar");
     ck(casinoShopCount(PK_BACK)==CARD_BACK_COUNT && casinoShopCount(PK_CARDBG)==CARD_BG_COUNT &&
-       casinoShopCount(PK_AVATAR)==SHOP_AVATAR_COUNT - SHOP_AVATAR_RETIRED_COUNT,
-       "the shop lists every design there is, bar the retired ones");
+       casinoShopCount(PK_AVATAR)==SHOP_AVATAR_COUNT - SHOP_AVATAR_RETIRED_COUNT - TOWER_AVATAR_COUNT,
+       "the shop lists every design there is, bar the retired ones and the tower's");
     // RANK AVATARS ARE EARNED, NOT BOUGHT: nothing the shop lists may draw the
     // same as a rank avatar. Checked on the PIXELS, so a new duplicate fails
     // here whatever it is called.

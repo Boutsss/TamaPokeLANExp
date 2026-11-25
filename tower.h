@@ -32,6 +32,9 @@ class Pet;
 #define TOWER_BST_TOP 600
 #define TOWER_BST_HALF 50
 #define TOWER_STREAK_MAX 30000  // rides in an int16_t event arg
+// Every run that clears this floor unlocks one legendary costume avatar, picked
+// at random from those not owned yet (none once all are).
+#define TOWER_AVATAR_FLOOR 100
 
 // ---- gym rematches
 #define REMATCH_IV 24           // between EASY_IV and HARD_IV
@@ -90,7 +93,11 @@ struct TowerReward {
   uint8_t item[3];
   uint8_t qty[3];
   uint8_t n;
+  int16_t avatar;               // towerWin only: the AVATARS[] index just unlocked, else -1
 };
+// Unlocks a random legendary costume not owned yet. Returns its AVATARS[]
+// index, or -1 when every one is owned.
+int16_t towerGrantAvatar();
 // What reaching `streak` is worth. True only at a multiple of TOWER_REWARD_EVERY.
 bool towerRewardFor(uint16_t streak, TowerReward &r);
 // A floor cleared: streak +1, best kept, saved, the reward (if any) bagged

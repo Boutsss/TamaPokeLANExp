@@ -542,6 +542,7 @@ enum StrId : uint16_t {
   S_BN_WENT_BACK,
   S_DEX_SWIPE,
   S_DEX_NOENTRY,
+  S_TW_COSTUME,     // tower floor 100: "NEW COSTUME!"
   STR_COUNT
 };
 

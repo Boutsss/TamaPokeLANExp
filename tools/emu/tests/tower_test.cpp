@@ -16,6 +16,8 @@
 #include "noart.h"
 #include "game_events.h"
 #include "moves.h"
+#include "casino.h"
+#include "avatars.h"
 #include <cstdio>
 #include <cstring>
 uint32_t g_seed = 9; FakeSerial Serial; FakeESP ESP; FakeWire Wire;
@@ -284,6 +286,70 @@ int main() {
     printf("      KANTO BROCK rematch:");
     for (int k = 0; k < n; k++) printf(" %s L%u", DEX_TBL[m[k].dex].name, m[k].level);
     printf("\n");
+  }
+
+  // ---- floor 100: a legendary costume, at random, from those not owned yet.
+  // LAST on purpose: it climbs 300 floors, which fills the bag with rewards.
+  {
+    casinoBegin();
+    auto ownedTower = []() { int n = 0; for (uint16_t k = 0; k < TOWER_AVATAR_COUNT; k++) n += casinoOwns(PK_AVATAR, TOWER_AVATARS[k]); return n; };
+    auto isTower = [](int16_t av) {
+      if (av < AVATAR_BASE_COUNT) return false;
+      for (uint16_t k = 0; k < TOWER_AVATAR_COUNT; k++) if (TOWER_AVATARS[k] == av - AVATAR_BASE_COUNT) return true;
+      return false;
+    };
+    ck(TOWER_AVATAR_COUNT == 94 && ownedTower() == 0, "94 legendary costumes, none owned at first");
+    bool auraAll = true;
+    for (uint16_t k = 0; k < TOWER_AVATAR_COUNT; k++) if (!(AVATARS[AVATAR_BASE_COUNT + TOWER_AVATARS[k]].fx & AVFX_AURA)) auraAll = false;
+    int auraOthers = 0;
+    for (uint16_t a = 0; a < AVATAR_COUNT; a++) if ((AVATARS[a].fx & AVFX_AURA) && !isTower(a)) auraOthers++;
+    ck(auraAll && auraOthers == 0, "every legendary costume glows, and nothing else does");
+    uint16_t c = 60000;
+    ck(!casinoPrizeSold(PK_AVATAR, TOWER_AVATARS[0]) && !casinoBuy(PK_AVATAR, TOWER_AVATARS[0], c, [](uint16_t){ return true; }),
+       "a legendary costume is not sold at the Game Corner");
+    ck(!casinoGrantAvatar(0) && !casinoOwns(PK_AVATAR, 0), "and the tower cannot hand out an ordinary prize");
+
+    towerStartRun(77);
+    bool early = false;
+    for (int f = 1; f < TOWER_AVATAR_FLOOR; f++) { TowerReward g; towerWin(&g); if (g.avatar >= 0) early = true; }
+    ck(!early && ownedTower() == 0, "floors 1-99 unlock no costume");
+    randomSeed(11);
+    TowerReward g100; towerWin(&g100);
+    ck(towerStreak() == 100 && isTower(g100.avatar) && casinoOwns(PK_AVATAR, g100.avatar - AVATAR_BASE_COUNT) && ownedTower() == 1,
+       "clearing floor 100 unlocks exactly one legendary costume, and says which");
+    TowerReward g101; towerWin(&g101);
+    ck(g101.avatar < 0 && ownedTower() == 1, "floor 101 does not unlock another");
+    casinoBegin();
+    ck(casinoOwns(PK_AVATAR, g100.avatar - AVATAR_BASE_COUNT), "the costume is saved");
+
+    towerLoss();
+    for (int f = 1; f < TOWER_AVATAR_FLOOR; f++) towerWin(nullptr);
+    TowerReward again; towerWin(&again);
+    ck(isTower(again.avatar) && again.avatar != g100.avatar && ownedTower() == 2,
+       "the next run to clear 100 unlocks a different one");
+
+    // random among those left, not the first in the list every time
+    int firstPicks = 0;
+    for (int t = 0; t < 8; t++) {
+      randomSeed(100 + t);
+      int16_t a = towerGrantAvatar();
+      if (a >= 0) {
+        // was it the FIRST unowned one in the list? (only lower ones count, and
+        // the grant itself has just been recorded, so it is not among them)
+        bool lowerFree = false;
+        for (uint16_t k = 0; k < TOWER_AVATAR_COUNT && TOWER_AVATARS[k] < a - AVATAR_BASE_COUNT; k++)
+          if (!casinoOwns(PK_AVATAR, TOWER_AVATARS[k])) lowerFree = true;
+        if (!lowerFree) firstPicks++;
+      }
+    }
+    ck(firstPicks < 8, "the pick is random among the costumes left");
+
+    for (uint16_t k = 0; k < TOWER_AVATAR_COUNT; k++) casinoGrantAvatar(TOWER_AVATARS[k]);
+    ck(ownedTower() == TOWER_AVATAR_COUNT && towerGrantAvatar() == -1, "with all 94 owned there is nothing left to give");
+    towerLoss();
+    for (int f = 1; f < TOWER_AVATAR_FLOOR; f++) towerWin(nullptr);
+    TowerReward full; towerWin(&full);
+    ck(full.avatar < 0 && towerStreak() == 100, "and floor 100 then still counts, with no costume");
   }
 
   printf(bad ? "tower_test: %d FAILED\n" : "tower_test: all passed\n", bad);

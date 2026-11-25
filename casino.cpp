@@ -230,15 +230,26 @@ bool casinoPrizeRetired(uint8_t kind, uint16_t i) {
   for (uint16_t k = 0; k < SHOP_AVATAR_RETIRED_COUNT; k++) if (SHOP_AVATAR_RETIRED[k] == i) return true;
   return false;
 }
-// The shop's list: position -> prize index, retired ones skipped. -1 past the end.
+// Won, not bought: the legendary costumes are Battle Tower prizes (tower.cpp).
+// They live in the same ownership bits so the avatar picker needs no second rule.
+bool casinoPrizeTower(uint8_t kind, uint16_t i) {
+  if (kind != PK_AVATAR) return false;
+  for (uint16_t k = 0; k < TOWER_AVATAR_COUNT; k++) if (TOWER_AVATARS[k] == i) return true;
+  return false;
+}
+// THE rule for "does the shop offer it": listing, counting and buying all ask this.
+bool casinoPrizeSold(uint8_t kind, uint16_t i) {
+  return i < casinoPrizeCount(kind) && !casinoPrizeRetired(kind, i) && !casinoPrizeTower(kind, i);
+}
+// The shop's list: position -> prize index, unsold ones skipped. -1 past the end.
 uint16_t casinoShopCount(uint8_t kind) {
   uint16_t n = 0;
-  for (uint16_t i = 0; i < casinoPrizeCount(kind); i++) if (!casinoPrizeRetired(kind, i)) n++;
+  for (uint16_t i = 0; i < casinoPrizeCount(kind); i++) if (casinoPrizeSold(kind, i)) n++;
   return n;
 }
 int casinoShopAt(uint8_t kind, uint16_t pos) {
   for (uint16_t i = 0; i < casinoPrizeCount(kind); i++) {
-    if (casinoPrizeRetired(kind, i)) continue;
+    if (!casinoPrizeSold(kind, i)) continue;
     if (pos-- == 0) return i;
   }
   return -1;
@@ -286,12 +297,18 @@ static void own(uint8_t kind, uint16_t i) {
 }
 
 bool casinoBuy(uint8_t kind, uint16_t i, uint16_t &coins, bool (*spend)(uint16_t)) {
-  if (i >= casinoPrizeCount(kind) || casinoOwns(kind, i) || casinoPrizeRetired(kind, i)) return false;
+  if (!casinoPrizeSold(kind, i) || casinoOwns(kind, i)) return false;
   if (coins < CASINO_PRICE) return false;
   if (!spend || !spend(CASINO_PRICE)) return false;   // coins first
   own(kind, i);
   casinoSave();
   return true;
+}
+
+bool casinoGrantAvatar(uint16_t i) {
+  if (!casinoPrizeTower(PK_AVATAR, i) || casinoOwns(PK_AVATAR, i)) return false;
+  own(PK_AVATAR, i);
+  return casinoSave();
 }
 
 void casinoEquip(uint8_t kind, uint16_t i) {

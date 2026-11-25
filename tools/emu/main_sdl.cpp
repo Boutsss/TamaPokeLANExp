@@ -214,6 +214,8 @@ Pinball &arcPinball(); bool pinStep(uint32_t); uint8_t surfStep(uint32_t); void 
 enum : uint8_t { MS_NONE_ = 0, MS_LIVE_, MS_PARTY_, MS_BOX_ };
 extern bool boxOpen; extern uint8_t boxSwapFrom;
 extern bool btlNewBadge; extern uint32_t btlWinUntil;
+#include "tower.h"
+extern TowerReward btlReward; void startTowerBattle();
 extern uint8_t pickTrainer, pickPage;
 void pickDefault(uint8_t cap);
 extern bool pickHard;
@@ -432,6 +434,17 @@ static int shotMode(const char *screen, const char *out, int lvl, int iv, int de
     startTrainerBattle(2, true);
     btlNewBadge = true; btlWinUntil = 60000; pet.badgesHard = 0x07;
     btlTrainGain = 8; btlTrainWhich = 2;
+  }
+  else if (!strcmp(screen, "towerwin")) {   // floor 100: a legendary costume unlocked
+    // Through the real paths: the champion beaten opens the tower, the fight is
+    // a real tower battle, and floor 100's costume comes out of towerWin().
+    pet.badges |= (uint16_t)(1u << (TRAINER_COUNT - 1));
+    towerStartRun(towerSeed());
+    for (int f = 1; f < TOWER_AVATAR_FLOOR; f++) towerWin(nullptr);
+    startTowerBattle();
+    randomSeed(5);
+    towerWin(&btlReward);
+    btlWinUntil = 60000;
   }
   else if (!strcmp(screen, "pmon")) {
     Pet t; t.dbgHatchAs(131,false); t.ivAtk=t.ivDef=t.ivSpe=t.ivHp=27;

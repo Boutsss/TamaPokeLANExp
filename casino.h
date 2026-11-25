@@ -150,6 +150,11 @@ void casinoBegin();
 bool casinoSave();
 bool casinoOwns(uint8_t kind, uint16_t i);
 bool casinoPrizeRetired(uint8_t kind, uint16_t i);   // kept in the index order, never sold
+bool casinoPrizeTower(uint8_t kind, uint16_t i);     // a Battle Tower prize: won, never sold
+bool casinoPrizeSold(uint8_t kind, uint16_t i);      // THE shop rule: listed, counted, buyable
+// Records a tower-prize avatar as owned (tower.cpp). False if it is not one or
+// is already owned. Saves.
+bool casinoGrantAvatar(uint16_t shopIdx);
 uint16_t casinoShopCount(uint8_t kind);               // what the shop LISTS
 int casinoShopAt(uint8_t kind, uint16_t pos);         // list position -> prize index, -1 past the end
 // Spends CASINO_PRICE from `coins` and records the prize. False (nothing

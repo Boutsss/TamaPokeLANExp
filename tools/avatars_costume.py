@@ -302,9 +302,12 @@ def dex_names():
 
 
 def costumes():
+    """(label, accent, grid, legendary). A legendary costume is drawn with a
+    glowing aura and is won at the Battle Tower, not sold."""
     names = dex_names()
+    legend = {d for d, *_ in LEGENDARIES}
     out = []
     for dex, col, head, face, body in COSTUMES:
         label = names[dex][:10].rstrip()
-        out.append((label, rgb565(col), compose(head, face, body)))
+        out.append((label, rgb565(col), compose(head, face, body), dex in legend))
     return out

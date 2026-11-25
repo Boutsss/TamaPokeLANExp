@@ -5217,262 +5217,264 @@ struct AvatarArt {
   const uint8_t *idx;
   const uint16_t *pal;
   const char *name;
+  uint8_t fx;               // AVFX_* bits: how drawAvatar() dresses it
 };
+#define AVFX_AURA 1             // a glowing, pulsing outline (the legendary costumes)
 #define AVATAR_PX 16
 static const AvatarArt AVATARS[AVATAR_COUNT] = {
-  { AV_RED_IDX, AV_RED_PAL, "RED" },   // red
-  { AV_BLUE_IDX, AV_BLUE_PAL, "BLUE" },   // blue
-  { AV_GIRL_IDX, AV_GIRL_PAL, "GIRL" },   // girl
-  { AV_COOLTRAINER_M_IDX, AV_COOLTRAINER_M_PAL, "ACE M" },   // cooltrainer_m
-  { AV_COOLTRAINER_F_IDX, AV_COOLTRAINER_F_PAL, "ACE F" },   // cooltrainer_f
-  { AV_HIKER_IDX, AV_HIKER_PAL, "HIKER" },   // hiker
-  { AV_SAILOR_IDX, AV_SAILOR_PAL, "SAILOR" },   // sailor
-  { AV_YOUNGSTER_IDX, AV_YOUNGSTER_PAL, "YOUNGSTER" },   // youngster
-  { AV_G1_AGATHA_IDX, AV_G1_AGATHA_PAL, "AGATHA" },   // pokered/agatha
-  { AV_G1_BRUNO_IDX, AV_G1_BRUNO_PAL, "BRUNO" },   // pokered/bruno
-  { AV_G1_LORELEI_IDX, AV_G1_LORELEI_PAL, "LORELEI" },   // pokered/lorelei
-  { AV_G1_LANCE_IDX, AV_G1_LANCE_PAL, "LANCE" },   // pokered/lance
-  { AV_G1_KOGA_IDX, AV_G1_KOGA_PAL, "KOGA" },   // pokered/koga
-  { AV_G1_GIOVANNI_IDX, AV_G1_GIOVANNI_PAL, "GIOVANNI" },   // pokered/giovanni
-  { AV_G1_OAK_IDX, AV_G1_OAK_PAL, "PROF OAK" },   // pokered/oak
-  { AV_G1_DAISY_IDX, AV_G1_DAISY_PAL, "DAISY" },   // pokered/daisy
-  { AV_G1_MOM_IDX, AV_G1_MOM_PAL, "MOM" },   // pokered/mom
-  { AV_G1_MR_FUJI_IDX, AV_G1_MR_FUJI_PAL, "MR FUJI" },   // pokered/mr_fuji
-  { AV_G1_ROCKET_IDX, AV_G1_ROCKET_PAL, "ROCKET" },   // pokered/rocket
-  { AV_G1_SCIENTIST_IDX, AV_G1_SCIENTIST_PAL, "SCIENTIST" },   // pokered/scientist
-  { AV_G1_GAMBLER_IDX, AV_G1_GAMBLER_PAL, "GAMBLER" },   // pokered/gambler
-  { AV_G1_GENTLEMAN_IDX, AV_G1_GENTLEMAN_PAL, "GENTLEMAN" },   // pokered/gentleman
-  { AV_G1_BEAUTY_IDX, AV_G1_BEAUTY_PAL, "BEAUTY" },   // pokered/beauty
-  { AV_G1_BIKER_IDX, AV_G1_BIKER_PAL, "BIKER" },   // pokered/biker
-  { AV_G1_ROCKER_IDX, AV_G1_ROCKER_PAL, "ROCKER" },   // pokered/rocker
-  { AV_G1_FISHER_IDX, AV_G1_FISHER_PAL, "FISHER" },   // pokered/fisher
-  { AV_G1_FISHING_GURU_IDX, AV_G1_FISHING_GURU_PAL, "FISH GURU" },   // pokered/fishing_guru
-  { AV_G1_SUPER_NERD_IDX, AV_G1_SUPER_NERD_PAL, "NERD" },   // pokered/super_nerd
-  { AV_G1_CHANNELER_IDX, AV_G1_CHANNELER_PAL, "CHANNELER" },   // pokered/channeler
-  { AV_G1_CAPTAIN_IDX, AV_G1_CAPTAIN_PAL, "CAPTAIN" },   // pokered/captain
-  { AV_G1_COOK_IDX, AV_G1_COOK_PAL, "CHEF" },   // pokered/cook
-  { AV_G1_WAITER_IDX, AV_G1_WAITER_PAL, "WAITER" },   // pokered/waiter
-  { AV_G1_NURSE_IDX, AV_G1_NURSE_PAL, "NURSE" },   // pokered/nurse
-  { AV_G1_CLERK_IDX, AV_G1_CLERK_PAL, "CLERK" },   // pokered/clerk
-  { AV_G1_GUARD_IDX, AV_G1_GUARD_PAL, "GUARD" },   // pokered/guard
-  { AV_G1_GYM_GUIDE_IDX, AV_G1_GYM_GUIDE_PAL, "GYM GUIDE" },   // pokered/gym_guide
-  { AV_G1_WARDEN_IDX, AV_G1_WARDEN_PAL, "WARDEN" },   // pokered/warden
-  { AV_G1_SAFARI_ZONE_WORKER_IDX, AV_G1_SAFARI_ZONE_WORKER_PAL, "SAFARI" },   // pokered/safari_zone_worker
-  { AV_G1_SILPH_PRESIDENT_IDX, AV_G1_SILPH_PRESIDENT_PAL, "PRESIDENT" },   // pokered/silph_president
-  { AV_G1_SILPH_WORKER_M_IDX, AV_G1_SILPH_WORKER_M_PAL, "SILPH M" },   // pokered/silph_worker_m
-  { AV_G1_SILPH_WORKER_F_IDX, AV_G1_SILPH_WORKER_F_PAL, "SILPH F" },   // pokered/silph_worker_f
-  { AV_G1_BRUNETTE_GIRL_IDX, AV_G1_BRUNETTE_GIRL_PAL, "LASS" },   // pokered/brunette_girl
-  { AV_G1_LITTLE_BOY_IDX, AV_G1_LITTLE_BOY_PAL, "LITTLE BOY" },   // pokered/little_boy
-  { AV_G1_LITTLE_GIRL_IDX, AV_G1_LITTLE_GIRL_PAL, "LITTLEGIRL" },   // pokered/little_girl
-  { AV_G1_GAMEBOY_KID_IDX, AV_G1_GAMEBOY_KID_PAL, "GAME KID" },   // pokered/gameboy_kid
-  { AV_G1_GRAMPS_IDX, AV_G1_GRAMPS_PAL, "GRAMPS" },   // pokered/gramps
-  { AV_G1_GRANNY_IDX, AV_G1_GRANNY_PAL, "GRANNY" },   // pokered/granny
-  { AV_G1_BALDING_GUY_IDX, AV_G1_BALDING_GUY_PAL, "BALD GUY" },   // pokered/balding_guy
-  { AV_G1_MIDDLE_AGED_MAN_IDX, AV_G1_MIDDLE_AGED_MAN_PAL, "DAD" },   // pokered/middle_aged_man
-  { AV_G1_MIDDLE_AGED_WOMAN_IDX, AV_G1_MIDDLE_AGED_WOMAN_PAL, "AUNT" },   // pokered/middle_aged_woman
-  { AV_G1_LINK_RECEPTIONIST_IDX, AV_G1_LINK_RECEPTIONIST_PAL, "TRADE DESK" },   // pokered/link_receptionist
-  { AV_G1_BIKE_SHOP_CLERK_IDX, AV_G1_BIKE_SHOP_CLERK_PAL, "BIKE SHOP" },   // pokered/bike_shop_clerk
-  { AV_G2_CHRIS_IDX, AV_G2_CHRIS_PAL, "GOLD" },   // pokecrystal/chris
-  { AV_G2_KRIS_IDX, AV_G2_KRIS_PAL, "KRIS" },   // pokecrystal/kris
-  { AV_G2_RIVAL_IDX, AV_G2_RIVAL_PAL, "SILVER" },   // pokecrystal/rival
-  { AV_G2_RED_IDX, AV_G2_RED_PAL, "CHAMP RED" },   // pokecrystal/red
-  { AV_G2_ELM_IDX, AV_G2_ELM_PAL, "PROF ELM" },   // pokecrystal/elm
-  { AV_G2_BILL_IDX, AV_G2_BILL_PAL, "BILL" },   // pokecrystal/bill
-  { AV_G2_KURT_IDX, AV_G2_KURT_PAL, "KURT" },   // pokecrystal/kurt
-  { AV_G2_FALKNER_IDX, AV_G2_FALKNER_PAL, "FALKNER" },   // pokecrystal/falkner
-  { AV_G2_BUGSY_IDX, AV_G2_BUGSY_PAL, "BUGSY" },   // pokecrystal/bugsy
-  { AV_G2_WHITNEY_IDX, AV_G2_WHITNEY_PAL, "WHITNEY" },   // pokecrystal/whitney
-  { AV_G2_MORTY_IDX, AV_G2_MORTY_PAL, "MORTY" },   // pokecrystal/morty
-  { AV_G2_CHUCK_IDX, AV_G2_CHUCK_PAL, "CHUCK" },   // pokecrystal/chuck
-  { AV_G2_JASMINE_IDX, AV_G2_JASMINE_PAL, "JASMINE" },   // pokecrystal/jasmine
-  { AV_G2_PRYCE_IDX, AV_G2_PRYCE_PAL, "PRYCE" },   // pokecrystal/pryce
-  { AV_G2_CLAIR_IDX, AV_G2_CLAIR_PAL, "CLAIR" },   // pokecrystal/clair
-  { AV_G2_WILL_IDX, AV_G2_WILL_PAL, "WILL" },   // pokecrystal/will
-  { AV_G2_KAREN_IDX, AV_G2_KAREN_PAL, "KAREN" },   // pokecrystal/karen
-  { AV_G2_BROCK_IDX, AV_G2_BROCK_PAL, "BROCK" },   // pokecrystal/brock
-  { AV_G2_MISTY_IDX, AV_G2_MISTY_PAL, "MISTY" },   // pokecrystal/misty
-  { AV_G2_SURGE_IDX, AV_G2_SURGE_PAL, "LT SURGE" },   // pokecrystal/surge
-  { AV_G2_ERIKA_IDX, AV_G2_ERIKA_PAL, "ERIKA" },   // pokecrystal/erika
-  { AV_G2_JANINE_IDX, AV_G2_JANINE_PAL, "JANINE" },   // pokecrystal/janine
-  { AV_G2_SABRINA_IDX, AV_G2_SABRINA_PAL, "SABRINA" },   // pokecrystal/sabrina
-  { AV_G2_BLAINE_IDX, AV_G2_BLAINE_PAL, "BLAINE" },   // pokecrystal/blaine
-  { AV_G2_ROCKET_GIRL_IDX, AV_G2_ROCKET_GIRL_PAL, "ROCKET F" },   // pokecrystal/rocket_girl
-  { AV_G2_BLACK_BELT_IDX, AV_G2_BLACK_BELT_PAL, "BLACK BELT" },   // pokecrystal/black_belt
-  { AV_G2_BUG_CATCHER_IDX, AV_G2_BUG_CATCHER_PAL, "BUG KID" },   // pokecrystal/bug_catcher
-  { AV_G2_KIMONO_GIRL_IDX, AV_G2_KIMONO_GIRL_PAL, "KIMONO" },   // pokecrystal/kimono_girl
-  { AV_G2_LASS_IDX, AV_G2_LASS_PAL, "LASS GSC" },   // pokecrystal/lass
-  { AV_G2_OFFICER_IDX, AV_G2_OFFICER_PAL, "OFFICER" },   // pokecrystal/officer
-  { AV_G2_PHARMACIST_IDX, AV_G2_PHARMACIST_PAL, "PHARMACIST" },   // pokecrystal/pharmacist
-  { AV_G2_POKEFAN_M_IDX, AV_G2_POKEFAN_M_PAL, "POKEFAN M" },   // pokecrystal/pokefan_m
-  { AV_G2_POKEFAN_F_IDX, AV_G2_POKEFAN_F_PAL, "POKEFAN F" },   // pokecrystal/pokefan_f
-  { AV_G2_SAGE_IDX, AV_G2_SAGE_PAL, "SAGE" },   // pokecrystal/sage
-  { AV_G2_TEACHER_IDX, AV_G2_TEACHER_PAL, "TEACHER" },   // pokecrystal/teacher
-  { AV_G2_TWIN_IDX, AV_G2_TWIN_PAL, "TWINS" },   // pokecrystal/twin
-  { AV_G2_ELDER_IDX, AV_G2_ELDER_PAL, "ELDER" },   // pokecrystal/elder
-  { AV_G2_CAL_IDX, AV_G2_CAL_PAL, "CAL" },   // pokecrystal/cal
-  { AV_OG000_IDX, AV_OG000_PAL, "NINJA" },   // original art
-  { AV_OG001_IDX, AV_OG001_PAL, "PIKA HOOD" },   // original art
-  { AV_OG002_IDX, AV_OG002_PAL, "BALL CAP" },   // original art
-  { AV_OG003_IDX, AV_OG003_PAL, "GHOST HOOD" },   // original art
-  { AV_OG004_IDX, AV_OG004_PAL, "WIZARD" },   // original art
-  { AV_OG005_IDX, AV_OG005_PAL, "PIRATE" },   // original art
-  { AV_OG006_IDX, AV_OG006_PAL, "KNIGHT" },   // original art
-  { AV_OG007_IDX, AV_OG007_PAL, "ASTRONAUT" },   // original art
-  { AV_OG008_IDX, AV_OG008_PAL, "BULBASAUR" },   // original art
-  { AV_OG009_IDX, AV_OG009_PAL, "CHARMANDER" },   // original art
-  { AV_OG010_IDX, AV_OG010_PAL, "SQUIRTLE" },   // original art
-  { AV_OG011_IDX, AV_OG011_PAL, "CHIKORITA" },   // original art
-  { AV_OG012_IDX, AV_OG012_PAL, "CYNDAQUIL" },   // original art
-  { AV_OG013_IDX, AV_OG013_PAL, "TOTODILE" },   // original art
-  { AV_OG014_IDX, AV_OG014_PAL, "TREECKO" },   // original art
-  { AV_OG015_IDX, AV_OG015_PAL, "TORCHIC" },   // original art
-  { AV_OG016_IDX, AV_OG016_PAL, "MUDKIP" },   // original art
-  { AV_OG017_IDX, AV_OG017_PAL, "TURTWIG" },   // original art
-  { AV_OG018_IDX, AV_OG018_PAL, "CHIMCHAR" },   // original art
-  { AV_OG019_IDX, AV_OG019_PAL, "PIPLUP" },   // original art
-  { AV_OG020_IDX, AV_OG020_PAL, "SNIVY" },   // original art
-  { AV_OG021_IDX, AV_OG021_PAL, "TEPIG" },   // original art
-  { AV_OG022_IDX, AV_OG022_PAL, "OSHAWOTT" },   // original art
-  { AV_OG023_IDX, AV_OG023_PAL, "CHESPIN" },   // original art
-  { AV_OG024_IDX, AV_OG024_PAL, "FENNEKIN" },   // original art
-  { AV_OG025_IDX, AV_OG025_PAL, "FROAKIE" },   // original art
-  { AV_OG026_IDX, AV_OG026_PAL, "ROWLET" },   // original art
-  { AV_OG027_IDX, AV_OG027_PAL, "LITTEN" },   // original art
-  { AV_OG028_IDX, AV_OG028_PAL, "POPPLIO" },   // original art
-  { AV_OG029_IDX, AV_OG029_PAL, "GROOKEY" },   // original art
-  { AV_OG030_IDX, AV_OG030_PAL, "SCORBUNNY" },   // original art
-  { AV_OG031_IDX, AV_OG031_PAL, "SOBBLE" },   // original art
-  { AV_OG032_IDX, AV_OG032_PAL, "SPRIGATITO" },   // original art
-  { AV_OG033_IDX, AV_OG033_PAL, "FUECOCO" },   // original art
-  { AV_OG034_IDX, AV_OG034_PAL, "QUAXLY" },   // original art
-  { AV_OG035_IDX, AV_OG035_PAL, "VENUSAUR" },   // original art
-  { AV_OG036_IDX, AV_OG036_PAL, "CHARIZARD" },   // original art
-  { AV_OG037_IDX, AV_OG037_PAL, "BLASTOISE" },   // original art
-  { AV_OG038_IDX, AV_OG038_PAL, "MEGANIUM" },   // original art
-  { AV_OG039_IDX, AV_OG039_PAL, "TYPHLOSION" },   // original art
-  { AV_OG040_IDX, AV_OG040_PAL, "FERALIGATR" },   // original art
-  { AV_OG041_IDX, AV_OG041_PAL, "SCEPTILE" },   // original art
-  { AV_OG042_IDX, AV_OG042_PAL, "BLAZIKEN" },   // original art
-  { AV_OG043_IDX, AV_OG043_PAL, "SWAMPERT" },   // original art
-  { AV_OG044_IDX, AV_OG044_PAL, "TORTERRA" },   // original art
-  { AV_OG045_IDX, AV_OG045_PAL, "INFERNAPE" },   // original art
-  { AV_OG046_IDX, AV_OG046_PAL, "EMPOLEON" },   // original art
-  { AV_OG047_IDX, AV_OG047_PAL, "SERPERIOR" },   // original art
-  { AV_OG048_IDX, AV_OG048_PAL, "EMBOAR" },   // original art
-  { AV_OG049_IDX, AV_OG049_PAL, "SAMUROTT" },   // original art
-  { AV_OG050_IDX, AV_OG050_PAL, "CHESNAUGHT" },   // original art
-  { AV_OG051_IDX, AV_OG051_PAL, "DELPHOX" },   // original art
-  { AV_OG052_IDX, AV_OG052_PAL, "GRENINJA" },   // original art
-  { AV_OG053_IDX, AV_OG053_PAL, "DECIDUEYE" },   // original art
-  { AV_OG054_IDX, AV_OG054_PAL, "INCINEROAR" },   // original art
-  { AV_OG055_IDX, AV_OG055_PAL, "PRIMARINA" },   // original art
-  { AV_OG056_IDX, AV_OG056_PAL, "RILLABOOM" },   // original art
-  { AV_OG057_IDX, AV_OG057_PAL, "CINDERACE" },   // original art
-  { AV_OG058_IDX, AV_OG058_PAL, "INTELEON" },   // original art
-  { AV_OG059_IDX, AV_OG059_PAL, "MEOWSCARAD" },   // original art
-  { AV_OG060_IDX, AV_OG060_PAL, "SKELEDIRGE" },   // original art
-  { AV_OG061_IDX, AV_OG061_PAL, "QUAQUAVAL" },   // original art
-  { AV_OG062_IDX, AV_OG062_PAL, "VAPOREON" },   // original art
-  { AV_OG063_IDX, AV_OG063_PAL, "JOLTEON" },   // original art
-  { AV_OG064_IDX, AV_OG064_PAL, "FLAREON" },   // original art
-  { AV_OG065_IDX, AV_OG065_PAL, "ESPEON" },   // original art
-  { AV_OG066_IDX, AV_OG066_PAL, "UMBREON" },   // original art
-  { AV_OG067_IDX, AV_OG067_PAL, "LEAFEON" },   // original art
-  { AV_OG068_IDX, AV_OG068_PAL, "GLACEON" },   // original art
-  { AV_OG069_IDX, AV_OG069_PAL, "SYLVEON" },   // original art
-  { AV_OG070_IDX, AV_OG070_PAL, "MIMIKYU" },   // original art
-  { AV_OG071_IDX, AV_OG071_PAL, "ARTICUNO" },   // original art
-  { AV_OG072_IDX, AV_OG072_PAL, "ZAPDOS" },   // original art
-  { AV_OG073_IDX, AV_OG073_PAL, "MOLTRES" },   // original art
-  { AV_OG074_IDX, AV_OG074_PAL, "MEWTWO" },   // original art
-  { AV_OG075_IDX, AV_OG075_PAL, "MEW" },   // original art
-  { AV_OG076_IDX, AV_OG076_PAL, "RAIKOU" },   // original art
-  { AV_OG077_IDX, AV_OG077_PAL, "ENTEI" },   // original art
-  { AV_OG078_IDX, AV_OG078_PAL, "SUICUNE" },   // original art
-  { AV_OG079_IDX, AV_OG079_PAL, "LUGIA" },   // original art
-  { AV_OG080_IDX, AV_OG080_PAL, "HO-OH" },   // original art
-  { AV_OG081_IDX, AV_OG081_PAL, "CELEBI" },   // original art
-  { AV_OG082_IDX, AV_OG082_PAL, "REGIROCK" },   // original art
-  { AV_OG083_IDX, AV_OG083_PAL, "REGICE" },   // original art
-  { AV_OG084_IDX, AV_OG084_PAL, "REGISTEEL" },   // original art
-  { AV_OG085_IDX, AV_OG085_PAL, "LATIAS" },   // original art
-  { AV_OG086_IDX, AV_OG086_PAL, "LATIOS" },   // original art
-  { AV_OG087_IDX, AV_OG087_PAL, "KYOGRE" },   // original art
-  { AV_OG088_IDX, AV_OG088_PAL, "GROUDON" },   // original art
-  { AV_OG089_IDX, AV_OG089_PAL, "RAYQUAZA" },   // original art
-  { AV_OG090_IDX, AV_OG090_PAL, "JIRACHI" },   // original art
-  { AV_OG091_IDX, AV_OG091_PAL, "DEOXYS" },   // original art
-  { AV_OG092_IDX, AV_OG092_PAL, "UXIE" },   // original art
-  { AV_OG093_IDX, AV_OG093_PAL, "MESPRIT" },   // original art
-  { AV_OG094_IDX, AV_OG094_PAL, "AZELF" },   // original art
-  { AV_OG095_IDX, AV_OG095_PAL, "DIALGA" },   // original art
-  { AV_OG096_IDX, AV_OG096_PAL, "PALKIA" },   // original art
-  { AV_OG097_IDX, AV_OG097_PAL, "HEATRAN" },   // original art
-  { AV_OG098_IDX, AV_OG098_PAL, "REGIGIGAS" },   // original art
-  { AV_OG099_IDX, AV_OG099_PAL, "GIRATINA" },   // original art
-  { AV_OG100_IDX, AV_OG100_PAL, "CRESSELIA" },   // original art
-  { AV_OG101_IDX, AV_OG101_PAL, "PHIONE" },   // original art
-  { AV_OG102_IDX, AV_OG102_PAL, "MANAPHY" },   // original art
-  { AV_OG103_IDX, AV_OG103_PAL, "DARKRAI" },   // original art
-  { AV_OG104_IDX, AV_OG104_PAL, "SHAYMIN" },   // original art
-  { AV_OG105_IDX, AV_OG105_PAL, "ARCEUS" },   // original art
-  { AV_OG106_IDX, AV_OG106_PAL, "VICTINI" },   // original art
-  { AV_OG107_IDX, AV_OG107_PAL, "COBALION" },   // original art
-  { AV_OG108_IDX, AV_OG108_PAL, "TERRAKION" },   // original art
-  { AV_OG109_IDX, AV_OG109_PAL, "VIRIZION" },   // original art
-  { AV_OG110_IDX, AV_OG110_PAL, "TORNADUS" },   // original art
-  { AV_OG111_IDX, AV_OG111_PAL, "THUNDURUS" },   // original art
-  { AV_OG112_IDX, AV_OG112_PAL, "RESHIRAM" },   // original art
-  { AV_OG113_IDX, AV_OG113_PAL, "ZEKROM" },   // original art
-  { AV_OG114_IDX, AV_OG114_PAL, "LANDORUS" },   // original art
-  { AV_OG115_IDX, AV_OG115_PAL, "KYUREM" },   // original art
-  { AV_OG116_IDX, AV_OG116_PAL, "KELDEO" },   // original art
-  { AV_OG117_IDX, AV_OG117_PAL, "MELOETTA" },   // original art
-  { AV_OG118_IDX, AV_OG118_PAL, "GENESECT" },   // original art
-  { AV_OG119_IDX, AV_OG119_PAL, "XERNEAS" },   // original art
-  { AV_OG120_IDX, AV_OG120_PAL, "YVELTAL" },   // original art
-  { AV_OG121_IDX, AV_OG121_PAL, "ZYGARDE" },   // original art
-  { AV_OG122_IDX, AV_OG122_PAL, "DIANCIE" },   // original art
-  { AV_OG123_IDX, AV_OG123_PAL, "HOOPA" },   // original art
-  { AV_OG124_IDX, AV_OG124_PAL, "VOLCANION" },   // original art
-  { AV_OG125_IDX, AV_OG125_PAL, "TYPE NULL" },   // original art
-  { AV_OG126_IDX, AV_OG126_PAL, "SILVALLY" },   // original art
-  { AV_OG127_IDX, AV_OG127_PAL, "TAPU KOKO" },   // original art
-  { AV_OG128_IDX, AV_OG128_PAL, "TAPU LELE" },   // original art
-  { AV_OG129_IDX, AV_OG129_PAL, "TAPU BULU" },   // original art
-  { AV_OG130_IDX, AV_OG130_PAL, "TAPU FINI" },   // original art
-  { AV_OG131_IDX, AV_OG131_PAL, "COSMOG" },   // original art
-  { AV_OG132_IDX, AV_OG132_PAL, "COSMOEM" },   // original art
-  { AV_OG133_IDX, AV_OG133_PAL, "SOLGALEO" },   // original art
-  { AV_OG134_IDX, AV_OG134_PAL, "LUNALA" },   // original art
-  { AV_OG135_IDX, AV_OG135_PAL, "NECROZMA" },   // original art
-  { AV_OG136_IDX, AV_OG136_PAL, "MAGEARNA" },   // original art
-  { AV_OG137_IDX, AV_OG137_PAL, "MARSHADOW" },   // original art
-  { AV_OG138_IDX, AV_OG138_PAL, "ZERAORA" },   // original art
-  { AV_OG139_IDX, AV_OG139_PAL, "MELTAN" },   // original art
-  { AV_OG140_IDX, AV_OG140_PAL, "MELMETAL" },   // original art
-  { AV_OG141_IDX, AV_OG141_PAL, "ZACIAN" },   // original art
-  { AV_OG142_IDX, AV_OG142_PAL, "ZAMAZENTA" },   // original art
-  { AV_OG143_IDX, AV_OG143_PAL, "ETERNATUS" },   // original art
-  { AV_OG144_IDX, AV_OG144_PAL, "KUBFU" },   // original art
-  { AV_OG145_IDX, AV_OG145_PAL, "URSHIFU" },   // original art
-  { AV_OG146_IDX, AV_OG146_PAL, "ZARUDE" },   // original art
-  { AV_OG147_IDX, AV_OG147_PAL, "REGIELEKI" },   // original art
-  { AV_OG148_IDX, AV_OG148_PAL, "REGIDRAGO" },   // original art
-  { AV_OG149_IDX, AV_OG149_PAL, "GLASTRIER" },   // original art
-  { AV_OG150_IDX, AV_OG150_PAL, "SPECTRIER" },   // original art
-  { AV_OG151_IDX, AV_OG151_PAL, "CALYREX" },   // original art
-  { AV_OG152_IDX, AV_OG152_PAL, "ENAMORUS" },   // original art
-  { AV_OG153_IDX, AV_OG153_PAL, "WO CHIEN" },   // original art
-  { AV_OG154_IDX, AV_OG154_PAL, "CHIEN PAO" },   // original art
-  { AV_OG155_IDX, AV_OG155_PAL, "TING LU" },   // original art
-  { AV_OG156_IDX, AV_OG156_PAL, "CHI YU" },   // original art
-  { AV_OG157_IDX, AV_OG157_PAL, "KORAIDON" },   // original art
-  { AV_OG158_IDX, AV_OG158_PAL, "MIRAIDON" },   // original art
-  { AV_OG159_IDX, AV_OG159_PAL, "OKIDOGI" },   // original art
-  { AV_OG160_IDX, AV_OG160_PAL, "MUNKIDORI" },   // original art
-  { AV_OG161_IDX, AV_OG161_PAL, "FEZANDIPIT" },   // original art
-  { AV_OG162_IDX, AV_OG162_PAL, "OGERPON" },   // original art
-  { AV_OG163_IDX, AV_OG163_PAL, "TERAPAGOS" },   // original art
-  { AV_OG164_IDX, AV_OG164_PAL, "PECHARUNT" },   // original art
+  { AV_RED_IDX, AV_RED_PAL, "RED", 0 },   // red
+  { AV_BLUE_IDX, AV_BLUE_PAL, "BLUE", 0 },   // blue
+  { AV_GIRL_IDX, AV_GIRL_PAL, "GIRL", 0 },   // girl
+  { AV_COOLTRAINER_M_IDX, AV_COOLTRAINER_M_PAL, "ACE M", 0 },   // cooltrainer_m
+  { AV_COOLTRAINER_F_IDX, AV_COOLTRAINER_F_PAL, "ACE F", 0 },   // cooltrainer_f
+  { AV_HIKER_IDX, AV_HIKER_PAL, "HIKER", 0 },   // hiker
+  { AV_SAILOR_IDX, AV_SAILOR_PAL, "SAILOR", 0 },   // sailor
+  { AV_YOUNGSTER_IDX, AV_YOUNGSTER_PAL, "YOUNGSTER", 0 },   // youngster
+  { AV_G1_AGATHA_IDX, AV_G1_AGATHA_PAL, "AGATHA", 0 },   // pokered/agatha
+  { AV_G1_BRUNO_IDX, AV_G1_BRUNO_PAL, "BRUNO", 0 },   // pokered/bruno
+  { AV_G1_LORELEI_IDX, AV_G1_LORELEI_PAL, "LORELEI", 0 },   // pokered/lorelei
+  { AV_G1_LANCE_IDX, AV_G1_LANCE_PAL, "LANCE", 0 },   // pokered/lance
+  { AV_G1_KOGA_IDX, AV_G1_KOGA_PAL, "KOGA", 0 },   // pokered/koga
+  { AV_G1_GIOVANNI_IDX, AV_G1_GIOVANNI_PAL, "GIOVANNI", 0 },   // pokered/giovanni
+  { AV_G1_OAK_IDX, AV_G1_OAK_PAL, "PROF OAK", 0 },   // pokered/oak
+  { AV_G1_DAISY_IDX, AV_G1_DAISY_PAL, "DAISY", 0 },   // pokered/daisy
+  { AV_G1_MOM_IDX, AV_G1_MOM_PAL, "MOM", 0 },   // pokered/mom
+  { AV_G1_MR_FUJI_IDX, AV_G1_MR_FUJI_PAL, "MR FUJI", 0 },   // pokered/mr_fuji
+  { AV_G1_ROCKET_IDX, AV_G1_ROCKET_PAL, "ROCKET", 0 },   // pokered/rocket
+  { AV_G1_SCIENTIST_IDX, AV_G1_SCIENTIST_PAL, "SCIENTIST", 0 },   // pokered/scientist
+  { AV_G1_GAMBLER_IDX, AV_G1_GAMBLER_PAL, "GAMBLER", 0 },   // pokered/gambler
+  { AV_G1_GENTLEMAN_IDX, AV_G1_GENTLEMAN_PAL, "GENTLEMAN", 0 },   // pokered/gentleman
+  { AV_G1_BEAUTY_IDX, AV_G1_BEAUTY_PAL, "BEAUTY", 0 },   // pokered/beauty
+  { AV_G1_BIKER_IDX, AV_G1_BIKER_PAL, "BIKER", 0 },   // pokered/biker
+  { AV_G1_ROCKER_IDX, AV_G1_ROCKER_PAL, "ROCKER", 0 },   // pokered/rocker
+  { AV_G1_FISHER_IDX, AV_G1_FISHER_PAL, "FISHER", 0 },   // pokered/fisher
+  { AV_G1_FISHING_GURU_IDX, AV_G1_FISHING_GURU_PAL, "FISH GURU", 0 },   // pokered/fishing_guru
+  { AV_G1_SUPER_NERD_IDX, AV_G1_SUPER_NERD_PAL, "NERD", 0 },   // pokered/super_nerd
+  { AV_G1_CHANNELER_IDX, AV_G1_CHANNELER_PAL, "CHANNELER", 0 },   // pokered/channeler
+  { AV_G1_CAPTAIN_IDX, AV_G1_CAPTAIN_PAL, "CAPTAIN", 0 },   // pokered/captain
+  { AV_G1_COOK_IDX, AV_G1_COOK_PAL, "CHEF", 0 },   // pokered/cook
+  { AV_G1_WAITER_IDX, AV_G1_WAITER_PAL, "WAITER", 0 },   // pokered/waiter
+  { AV_G1_NURSE_IDX, AV_G1_NURSE_PAL, "NURSE", 0 },   // pokered/nurse
+  { AV_G1_CLERK_IDX, AV_G1_CLERK_PAL, "CLERK", 0 },   // pokered/clerk
+  { AV_G1_GUARD_IDX, AV_G1_GUARD_PAL, "GUARD", 0 },   // pokered/guard
+  { AV_G1_GYM_GUIDE_IDX, AV_G1_GYM_GUIDE_PAL, "GYM GUIDE", 0 },   // pokered/gym_guide
+  { AV_G1_WARDEN_IDX, AV_G1_WARDEN_PAL, "WARDEN", 0 },   // pokered/warden
+  { AV_G1_SAFARI_ZONE_WORKER_IDX, AV_G1_SAFARI_ZONE_WORKER_PAL, "SAFARI", 0 },   // pokered/safari_zone_worker
+  { AV_G1_SILPH_PRESIDENT_IDX, AV_G1_SILPH_PRESIDENT_PAL, "PRESIDENT", 0 },   // pokered/silph_president
+  { AV_G1_SILPH_WORKER_M_IDX, AV_G1_SILPH_WORKER_M_PAL, "SILPH M", 0 },   // pokered/silph_worker_m
+  { AV_G1_SILPH_WORKER_F_IDX, AV_G1_SILPH_WORKER_F_PAL, "SILPH F", 0 },   // pokered/silph_worker_f
+  { AV_G1_BRUNETTE_GIRL_IDX, AV_G1_BRUNETTE_GIRL_PAL, "LASS", 0 },   // pokered/brunette_girl
+  { AV_G1_LITTLE_BOY_IDX, AV_G1_LITTLE_BOY_PAL, "LITTLE BOY", 0 },   // pokered/little_boy
+  { AV_G1_LITTLE_GIRL_IDX, AV_G1_LITTLE_GIRL_PAL, "LITTLEGIRL", 0 },   // pokered/little_girl
+  { AV_G1_GAMEBOY_KID_IDX, AV_G1_GAMEBOY_KID_PAL, "GAME KID", 0 },   // pokered/gameboy_kid
+  { AV_G1_GRAMPS_IDX, AV_G1_GRAMPS_PAL, "GRAMPS", 0 },   // pokered/gramps
+  { AV_G1_GRANNY_IDX, AV_G1_GRANNY_PAL, "GRANNY", 0 },   // pokered/granny
+  { AV_G1_BALDING_GUY_IDX, AV_G1_BALDING_GUY_PAL, "BALD GUY", 0 },   // pokered/balding_guy
+  { AV_G1_MIDDLE_AGED_MAN_IDX, AV_G1_MIDDLE_AGED_MAN_PAL, "DAD", 0 },   // pokered/middle_aged_man
+  { AV_G1_MIDDLE_AGED_WOMAN_IDX, AV_G1_MIDDLE_AGED_WOMAN_PAL, "AUNT", 0 },   // pokered/middle_aged_woman
+  { AV_G1_LINK_RECEPTIONIST_IDX, AV_G1_LINK_RECEPTIONIST_PAL, "TRADE DESK", 0 },   // pokered/link_receptionist
+  { AV_G1_BIKE_SHOP_CLERK_IDX, AV_G1_BIKE_SHOP_CLERK_PAL, "BIKE SHOP", 0 },   // pokered/bike_shop_clerk
+  { AV_G2_CHRIS_IDX, AV_G2_CHRIS_PAL, "GOLD", 0 },   // pokecrystal/chris
+  { AV_G2_KRIS_IDX, AV_G2_KRIS_PAL, "KRIS", 0 },   // pokecrystal/kris
+  { AV_G2_RIVAL_IDX, AV_G2_RIVAL_PAL, "SILVER", 0 },   // pokecrystal/rival
+  { AV_G2_RED_IDX, AV_G2_RED_PAL, "CHAMP RED", 0 },   // pokecrystal/red
+  { AV_G2_ELM_IDX, AV_G2_ELM_PAL, "PROF ELM", 0 },   // pokecrystal/elm
+  { AV_G2_BILL_IDX, AV_G2_BILL_PAL, "BILL", 0 },   // pokecrystal/bill
+  { AV_G2_KURT_IDX, AV_G2_KURT_PAL, "KURT", 0 },   // pokecrystal/kurt
+  { AV_G2_FALKNER_IDX, AV_G2_FALKNER_PAL, "FALKNER", 0 },   // pokecrystal/falkner
+  { AV_G2_BUGSY_IDX, AV_G2_BUGSY_PAL, "BUGSY", 0 },   // pokecrystal/bugsy
+  { AV_G2_WHITNEY_IDX, AV_G2_WHITNEY_PAL, "WHITNEY", 0 },   // pokecrystal/whitney
+  { AV_G2_MORTY_IDX, AV_G2_MORTY_PAL, "MORTY", 0 },   // pokecrystal/morty
+  { AV_G2_CHUCK_IDX, AV_G2_CHUCK_PAL, "CHUCK", 0 },   // pokecrystal/chuck
+  { AV_G2_JASMINE_IDX, AV_G2_JASMINE_PAL, "JASMINE", 0 },   // pokecrystal/jasmine
+  { AV_G2_PRYCE_IDX, AV_G2_PRYCE_PAL, "PRYCE", 0 },   // pokecrystal/pryce
+  { AV_G2_CLAIR_IDX, AV_G2_CLAIR_PAL, "CLAIR", 0 },   // pokecrystal/clair
+  { AV_G2_WILL_IDX, AV_G2_WILL_PAL, "WILL", 0 },   // pokecrystal/will
+  { AV_G2_KAREN_IDX, AV_G2_KAREN_PAL, "KAREN", 0 },   // pokecrystal/karen
+  { AV_G2_BROCK_IDX, AV_G2_BROCK_PAL, "BROCK", 0 },   // pokecrystal/brock
+  { AV_G2_MISTY_IDX, AV_G2_MISTY_PAL, "MISTY", 0 },   // pokecrystal/misty
+  { AV_G2_SURGE_IDX, AV_G2_SURGE_PAL, "LT SURGE", 0 },   // pokecrystal/surge
+  { AV_G2_ERIKA_IDX, AV_G2_ERIKA_PAL, "ERIKA", 0 },   // pokecrystal/erika
+  { AV_G2_JANINE_IDX, AV_G2_JANINE_PAL, "JANINE", 0 },   // pokecrystal/janine
+  { AV_G2_SABRINA_IDX, AV_G2_SABRINA_PAL, "SABRINA", 0 },   // pokecrystal/sabrina
+  { AV_G2_BLAINE_IDX, AV_G2_BLAINE_PAL, "BLAINE", 0 },   // pokecrystal/blaine
+  { AV_G2_ROCKET_GIRL_IDX, AV_G2_ROCKET_GIRL_PAL, "ROCKET F", 0 },   // pokecrystal/rocket_girl
+  { AV_G2_BLACK_BELT_IDX, AV_G2_BLACK_BELT_PAL, "BLACK BELT", 0 },   // pokecrystal/black_belt
+  { AV_G2_BUG_CATCHER_IDX, AV_G2_BUG_CATCHER_PAL, "BUG KID", 0 },   // pokecrystal/bug_catcher
+  { AV_G2_KIMONO_GIRL_IDX, AV_G2_KIMONO_GIRL_PAL, "KIMONO", 0 },   // pokecrystal/kimono_girl
+  { AV_G2_LASS_IDX, AV_G2_LASS_PAL, "LASS GSC", 0 },   // pokecrystal/lass
+  { AV_G2_OFFICER_IDX, AV_G2_OFFICER_PAL, "OFFICER", 0 },   // pokecrystal/officer
+  { AV_G2_PHARMACIST_IDX, AV_G2_PHARMACIST_PAL, "PHARMACIST", 0 },   // pokecrystal/pharmacist
+  { AV_G2_POKEFAN_M_IDX, AV_G2_POKEFAN_M_PAL, "POKEFAN M", 0 },   // pokecrystal/pokefan_m
+  { AV_G2_POKEFAN_F_IDX, AV_G2_POKEFAN_F_PAL, "POKEFAN F", 0 },   // pokecrystal/pokefan_f
+  { AV_G2_SAGE_IDX, AV_G2_SAGE_PAL, "SAGE", 0 },   // pokecrystal/sage
+  { AV_G2_TEACHER_IDX, AV_G2_TEACHER_PAL, "TEACHER", 0 },   // pokecrystal/teacher
+  { AV_G2_TWIN_IDX, AV_G2_TWIN_PAL, "TWINS", 0 },   // pokecrystal/twin
+  { AV_G2_ELDER_IDX, AV_G2_ELDER_PAL, "ELDER", 0 },   // pokecrystal/elder
+  { AV_G2_CAL_IDX, AV_G2_CAL_PAL, "CAL", 0 },   // pokecrystal/cal
+  { AV_OG000_IDX, AV_OG000_PAL, "NINJA", 0 },   // original art
+  { AV_OG001_IDX, AV_OG001_PAL, "PIKA HOOD", 0 },   // original art
+  { AV_OG002_IDX, AV_OG002_PAL, "BALL CAP", 0 },   // original art
+  { AV_OG003_IDX, AV_OG003_PAL, "GHOST HOOD", 0 },   // original art
+  { AV_OG004_IDX, AV_OG004_PAL, "WIZARD", 0 },   // original art
+  { AV_OG005_IDX, AV_OG005_PAL, "PIRATE", 0 },   // original art
+  { AV_OG006_IDX, AV_OG006_PAL, "KNIGHT", 0 },   // original art
+  { AV_OG007_IDX, AV_OG007_PAL, "ASTRONAUT", 0 },   // original art
+  { AV_OG008_IDX, AV_OG008_PAL, "BULBASAUR", 0 },   // original art
+  { AV_OG009_IDX, AV_OG009_PAL, "CHARMANDER", 0 },   // original art
+  { AV_OG010_IDX, AV_OG010_PAL, "SQUIRTLE", 0 },   // original art
+  { AV_OG011_IDX, AV_OG011_PAL, "CHIKORITA", 0 },   // original art
+  { AV_OG012_IDX, AV_OG012_PAL, "CYNDAQUIL", 0 },   // original art
+  { AV_OG013_IDX, AV_OG013_PAL, "TOTODILE", 0 },   // original art
+  { AV_OG014_IDX, AV_OG014_PAL, "TREECKO", 0 },   // original art
+  { AV_OG015_IDX, AV_OG015_PAL, "TORCHIC", 0 },   // original art
+  { AV_OG016_IDX, AV_OG016_PAL, "MUDKIP", 0 },   // original art
+  { AV_OG017_IDX, AV_OG017_PAL, "TURTWIG", 0 },   // original art
+  { AV_OG018_IDX, AV_OG018_PAL, "CHIMCHAR", 0 },   // original art
+  { AV_OG019_IDX, AV_OG019_PAL, "PIPLUP", 0 },   // original art
+  { AV_OG020_IDX, AV_OG020_PAL, "SNIVY", 0 },   // original art
+  { AV_OG021_IDX, AV_OG021_PAL, "TEPIG", 0 },   // original art
+  { AV_OG022_IDX, AV_OG022_PAL, "OSHAWOTT", 0 },   // original art
+  { AV_OG023_IDX, AV_OG023_PAL, "CHESPIN", 0 },   // original art
+  { AV_OG024_IDX, AV_OG024_PAL, "FENNEKIN", 0 },   // original art
+  { AV_OG025_IDX, AV_OG025_PAL, "FROAKIE", 0 },   // original art
+  { AV_OG026_IDX, AV_OG026_PAL, "ROWLET", 0 },   // original art
+  { AV_OG027_IDX, AV_OG027_PAL, "LITTEN", 0 },   // original art
+  { AV_OG028_IDX, AV_OG028_PAL, "POPPLIO", 0 },   // original art
+  { AV_OG029_IDX, AV_OG029_PAL, "GROOKEY", 0 },   // original art
+  { AV_OG030_IDX, AV_OG030_PAL, "SCORBUNNY", 0 },   // original art
+  { AV_OG031_IDX, AV_OG031_PAL, "SOBBLE", 0 },   // original art
+  { AV_OG032_IDX, AV_OG032_PAL, "SPRIGATITO", 0 },   // original art
+  { AV_OG033_IDX, AV_OG033_PAL, "FUECOCO", 0 },   // original art
+  { AV_OG034_IDX, AV_OG034_PAL, "QUAXLY", 0 },   // original art
+  { AV_OG035_IDX, AV_OG035_PAL, "VENUSAUR", 0 },   // original art
+  { AV_OG036_IDX, AV_OG036_PAL, "CHARIZARD", 0 },   // original art
+  { AV_OG037_IDX, AV_OG037_PAL, "BLASTOISE", 0 },   // original art
+  { AV_OG038_IDX, AV_OG038_PAL, "MEGANIUM", 0 },   // original art
+  { AV_OG039_IDX, AV_OG039_PAL, "TYPHLOSION", 0 },   // original art
+  { AV_OG040_IDX, AV_OG040_PAL, "FERALIGATR", 0 },   // original art
+  { AV_OG041_IDX, AV_OG041_PAL, "SCEPTILE", 0 },   // original art
+  { AV_OG042_IDX, AV_OG042_PAL, "BLAZIKEN", 0 },   // original art
+  { AV_OG043_IDX, AV_OG043_PAL, "SWAMPERT", 0 },   // original art
+  { AV_OG044_IDX, AV_OG044_PAL, "TORTERRA", 0 },   // original art
+  { AV_OG045_IDX, AV_OG045_PAL, "INFERNAPE", 0 },   // original art
+  { AV_OG046_IDX, AV_OG046_PAL, "EMPOLEON", 0 },   // original art
+  { AV_OG047_IDX, AV_OG047_PAL, "SERPERIOR", 0 },   // original art
+  { AV_OG048_IDX, AV_OG048_PAL, "EMBOAR", 0 },   // original art
+  { AV_OG049_IDX, AV_OG049_PAL, "SAMUROTT", 0 },   // original art
+  { AV_OG050_IDX, AV_OG050_PAL, "CHESNAUGHT", 0 },   // original art
+  { AV_OG051_IDX, AV_OG051_PAL, "DELPHOX", 0 },   // original art
+  { AV_OG052_IDX, AV_OG052_PAL, "GRENINJA", 0 },   // original art
+  { AV_OG053_IDX, AV_OG053_PAL, "DECIDUEYE", 0 },   // original art
+  { AV_OG054_IDX, AV_OG054_PAL, "INCINEROAR", 0 },   // original art
+  { AV_OG055_IDX, AV_OG055_PAL, "PRIMARINA", 0 },   // original art
+  { AV_OG056_IDX, AV_OG056_PAL, "RILLABOOM", 0 },   // original art
+  { AV_OG057_IDX, AV_OG057_PAL, "CINDERACE", 0 },   // original art
+  { AV_OG058_IDX, AV_OG058_PAL, "INTELEON", 0 },   // original art
+  { AV_OG059_IDX, AV_OG059_PAL, "MEOWSCARAD", 0 },   // original art
+  { AV_OG060_IDX, AV_OG060_PAL, "SKELEDIRGE", 0 },   // original art
+  { AV_OG061_IDX, AV_OG061_PAL, "QUAQUAVAL", 0 },   // original art
+  { AV_OG062_IDX, AV_OG062_PAL, "VAPOREON", 0 },   // original art
+  { AV_OG063_IDX, AV_OG063_PAL, "JOLTEON", 0 },   // original art
+  { AV_OG064_IDX, AV_OG064_PAL, "FLAREON", 0 },   // original art
+  { AV_OG065_IDX, AV_OG065_PAL, "ESPEON", 0 },   // original art
+  { AV_OG066_IDX, AV_OG066_PAL, "UMBREON", 0 },   // original art
+  { AV_OG067_IDX, AV_OG067_PAL, "LEAFEON", 0 },   // original art
+  { AV_OG068_IDX, AV_OG068_PAL, "GLACEON", 0 },   // original art
+  { AV_OG069_IDX, AV_OG069_PAL, "SYLVEON", 0 },   // original art
+  { AV_OG070_IDX, AV_OG070_PAL, "MIMIKYU", 0 },   // original art
+  { AV_OG071_IDX, AV_OG071_PAL, "ARTICUNO", 1 },   // original art, legendary: aura
+  { AV_OG072_IDX, AV_OG072_PAL, "ZAPDOS", 1 },   // original art, legendary: aura
+  { AV_OG073_IDX, AV_OG073_PAL, "MOLTRES", 1 },   // original art, legendary: aura
+  { AV_OG074_IDX, AV_OG074_PAL, "MEWTWO", 1 },   // original art, legendary: aura
+  { AV_OG075_IDX, AV_OG075_PAL, "MEW", 1 },   // original art, legendary: aura
+  { AV_OG076_IDX, AV_OG076_PAL, "RAIKOU", 1 },   // original art, legendary: aura
+  { AV_OG077_IDX, AV_OG077_PAL, "ENTEI", 1 },   // original art, legendary: aura
+  { AV_OG078_IDX, AV_OG078_PAL, "SUICUNE", 1 },   // original art, legendary: aura
+  { AV_OG079_IDX, AV_OG079_PAL, "LUGIA", 1 },   // original art, legendary: aura
+  { AV_OG080_IDX, AV_OG080_PAL, "HO-OH", 1 },   // original art, legendary: aura
+  { AV_OG081_IDX, AV_OG081_PAL, "CELEBI", 1 },   // original art, legendary: aura
+  { AV_OG082_IDX, AV_OG082_PAL, "REGIROCK", 1 },   // original art, legendary: aura
+  { AV_OG083_IDX, AV_OG083_PAL, "REGICE", 1 },   // original art, legendary: aura
+  { AV_OG084_IDX, AV_OG084_PAL, "REGISTEEL", 1 },   // original art, legendary: aura
+  { AV_OG085_IDX, AV_OG085_PAL, "LATIAS", 1 },   // original art, legendary: aura
+  { AV_OG086_IDX, AV_OG086_PAL, "LATIOS", 1 },   // original art, legendary: aura
+  { AV_OG087_IDX, AV_OG087_PAL, "KYOGRE", 1 },   // original art, legendary: aura
+  { AV_OG088_IDX, AV_OG088_PAL, "GROUDON", 1 },   // original art, legendary: aura
+  { AV_OG089_IDX, AV_OG089_PAL, "RAYQUAZA", 1 },   // original art, legendary: aura
+  { AV_OG090_IDX, AV_OG090_PAL, "JIRACHI", 1 },   // original art, legendary: aura
+  { AV_OG091_IDX, AV_OG091_PAL, "DEOXYS", 1 },   // original art, legendary: aura
+  { AV_OG092_IDX, AV_OG092_PAL, "UXIE", 1 },   // original art, legendary: aura
+  { AV_OG093_IDX, AV_OG093_PAL, "MESPRIT", 1 },   // original art, legendary: aura
+  { AV_OG094_IDX, AV_OG094_PAL, "AZELF", 1 },   // original art, legendary: aura
+  { AV_OG095_IDX, AV_OG095_PAL, "DIALGA", 1 },   // original art, legendary: aura
+  { AV_OG096_IDX, AV_OG096_PAL, "PALKIA", 1 },   // original art, legendary: aura
+  { AV_OG097_IDX, AV_OG097_PAL, "HEATRAN", 1 },   // original art, legendary: aura
+  { AV_OG098_IDX, AV_OG098_PAL, "REGIGIGAS", 1 },   // original art, legendary: aura
+  { AV_OG099_IDX, AV_OG099_PAL, "GIRATINA", 1 },   // original art, legendary: aura
+  { AV_OG100_IDX, AV_OG100_PAL, "CRESSELIA", 1 },   // original art, legendary: aura
+  { AV_OG101_IDX, AV_OG101_PAL, "PHIONE", 1 },   // original art, legendary: aura
+  { AV_OG102_IDX, AV_OG102_PAL, "MANAPHY", 1 },   // original art, legendary: aura
+  { AV_OG103_IDX, AV_OG103_PAL, "DARKRAI", 1 },   // original art, legendary: aura
+  { AV_OG104_IDX, AV_OG104_PAL, "SHAYMIN", 1 },   // original art, legendary: aura
+  { AV_OG105_IDX, AV_OG105_PAL, "ARCEUS", 1 },   // original art, legendary: aura
+  { AV_OG106_IDX, AV_OG106_PAL, "VICTINI", 1 },   // original art, legendary: aura
+  { AV_OG107_IDX, AV_OG107_PAL, "COBALION", 1 },   // original art, legendary: aura
+  { AV_OG108_IDX, AV_OG108_PAL, "TERRAKION", 1 },   // original art, legendary: aura
+  { AV_OG109_IDX, AV_OG109_PAL, "VIRIZION", 1 },   // original art, legendary: aura
+  { AV_OG110_IDX, AV_OG110_PAL, "TORNADUS", 1 },   // original art, legendary: aura
+  { AV_OG111_IDX, AV_OG111_PAL, "THUNDURUS", 1 },   // original art, legendary: aura
+  { AV_OG112_IDX, AV_OG112_PAL, "RESHIRAM", 1 },   // original art, legendary: aura
+  { AV_OG113_IDX, AV_OG113_PAL, "ZEKROM", 1 },   // original art, legendary: aura
+  { AV_OG114_IDX, AV_OG114_PAL, "LANDORUS", 1 },   // original art, legendary: aura
+  { AV_OG115_IDX, AV_OG115_PAL, "KYUREM", 1 },   // original art, legendary: aura
+  { AV_OG116_IDX, AV_OG116_PAL, "KELDEO", 1 },   // original art, legendary: aura
+  { AV_OG117_IDX, AV_OG117_PAL, "MELOETTA", 1 },   // original art, legendary: aura
+  { AV_OG118_IDX, AV_OG118_PAL, "GENESECT", 1 },   // original art, legendary: aura
+  { AV_OG119_IDX, AV_OG119_PAL, "XERNEAS", 1 },   // original art, legendary: aura
+  { AV_OG120_IDX, AV_OG120_PAL, "YVELTAL", 1 },   // original art, legendary: aura
+  { AV_OG121_IDX, AV_OG121_PAL, "ZYGARDE", 1 },   // original art, legendary: aura
+  { AV_OG122_IDX, AV_OG122_PAL, "DIANCIE", 1 },   // original art, legendary: aura
+  { AV_OG123_IDX, AV_OG123_PAL, "HOOPA", 1 },   // original art, legendary: aura
+  { AV_OG124_IDX, AV_OG124_PAL, "VOLCANION", 1 },   // original art, legendary: aura
+  { AV_OG125_IDX, AV_OG125_PAL, "TYPE NULL", 1 },   // original art, legendary: aura
+  { AV_OG126_IDX, AV_OG126_PAL, "SILVALLY", 1 },   // original art, legendary: aura
+  { AV_OG127_IDX, AV_OG127_PAL, "TAPU KOKO", 1 },   // original art, legendary: aura
+  { AV_OG128_IDX, AV_OG128_PAL, "TAPU LELE", 1 },   // original art, legendary: aura
+  { AV_OG129_IDX, AV_OG129_PAL, "TAPU BULU", 1 },   // original art, legendary: aura
+  { AV_OG130_IDX, AV_OG130_PAL, "TAPU FINI", 1 },   // original art, legendary: aura
+  { AV_OG131_IDX, AV_OG131_PAL, "COSMOG", 1 },   // original art, legendary: aura
+  { AV_OG132_IDX, AV_OG132_PAL, "COSMOEM", 1 },   // original art, legendary: aura
+  { AV_OG133_IDX, AV_OG133_PAL, "SOLGALEO", 1 },   // original art, legendary: aura
+  { AV_OG134_IDX, AV_OG134_PAL, "LUNALA", 1 },   // original art, legendary: aura
+  { AV_OG135_IDX, AV_OG135_PAL, "NECROZMA", 1 },   // original art, legendary: aura
+  { AV_OG136_IDX, AV_OG136_PAL, "MAGEARNA", 1 },   // original art, legendary: aura
+  { AV_OG137_IDX, AV_OG137_PAL, "MARSHADOW", 1 },   // original art, legendary: aura
+  { AV_OG138_IDX, AV_OG138_PAL, "ZERAORA", 1 },   // original art, legendary: aura
+  { AV_OG139_IDX, AV_OG139_PAL, "MELTAN", 1 },   // original art, legendary: aura
+  { AV_OG140_IDX, AV_OG140_PAL, "MELMETAL", 1 },   // original art, legendary: aura
+  { AV_OG141_IDX, AV_OG141_PAL, "ZACIAN", 1 },   // original art, legendary: aura
+  { AV_OG142_IDX, AV_OG142_PAL, "ZAMAZENTA", 1 },   // original art, legendary: aura
+  { AV_OG143_IDX, AV_OG143_PAL, "ETERNATUS", 1 },   // original art, legendary: aura
+  { AV_OG144_IDX, AV_OG144_PAL, "KUBFU", 1 },   // original art, legendary: aura
+  { AV_OG145_IDX, AV_OG145_PAL, "URSHIFU", 1 },   // original art, legendary: aura
+  { AV_OG146_IDX, AV_OG146_PAL, "ZARUDE", 1 },   // original art, legendary: aura
+  { AV_OG147_IDX, AV_OG147_PAL, "REGIELEKI", 1 },   // original art, legendary: aura
+  { AV_OG148_IDX, AV_OG148_PAL, "REGIDRAGO", 1 },   // original art, legendary: aura
+  { AV_OG149_IDX, AV_OG149_PAL, "GLASTRIER", 1 },   // original art, legendary: aura
+  { AV_OG150_IDX, AV_OG150_PAL, "SPECTRIER", 1 },   // original art, legendary: aura
+  { AV_OG151_IDX, AV_OG151_PAL, "CALYREX", 1 },   // original art, legendary: aura
+  { AV_OG152_IDX, AV_OG152_PAL, "ENAMORUS", 1 },   // original art, legendary: aura
+  { AV_OG153_IDX, AV_OG153_PAL, "WO CHIEN", 1 },   // original art, legendary: aura
+  { AV_OG154_IDX, AV_OG154_PAL, "CHIEN PAO", 1 },   // original art, legendary: aura
+  { AV_OG155_IDX, AV_OG155_PAL, "TING LU", 1 },   // original art, legendary: aura
+  { AV_OG156_IDX, AV_OG156_PAL, "CHI YU", 1 },   // original art, legendary: aura
+  { AV_OG157_IDX, AV_OG157_PAL, "KORAIDON", 1 },   // original art, legendary: aura
+  { AV_OG158_IDX, AV_OG158_PAL, "MIRAIDON", 1 },   // original art, legendary: aura
+  { AV_OG159_IDX, AV_OG159_PAL, "OKIDOGI", 1 },   // original art, legendary: aura
+  { AV_OG160_IDX, AV_OG160_PAL, "MUNKIDORI", 1 },   // original art, legendary: aura
+  { AV_OG161_IDX, AV_OG161_PAL, "FEZANDIPIT", 1 },   // original art, legendary: aura
+  { AV_OG162_IDX, AV_OG162_PAL, "OGERPON", 1 },   // original art, legendary: aura
+  { AV_OG163_IDX, AV_OG163_PAL, "TERAPAGOS", 1 },   // original art, legendary: aura
+  { AV_OG164_IDX, AV_OG164_PAL, "PECHARUNT", 1 },   // original art, legendary: aura
 };
