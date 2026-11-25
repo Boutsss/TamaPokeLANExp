@@ -362,7 +362,12 @@ public:
     return n;
   }
 
-  uint8_t avatar = 0;       // which player sprite, 0..3
+  // Which player sprite: an AVATARS[] index. uint16_t since v3.45 -- the set
+  // passed 255. Stored as a downgrade-safe low byte ("avtr", plyA/B byte 17,
+  // 0 when the real value does not fit) PLUS the full value appended ("avt2",
+  // the player checkpoint's v4 tail). See Pet::avatarLegacyByte().
+  uint16_t avatar = 0;
+  uint8_t avatarLegacyByte() const { return avatar < 256 ? (uint8_t)avatar : 0; }
   // Kanto's ladder, under the keys it has always used. Johto and Hoenn live in
   // a SEPARATE array under new keys rather than widening these -- purely
   // additive, so an existing save cannot be misread, exactly the reasoning that

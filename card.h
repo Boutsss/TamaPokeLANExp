@@ -16,12 +16,16 @@
 
 #define CARD_BOOK_CAP 12
 #define CARD_NAME_LEN 12
-#define CARD_WIRE_LEN 30
+// 32 since v3.45: bytes 30-31 carry the full 16-bit avatar. A 30-byte card
+// from an older build is still accepted (CARD_WIRE_MIN); its byte 12 is then
+// the whole avatar. We still put a downgrade-safe low byte at 12 for them.
+#define CARD_WIRE_LEN 32
+#define CARD_WIRE_MIN 30
 #define CARD_BOOK_HDR 4
 
 struct TrainerCard {
   char name[CARD_NAME_LEN] = "";
-  uint8_t avatar = 0;       // AVATARS[] index
+  uint8_t avatarLo = 0;     // low byte of the AVATARS[] index -- use avatar()
   uint8_t bg = 0;           // CARD_BGS[] index (casino_art.h)
   uint8_t rank = 1;
   uint8_t badges = 0;       // easy badges, every region
@@ -31,6 +35,13 @@ struct TrainerCard {
   uint8_t petShiny = 0;
   uint16_t bestStreak = 0;
   uint32_t fid = 0;         // their friend id (friends.h), 0 = unknown
+  // APPENDED (v3.45): the book stores this struct raw with its stride, so the
+  // high byte goes at the end, never beside avatarLo. An older record reads
+  // back with it 0, which is exactly what its avatar was.
+  uint8_t avatarHi = 0;
+
+  uint16_t avatar() const { return (uint16_t)(avatarLo | (avatarHi << 8)); }
+  void setAvatar(uint16_t a) { avatarLo = (uint8_t)a; avatarHi = (uint8_t)(a >> 8); }
 };
 
 // The largest "cards" blob, header included (save.cpp sizes the backup by it).
@@ -38,7 +49,7 @@ struct TrainerCard {
 
 class Pet;
 // Our own card, from the player's state.
-TrainerCard cardMine(const Pet &p, uint8_t avatar, uint8_t bg, uint8_t rank, uint32_t fid);
+TrainerCard cardMine(const Pet &p, uint16_t avatar, uint8_t bg, uint8_t rank, uint32_t fid);
 uint8_t cardToWire(const TrainerCard &c, uint8_t *out);           // returns CARD_WIRE_LEN
 bool cardFromWire(const uint8_t *in, uint8_t n, TrainerCard &out); // false = not a card
 

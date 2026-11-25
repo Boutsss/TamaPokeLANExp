@@ -53,4 +53,4 @@ static const char *const SHOP_AVATAR_NAMES[SHOP_AVATAR_COUNT] = {
 };
 // Kept in the frozen order above but never sold: each duplicates a rank avatar.
 #define SHOP_AVATAR_RETIRED_COUNT 1
-static const uint8_t SHOP_AVATAR_RETIRED[SHOP_AVATAR_RETIRED_COUNT] = { 47 };   // CHAMP RED
+static const uint16_t SHOP_AVATAR_RETIRED[SHOP_AVATAR_RETIRED_COUNT] = { 47 };   // CHAMP RED

@@ -251,9 +251,9 @@ def main():
         names.append((sym, label, 'original art'))
         shopNames.append(label)
         emit(out, sym, [OUTLINE, accent, HIGHLIGHT], [CODE[c] for r in grid for c in r])
-    # Pet::avatar, the card wire and every avatar loop are uint8_t.
-    if len(names) > 255:
-        raise SystemExit('%d avatars: the index is a uint8_t, 255 is the ceiling' % len(names))
+    # Avatar indices are uint16_t (v3.45); the real ceiling is the casino's
+    # ownership bitmask, CASINO_AVATARS_MAX in casino.h, which casino.cpp
+    # static_asserts against SHOP_AVATAR_COUNT.
     # The dealer: every frame, back to back (frame f at f*256).
     dl = frames(DEALER[0], DEALER[1], 0x4208, 6)
     emit(out, 'AV_DEALER', [OUTLINE, 0x4208, HIGHLIGHT], [v for f in dl for v in f])
@@ -288,7 +288,7 @@ def main():
     ret = [i for i, n in enumerate(shopNames) if n in RETIRED]
     nm.append('// Kept in the frozen order above but never sold: each duplicates a rank avatar.')
     nm.append('#define SHOP_AVATAR_RETIRED_COUNT %d' % len(ret))
-    nm.append('static const uint8_t SHOP_AVATAR_RETIRED[SHOP_AVATAR_RETIRED_COUNT] = { %s };'
+    nm.append('static const uint16_t SHOP_AVATAR_RETIRED[SHOP_AVATAR_RETIRED_COUNT] = { %s };'
               % ', '.join('%d' % i for i in ret) + '   // ' + ', '.join(shopNames[i] for i in ret))
     nm.append('')
     open(namesPath, 'w').write('\n'.join(nm))

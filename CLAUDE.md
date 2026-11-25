@@ -851,10 +851,20 @@ already recommended for the PMD sprites.
 Notes for anyone regenerating: the sheets are 2bpp greyscale (shade 3 = white =
 transparent), six frames stacked, and only frame 0 is used. **Do not pick
 `swimmer`** -- the character is in water so the sprite sits low in its cell and
-reads as misaligned once it is out of context; `sailor` replaced it. `avatar`
-is a `uint8_t` under `"avtr"`, now taken modulo `AVATAR_COUNT` in all three
-places that used to mask it with `& 3`, and `pet.cpp` clamps an out-of-range
-value so a save from the four-avatar era still loads.
+reads as misaligned once it is out of context; `sailor` replaced it. `pet.cpp`
+clamps an out-of-range avatar to 0 so a save from the four-avatar era still loads.
+
+**The avatar index is `uint16_t` since v3.45** (the set passed 255), widened the
+same way as the move IDs -- every old byte keeps its meaning, the full value is
+APPENDED: the player checkpoint's byte 17 is a downgrade-safe low byte (0 when
+the index does not fit) and its v4 tail the u16; `"avtr"` is that low byte and
+`"avt2"` the u16; a trainer card is 32 bytes on the wire with the u16 at 30-31
+(a 30-byte card from an older board is still accepted); the card book appends
+`TrainerCard::avatarHi` (go through `avatar()`/`setAvatar()`). `avatar16_test`
+forges records whose low byte DISAGREES with the wide field, since with
+`AVATAR_COUNT` <= 255 a correct value alone cannot tell which one was read.
+Art beyond the pret sprites is original, in `tools/avatars_original.py` and
+`tools/avatars_costume.py`; their order is frozen like the rest.
 
 ### First bring-up, actually done (2026-08-17)
 

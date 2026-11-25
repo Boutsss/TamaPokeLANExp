@@ -213,7 +213,7 @@ uint8_t rouletteWheelIndex(uint8_t n) {
 
 // ---------------------------------------------------------------- the shop
 
-uint8_t casinoPrizeCount(uint8_t kind) {
+uint16_t casinoPrizeCount(uint8_t kind) {
   switch (kind) {
     case PK_BACK: return CARD_BACK_COUNT;
     case PK_AVATAR: return SHOP_AVATAR_COUNT;
@@ -225,26 +225,26 @@ uint8_t casinoPrizeCount(uint8_t kind) {
 // Not sold: kept in the frozen index order (ownership is a bit per index) but
 // never listed or bought. Today that is the shop avatar that duplicates a rank
 // avatar -- rank avatars are earned, not bought.
-bool casinoPrizeRetired(uint8_t kind, uint8_t i) {
+bool casinoPrizeRetired(uint8_t kind, uint16_t i) {
   if (kind != PK_AVATAR) return false;
-  for (uint8_t k = 0; k < SHOP_AVATAR_RETIRED_COUNT; k++) if (SHOP_AVATAR_RETIRED[k] == i) return true;
+  for (uint16_t k = 0; k < SHOP_AVATAR_RETIRED_COUNT; k++) if (SHOP_AVATAR_RETIRED[k] == i) return true;
   return false;
 }
 // The shop's list: position -> prize index, retired ones skipped. -1 past the end.
-uint8_t casinoShopCount(uint8_t kind) {
-  uint8_t n = 0;
-  for (uint8_t i = 0; i < casinoPrizeCount(kind); i++) if (!casinoPrizeRetired(kind, i)) n++;
+uint16_t casinoShopCount(uint8_t kind) {
+  uint16_t n = 0;
+  for (uint16_t i = 0; i < casinoPrizeCount(kind); i++) if (!casinoPrizeRetired(kind, i)) n++;
   return n;
 }
-int casinoShopAt(uint8_t kind, uint8_t pos) {
-  for (uint8_t i = 0; i < casinoPrizeCount(kind); i++) {
+int casinoShopAt(uint8_t kind, uint16_t pos) {
+  for (uint16_t i = 0; i < casinoPrizeCount(kind); i++) {
     if (casinoPrizeRetired(kind, i)) continue;
     if (pos-- == 0) return i;
   }
   return -1;
 }
 
-const char *casinoPrizeName(uint8_t kind, uint8_t i) {
+const char *casinoPrizeName(uint8_t kind, uint16_t i) {
   if (i >= casinoPrizeCount(kind)) return "?";
   switch (kind) {
     case PK_BACK: return CARD_BACKS[i].name;
@@ -258,12 +258,16 @@ static_assert(CARD_BACK_COUNT <= CASINO_BACKS_MAX, "raise CASINO_BACKS_MAX (appe
 static_assert(CARD_BG_COUNT <= CASINO_BGS_MAX, "raise CASINO_BGS_MAX (append-only bitmask)");
 static_assert(SHOP_AVATAR_COUNT <= CASINO_AVATARS_MAX, "raise CASINO_AVATARS_MAX");
 
-// The one place that knows ownership is two arrays (see casino.h).
-static uint8_t *avatarByte(uint8_t i) {
-  return i < CASINO_AVATARS_LO ? &casino.avatars[i / 8] : &casino.avatarsHi[(i - CASINO_AVATARS_LO) / 8];
+static_assert(CASINO_BACKS_MAX <= 32 && CASINO_BGS_MAX <= 256, "back/bg are stored as one byte");
+
+// The one place that knows ownership is three arrays (see casino.h).
+static uint8_t *avatarByte(uint16_t i) {
+  if (i < CASINO_AVATARS_LO) return &casino.avatars[i / 8];
+  if (i < CASINO_AVATARS_MID) return &casino.avatarsHi[(i - CASINO_AVATARS_LO) / 8];
+  return &casino.avatarsX[(i - CASINO_AVATARS_MID) / 8];
 }
 
-bool casinoOwns(uint8_t kind, uint8_t i) {
+bool casinoOwns(uint8_t kind, uint16_t i) {
   if (i >= casinoPrizeCount(kind)) return false;
   switch (kind) {
     case PK_BACK: return i == 0 || (casino.backs >> i) & 1;
@@ -273,7 +277,7 @@ bool casinoOwns(uint8_t kind, uint8_t i) {
   }
 }
 
-static void own(uint8_t kind, uint8_t i) {
+static void own(uint8_t kind, uint16_t i) {
   switch (kind) {
     case PK_BACK: casino.backs |= (1UL << i); break;
     case PK_CARDBG: casino.bgs[i / 8] |= (uint8_t)(1u << (i % 8)); break;
@@ -281,7 +285,7 @@ static void own(uint8_t kind, uint8_t i) {
   }
 }
 
-bool casinoBuy(uint8_t kind, uint8_t i, uint16_t &coins, bool (*spend)(uint16_t)) {
+bool casinoBuy(uint8_t kind, uint16_t i, uint16_t &coins, bool (*spend)(uint16_t)) {
   if (i >= casinoPrizeCount(kind) || casinoOwns(kind, i) || casinoPrizeRetired(kind, i)) return false;
   if (coins < CASINO_PRICE) return false;
   if (!spend || !spend(CASINO_PRICE)) return false;   // coins first
@@ -290,10 +294,11 @@ bool casinoBuy(uint8_t kind, uint8_t i, uint16_t &coins, bool (*spend)(uint16_t)
   return true;
 }
 
-void casinoEquip(uint8_t kind, uint8_t i) {
+void casinoEquip(uint8_t kind, uint16_t i) {
   if (!casinoOwns(kind, i)) return;
-  if (kind == PK_BACK) casino.back = i;
-  else if (kind == PK_CARDBG) casino.bg = i;
+  // backs and backgrounds are capped well under 256 (CASINO_BACKS_MAX/BGS_MAX)
+  if (kind == PK_BACK) casino.back = (uint8_t)i;
+  else if (kind == PK_CARDBG) casino.bg = (uint8_t)i;
   casinoSave();
 }
 
@@ -303,7 +308,12 @@ void casinoEquip(uint8_t kind, uint8_t i) {
 #define CASINO_VER 1
 #define CASINO_KEY "casino"
 
-static size_t pack(uint8_t *b) {   // <= 96 bytes: 2+4+8+16+2+2+2+4+16 = 56
+static constexpr size_t CASINO_PACKED = 2 + 4 + sizeof(CasinoState::bgs) + sizeof(CasinoState::avatars) + 2 +
+    2 + 2 + 4 + sizeof(CasinoState::avatarsHi) + sizeof(CasinoState::avatarsX);
+static_assert(CASINO_PACKED <= CASINO_BLOB_MAX && CASINO_PACKED <= 255,
+              "the casino record outgrew its buffer or its one-byte length");
+
+static size_t pack(uint8_t *b) {   // 2+4+8+16+2+2+2+4+16+96 = 152 bytes (len is one byte: < 256)
   size_t n = 2;
   memcpy(b + n, &casino.backs, 4); n += 4;
   memcpy(b + n, casino.bgs, sizeof(casino.bgs)); n += sizeof(casino.bgs);
@@ -314,6 +324,7 @@ static size_t pack(uint8_t *b) {   // <= 96 bytes: 2+4+8+16+2+2+2+4+16 = 56
   memcpy(b + n, &casino.bjWins, 2); n += 2;
   memcpy(b + n, &casino.slotBest, 4); n += 4;
   memcpy(b + n, casino.avatarsHi, sizeof(casino.avatarsHi)); n += sizeof(casino.avatarsHi);
+  memcpy(b + n, casino.avatarsX, sizeof(casino.avatarsX)); n += sizeof(casino.avatarsX);
   b[0] = CASINO_VER;
   b[1] = (uint8_t)n;
   return n;
@@ -323,12 +334,12 @@ void casinoBegin() {
   casino = CasinoState();
   Preferences p;
   if (!p.begin("tamapoke", true)) return;
-  uint8_t b[96] = { 0 };
+  uint8_t b[CASINO_BLOB_MAX] = { 0 };
   size_t n = p.getBytesLength(CASINO_KEY);
   if (n >= 2 && n <= sizeof(b) && p.getBytes(CASINO_KEY, b, n) == n && b[1] <= n) {
     // Pack the DEFAULTS in this build's layout, then lay the stored prefix over
     // them: whatever the stored record is too old to have keeps its default.
-    uint8_t cur[96] = { 0 };
+    uint8_t cur[CASINO_BLOB_MAX] = { 0 };
     size_t full = pack(cur);
     size_t take = b[1] < full ? b[1] : full;
     memcpy(cur + 2, b + 2, take > 2 ? take - 2 : 0);
@@ -342,6 +353,7 @@ void casinoBegin() {
     memcpy(&casino.bjWins, cur + at, 2); at += 2;
     memcpy(&casino.slotBest, cur + at, 4); at += 4;
     memcpy(casino.avatarsHi, cur + at, sizeof(casino.avatarsHi)); at += sizeof(casino.avatarsHi);
+    memcpy(casino.avatarsX, cur + at, sizeof(casino.avatarsX)); at += sizeof(casino.avatarsX);
   }
   casino.backs |= 1;                          // the defaults are always owned
   casino.bgs[0] |= 1;
@@ -351,7 +363,7 @@ void casinoBegin() {
 }
 
 bool casinoSave() {
-  uint8_t b[96];
+  uint8_t b[CASINO_BLOB_MAX];
   size_t n = pack(b);
   Preferences p;
   if (!p.begin("tamapoke", false)) return false;

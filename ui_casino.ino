@@ -80,6 +80,9 @@ void casBtn(uint8_t i, uint8_t n, int *x, int *y, int *w, int *h) {
 void casBetBtn(int *x, int *y, int *w, int *h) { *w = 150; *h = 38; *x = CX - 75; *y = 272; }
 // The shop: tabs and a 2x3 grid.
 #define CAS_SHOP_PER 6
+// casShopPage is a uint8_t (the rim's page pointer), so the longest list must
+// fit 255 pages: 1530 prizes at six a page, comfortably past CASINO_AVATARS_MAX.
+static_assert((CASINO_AVATARS_MAX + CAS_SHOP_PER - 1) / CAS_SHOP_PER <= 255, "casShopPage would wrap");
 void casTab(uint8_t i, int *x, int *y, int *w, int *h) { *w = 118; *h = 40; *y = 64; *x = CX - 180 + i * 122; }
 void casTile(uint8_t i, int *x, int *y, int *w, int *h) {
   *w = 132; *h = 78;
@@ -90,7 +93,7 @@ static bool inBox(int16_t px, int16_t py, int x, int y, int w, int h) {
   return px >= x && px < x + w && py >= y && py < y + h;
 }
 uint8_t casShopPages() {
-  uint8_t n = casinoShopCount(casShopKind);
+  uint16_t n = casinoShopCount(casShopKind);
   return n ? (uint8_t)((n + CAS_SHOP_PER - 1) / CAS_SHOP_PER) : 1;
 }
 
@@ -884,9 +887,9 @@ static void renderCasShop() {
   }
   if (casShopPage >= casShopPages()) casShopPage = 0;
   for (uint8_t t = 0; t < CAS_SHOP_PER; t++) {
-    int li = casinoShopAt(casShopKind, (uint8_t)(casShopPage * CAS_SHOP_PER + t));
+    int li = casinoShopAt(casShopKind, (uint16_t)(casShopPage * CAS_SHOP_PER + t));
     if (li < 0) break;
-    uint8_t i = (uint8_t)li;
+    uint16_t i = (uint16_t)li;
     int x, y, w, h; casTile(t, &x, &y, &w, &h);
     bool own = casinoOwns(casShopKind, i);
     bool eq = (casShopKind == PK_BACK && casino.back == i) || (casShopKind == PK_CARDBG && casino.bg == i) ||
@@ -922,9 +925,9 @@ static void casShopTap(int16_t px, int16_t py) {
     if (inBox(px, py, x, y, w, h)) { casShopKind = i; casShopPage = 0; casArmed = -1; sfxPlay(SFX_TAP); return; }
   }
   for (uint8_t t = 0; t < CAS_SHOP_PER; t++) {
-    int li = casinoShopAt(casShopKind, (uint8_t)(casShopPage * CAS_SHOP_PER + t));
+    int li = casinoShopAt(casShopKind, (uint16_t)(casShopPage * CAS_SHOP_PER + t));
     if (li < 0) break;
-    uint8_t i = (uint8_t)li;
+    uint16_t i = (uint16_t)li;
     int x, y, w, h; casTile(t, &x, &y, &w, &h);
     if (!inBox(px, py, x, y, w, h)) continue;
     if (casinoOwns(casShopKind, i)) {    // owned: equip it

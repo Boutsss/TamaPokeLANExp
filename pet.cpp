@@ -324,7 +324,9 @@ static constexpr uint32_t PLAYER_MAGIC = 0x31594B54UL;   // "TKY1"
 // variable tail. v1 records still read -- the tail is simply shorter, which is
 // exactly "no money yet", the right default.
 // v3 appended the casino coins after the wallet.
-static constexpr uint16_t PLAYER_VERSION = 3;
+// v4 appended the full 16-bit avatar after the coins (byte 17 keeps a
+// downgrade-safe low byte: the value itself if it fits, else 0).
+static constexpr uint16_t PLAYER_VERSION = 4;
 static constexpr size_t PLAYER_FIXED = 42;   // header + every scalar, before the arrays
 static constexpr size_t PLAYER_CAP = 512;
 static constexpr size_t PLAYER_DEX_BYTES = (DEX_COUNT + 7) / 8;
@@ -333,7 +335,7 @@ static constexpr size_t PLAYER_DEX_BYTES = (DEX_COUNT + 7) / 8;
 // the signal to raise PLAYER_CAP, not to trim the record.
 static constexpr size_t PLAYER_MAX =
     PLAYER_FIXED + 2 * PLAYER_DEX_BYTES + 4 * (GYM_REGIONS - 1) +
-    2 * REGION_COUNT + 12 /* trainerName */ + 8 /* wallet + stepsTotal */ + 2 /* coins */ + CKPT_CRC;
+    2 * REGION_COUNT + 12 /* trainerName */ + 8 /* wallet + stepsTotal */ + 2 /* coins */ + 2 /* avatar */ + CKPT_CRC;
 static_assert(PLAYER_MAX <= PLAYER_CAP, "raise PLAYER_CAP for the player record");
 
 // A bounds-checked cursor over the variable tail of a blob. Overrunning sets
@@ -391,7 +393,7 @@ bool Pet::savePlayerSnapshot() {
   buf[14] = REGION_COUNT;
   buf[15] = GYM_REGIONS - 1;                      // the length of badgesX / badgesHardX
   buf[16] = (uint8_t)sizeof(trainerName);
-  buf[17] = avatar;
+  buf[17] = avatarLegacyByte();
   buf[18] = region;
   buf[19] = 0;                                    // reserved, keeps the scalars 2-byte aligned
   ckptWr16(buf + 20, badges);
@@ -419,6 +421,7 @@ bool Pet::savePlayerSnapshot() {
   cur.put(&wallet, sizeof(wallet));
   cur.put(&stepsTotal, sizeof(stepsTotal));
   cur.put(&coins, sizeof(coins));            // v3
+  cur.put(&avatar, sizeof(avatar));          // v4: the full avatar index
   if (cur.bad) {   // PLAYER_MAX static_asserts this cannot happen; say so if it does
     Serial.println("save: player record does not fit PLAYER_CAP");
     return false;
@@ -510,6 +513,8 @@ bool Pet::loadPlayerSnapshot() {
     coins = ckptRd16(buf + need + 8);
     if (coins > 9999) coins = 9999;
   }
+  // v4 tail: the full avatar index. Absent = byte 17 was the whole truth.
+  if (body >= need + 12) avatar = ckptRd16(buf + need + 10);
 
   // REGION_ALL is the LAST entry of the table and is stored RAW, so a save from
   // a build with fewer regions has a number that now means somebody else --
@@ -2375,7 +2380,8 @@ bool Pet::save() {
     SAVE_KEY(prefs.putBytes("mvh", hi, sizeof(hi)), "mvh");
   }
   SAVE_KEY(prefs.putUChar("mvlv", lastLearnLevel), "mvlv");
-  SAVE_KEY(prefs.putUChar("avtr", avatar), "avtr");
+  SAVE_KEY(prefs.putUChar("avtr", avatarLegacyByte()), "avtr");   // what a downgrade reads
+  SAVE_KEY(prefs.putUShort("avt2", avatar), "avt2");
   SAVE_KEY(prefs.putUChar("reg", region), "reg");
   SAVE_KEY(prefs.putUChar("regn", REGION_COUNT), "regn");   // what REGION_ALL meant when this was written
   SAVE_KEY(prefs.putBytes("badgX", badgesX, sizeof(badgesX)), "badgX");
@@ -2507,7 +2513,9 @@ void Pet::load() {
     if (moves[i] >= MOVE_COUNT) moves[i] = 0;   // never index MOVE_TBL with junk
   lastLearnLevel = prefs.getUChar("mvlv", 0);
   frozen = prefs.getBool("froz", false);
-  avatar = prefs.getUChar("avtr", 0);
+  // "avt2" is the full index (v3.45); absent on older saves, where "avtr" is.
+  avatar = prefs.getUShort("avt2", 0xFFFF);
+  if (avatar == 0xFFFF) avatar = prefs.getUChar("avtr", 0);
   // Absent on a Kanto-only save, which leaves both arrays zeroed -- exactly
   // "no Johto or Hoenn badges yet".
   loadBlob(prefs, "badgX", badgesX, sizeof(badgesX));

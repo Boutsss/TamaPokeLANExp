@@ -73,7 +73,7 @@ struct RimPage {
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
-#define FW_VERSION "3.44"
+#define FW_VERSION "3.45"
 
 Arduino_DataBus *bus = new Arduino_ESP32QSPI(
   LCD_CS, LCD_SCLK, LCD_SDIO0, LCD_SDIO1, LCD_SDIO2, LCD_SDIO3);
@@ -9904,7 +9904,7 @@ const char *statusMsg() {
 
 // dibuja un mapa de n x n pixeles escalado; silhouette=true lo pinta en tinta
 // An 8bpp indexed avatar, same shape as the badge art: 0xFF is transparent.
-void drawAvatar(uint8_t which, int x, int y, int s) {
+void drawAvatar(uint16_t which, int x, int y, int s) {
   const AvatarArt &a = AVATARS[which % AVATAR_COUNT];
   for (int r = 0; r < AVATAR_PX; r++)
     for (int c = 0; c < AVATAR_PX; c++) {

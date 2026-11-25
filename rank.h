@@ -63,10 +63,10 @@ uint16_t rankCatches();
 uint16_t rankChallengeWins();
 
 // ---- unlocks
-uint8_t rankAvatarNeeds(uint8_t avatar);        // rank that unlocks it
-bool rankAvatarUnlocked(uint8_t avatar);        // reached, or grandfathered
+uint8_t rankAvatarNeeds(uint16_t avatar);        // rank that unlocks it
+bool rankAvatarUnlocked(uint16_t avatar);        // reached, or grandfathered
 // The next avatar after `cur` that is unlocked (tap-to-cycle on page 0).
-uint8_t rankNextAvatar(uint8_t cur);
+uint16_t rankNextAvatar(uint16_t cur);
 
 
 // ---- the rank-up notice on the main screen

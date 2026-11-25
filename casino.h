@@ -117,19 +117,22 @@ uint8_t rouletteWheelIndex(uint8_t n);       // where n sits on the wheel
 enum PrizeKind : uint8_t { PK_BACK = 0, PK_AVATAR, PK_CARDBG, PK_KINDS };
 // How many prizes of each kind exist. Avatars count only those the casino
 // sells (the free starting set is not for sale).
-uint8_t casinoPrizeCount(uint8_t kind);
-const char *casinoPrizeName(uint8_t kind, uint8_t i);
+uint16_t casinoPrizeCount(uint8_t kind);
+const char *casinoPrizeName(uint8_t kind, uint16_t i);
 
 // What the player owns / has equipped. Index 0 of backs and card backgrounds is
 // the free default and is always owned.
 #define CASINO_BACKS_MAX 32
 #define CASINO_BGS_MAX 64
-// Avatar ownership is split: the first 128 bits sit where they always have in
-// the stored record, and bits 128..255 were APPENDED at its end (v3.44) -- the
-// record is append-only, so growing the first array would have moved every
-// field after it. Always go through casinoOwns()/the buy path, never index these.
+// Avatar ownership is split three ways: the first 128 bits sit where they
+// always have in the stored record, bits 128..255 were APPENDED at its end
+// (v3.44) and bits 256..1023 after those (v3.45) -- the record is append-only,
+// so growing an earlier array would move every field after it. Always go
+// through casinoOwns()/the buy path, never index these.
 #define CASINO_AVATARS_LO 128
-#define CASINO_AVATARS_MAX 256
+#define CASINO_AVATARS_MID 256
+#define CASINO_AVATARS_MAX 1024
+#define CASINO_BLOB_MAX 192      // the packed record (152 today); its length byte caps it at 255
 struct CasinoState {
   uint32_t backs = 1;                    // bit i = back i owned
   uint8_t bgs[CASINO_BGS_MAX / 8] = { 1 };
@@ -138,19 +141,20 @@ struct CasinoState {
   uint16_t hlBest = 0;                   // best High/Low streak
   uint16_t bjWins = 0;
   uint32_t slotBest = 0;                 // biggest single slot payout
-  uint8_t avatarsHi[(CASINO_AVATARS_MAX - CASINO_AVATARS_LO) / 8] = { 0 };
+  uint8_t avatarsHi[(CASINO_AVATARS_MID - CASINO_AVATARS_LO) / 8] = { 0 };
+  uint8_t avatarsX[(CASINO_AVATARS_MAX - CASINO_AVATARS_MID) / 8] = { 0 };
 };
 extern CasinoState casino;
 
 void casinoBegin();
 bool casinoSave();
-bool casinoOwns(uint8_t kind, uint8_t i);
-bool casinoPrizeRetired(uint8_t kind, uint8_t i);   // kept in the index order, never sold
-uint8_t casinoShopCount(uint8_t kind);               // what the shop LISTS
-int casinoShopAt(uint8_t kind, uint8_t pos);         // list position -> prize index, -1 past the end
+bool casinoOwns(uint8_t kind, uint16_t i);
+bool casinoPrizeRetired(uint8_t kind, uint16_t i);   // kept in the index order, never sold
+uint16_t casinoShopCount(uint8_t kind);               // what the shop LISTS
+int casinoShopAt(uint8_t kind, uint16_t pos);         // list position -> prize index, -1 past the end
 // Spends CASINO_PRICE from `coins` and records the prize. False (nothing
 // changes) if it is owned already or the coins are short. `spend` is called
 // to take the coins and must return whether it landed; only then is the prize
 // written (coins first: a cut costs coins, never hands out a prize).
-bool casinoBuy(uint8_t kind, uint8_t i, uint16_t &coins, bool (*spend)(uint16_t));
-void casinoEquip(uint8_t kind, uint8_t i);
+bool casinoBuy(uint8_t kind, uint16_t i, uint16_t &coins, bool (*spend)(uint16_t));
+void casinoEquip(uint8_t kind, uint16_t i);

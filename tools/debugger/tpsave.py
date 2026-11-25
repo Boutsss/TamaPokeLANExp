@@ -45,7 +45,7 @@ SAVE_FIELDS = [
     ("mvs", SK_BYTES), ("mvh", SK_BYTES), ("mvlv", SK_U8),
     ("bk", SK_BOOL), ("shy", SK_BOOL), ("eshy", SK_BOOL),
     ("stpk", SK_BOOL), ("evop", SK_U8), ("slpa", SK_U8), ("rtpn", SK_BOOL),
-    ("tnam", SK_STR), ("avtr", SK_U8), ("badg", SK_U16),
+    ("tnam", SK_STR), ("avtr", SK_U8), ("avt2", SK_U16), ("badg", SK_U16),
     ("reg", SK_U8), ("eggR", SK_BYTES), ("regn", SK_U8),
     ("badgX", SK_BYTES), ("badhX", SK_BYTES),
     ("badh", SK_U16), ("dexreg", SK_BYTES), ("dexsh", SK_BYTES),
@@ -69,7 +69,7 @@ LIVE_PET_KEYS = [
     "bk", "shy", "eshy", "stpk", "evop", "slpa", "rtpn",
 ]
 PLAYER_KEYS = [
-    "tnam", "avtr", "badg", "reg", "regn", "badh", "strk", "bstrk", "cday",
+    "tnam", "avt2", "avtr", "badg", "reg", "regn", "badh", "strk", "bstrk", "cday",
     "medal", "tmedal", "mstone", "wlt", "stps", "ghi", "shi", "qhi",
     "lang", "snd", "vol",
 ]
@@ -110,7 +110,7 @@ FRIENDLY_NAMES = {
     "evoDeclinedLv": "Evolution declined at level", "lastLearnLevel": "Last move-learn level",
     "stateVersion": "Care-state version (0 = predates care tracking)",
     # the player -- outlives every creature (save.cpp's SAVE_FIELDS)
-    "tnam": "Trainer name", "avtr": "Avatar index", "badg": "Kanto badges (easy, bitmask)",
+    "tnam": "Trainer name", "avtr": "Avatar (low byte, what a downgrade reads; 0 if the index > 255)", "avt2": "Avatar index (full, wins over avtr)", "badg": "Kanto badges (easy, bitmask)",
     "reg": "Current region", "eggR": "Egg region history (bytes)",
     "regn": "Region count unlocked", "badgX": "Other-region badges, easy (bytes)",
     "badhX": "Other-region badges, hard (bytes)", "badh": "Kanto badges (hard, bitmask)",

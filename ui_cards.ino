@@ -92,7 +92,7 @@ void renderCardBook() {
   gfx->setTextSize(1);
   gfx->setCursor(CX - (int)strlen(ti) * 3, 66);
   gfx->print(ti);
-  drawAvatar(c.avatar, CX - AVATAR_PX * 2, 76, 4);
+  drawAvatar(c.avatar(), CX - AVATAR_PX * 2, 76, 4);
   char b[32];
   const int y0 = 158;
   snprintf(b, sizeof(b), T(S_PC_BADGES_FMT), (unsigned)c.badges);

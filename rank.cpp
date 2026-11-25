@@ -146,11 +146,11 @@ static void rankOnEvent(GameEv ev, int16_t arg) {
 }
 
 // ---------- unlocks ----------
-uint8_t rankAvatarNeeds(uint8_t avatar) {
+uint8_t rankAvatarNeeds(uint16_t avatar) {
   return avatar < AVATAR_BASE_COUNT ? AVATAR_NEEDS[avatar] : 0;   // shop avatars: bought, not ranked
 }
 
-bool rankAvatarUnlocked(uint8_t avatar) {
+bool rankAvatarUnlocked(uint16_t avatar) {
   if (avatar >= AVATAR_COUNT) return false;
   // The Game Corner's prizes are unlocked by buying them, not by rank.
   if (avatar >= AVATAR_BASE_COUNT) return casinoOwns(PK_AVATAR, avatar - AVATAR_BASE_COUNT);
@@ -158,9 +158,9 @@ bool rankAvatarUnlocked(uint8_t avatar) {
   return s_top >= AVATAR_NEEDS[avatar];
 }
 
-uint8_t rankNextAvatar(uint8_t cur) {
-  for (uint16_t k = 1; k <= AVATAR_COUNT; k++) {   // uint16_t: AVATAR_COUNT can be 255
-    uint8_t a = (uint8_t)((cur + k) % AVATAR_COUNT);
+uint16_t rankNextAvatar(uint16_t cur) {
+  for (uint32_t k = 1; k <= AVATAR_COUNT; k++) {
+    uint16_t a = (uint16_t)((cur + k) % AVATAR_COUNT);
     if (rankAvatarUnlocked(a)) return a;
   }
   return cur;
@@ -204,7 +204,9 @@ void rankBegin() {
   }
   // Never take away what a player has: an avatar already selected stays
   // selectable even if its rank is not reached (a save from before ranks).
-  if (s_pet && s_pet->avatar < AVATAR_COUNT && !rankAvatarUnlocked(s_pet->avatar))
+  // Only the rank set can be grandfathered: s_avGrant is one bit per FREE
+  // avatar, and shifting a shop index into it was undefined past bit 31.
+  if (s_pet && s_pet->avatar < AVATAR_BASE_COUNT && !rankAvatarUnlocked(s_pet->avatar))
     s_avGrant |= (uint8_t)(1u << s_pet->avatar);
   rankSave();
   rankUpdate();   // progress made since (an import, say) counts now

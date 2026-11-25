@@ -69,7 +69,7 @@ int main(){
   bag.clear(); bag.add(IT_ORAN_BERRY, 2);
   PP.dbgHatchAs(25, true);
   peerCard.fid = 0x5151; snprintf(peerCard.name, sizeof(peerCard.name), "BEA");
-  peerCard.avatar = SHOP_AVATAR_FIRST + 60; peerCard.bg = 46; peerCard.rank = 4;
+  peerCard.setAvatar(SHOP_AVATAR_FIRST + 60); peerCard.bg = 46; peerCard.rank = 4;
   peerCard.badges = 11; peerCard.dex = 87; peerCard.medals = 9; peerCard.petDex = 25; peerCard.petShiny = 1;
   mine = nvs(); nvs().clear(); PB.clear(); PB.add(IT_POKEBALL, 1); theirs = nvs(); nvs() = mine;
 
@@ -91,13 +91,13 @@ int main(){
   P.start();
   waitMs(2200);
   ck(lan.ready() && friendsGotCard, "paired: the friend's card arrives");
-  ck(cardBookCount() == 1 && !strcmp(cardBookAt(0).name, "BEA") && cardBookAt(0).avatar == SHOP_AVATAR_FIRST + 60 &&
+  ck(cardBookCount() == 1 && !strcmp(cardBookAt(0).name, "BEA") && cardBookAt(0).avatar() == SHOP_AVATAR_FIRST + 60 &&
      cardBookAt(0).bg == 46 && cardBookAt(0).badges == 11 && cardBookAt(0).petShiny,
      "and is filed in the book, exactly");
   {
     TrainerCard got;
     bool ok = P.cxN && cardFromWire(P.cx, P.cxN, got);
-    ck(ok && !strcmp(got.name, "ALI") && got.avatar == SHOP_AVATAR_FIRST + 3 && got.bg == 2 && got.petDex == 133,
+    ck(ok && !strcmp(got.name, "ALI") && got.avatar() == SHOP_AVATAR_FIRST + 3 && got.bg == 2 && got.petDex == 133,
        "and ours reached them: our name, casino avatar and card background");
   }
   int w0 = nvsBlobWrites()["cards"];
@@ -126,10 +126,10 @@ int main(){
     memset(w, 'A', CARD_NAME_LEN); w[3] = (uint8_t)0xFF;   // no terminator anywhere, and a non-ASCII byte
     w[12] = 250; w[13] = 250; w[14] = 99; w[20] = 0xFF; w[21] = 0x7F;   // avatar, bg, rank, dex out of range
     TrainerCard c;
-    ck(cardFromWire(w, CARD_WIRE_LEN, c) && c.avatar < AVATAR_COUNT && c.bg < CARD_BG_COUNT && c.rank <= 10 &&
+    ck(cardFromWire(w, CARD_WIRE_LEN, c) && c.avatar() < AVATAR_COUNT && c.bg < CARD_BG_COUNT && c.rank <= 10 &&
        c.petDex == 0 && strlen(c.name) == CARD_NAME_LEN - 1 && c.name[3] == '?',
        "a forged card is cleaned: name terminated and ASCII, every index in range");
-    ck(!cardFromWire(w, CARD_WIRE_LEN - 1, c), "and a short one is refused outright");
+    ck(!cardFromWire(w, CARD_WIRE_MIN - 1, c), "and a short one is refused outright");
     ck(!cardBookAdd(cardMine(pet, 0, 0, 1, 0x1234), 0x1234), "our own card is never filed");
     cardBookAdd(c, 0x1234);
   }

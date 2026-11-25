@@ -207,11 +207,12 @@ int main() {
     pet.badgesX[0] = 0x0F;               // four Johto badges
     pet.dexReg[(FAR_DEX - 1) >> 3] |= 1 << ((FAR_DEX - 1) & 7);
 
-    // Two checkpoint writes, then twenty legacy ones: badgX is the 19th and
-    // badhX the 20th, so this stops with the badges written and dexreg still
+    // Two checkpoint writes, then twenty-one legacy ones: badgX is the 20th and
+    // badhX the 21st (avt2 joined the run in v3.45), so this stops with the
+    // badges written and dexreg still
     // holding the baseline. The exact count is not the point -- the companion
     // assertion below is what proves the cut landed where it was meant to.
-    nvsFailWritesAfter(2 + 20);
+    nvsFailWritesAfter(2 + 21);
     pet.saveNow();
     nvsResumeWrites();
 
