@@ -112,6 +112,22 @@ int main(){
     ck(!m.load(9999, false), "nor one past the table");
   }
 
+  // A skin loads its own file, judged on the PIXELS (the widths differ: the
+  // armored idle is 31 wide, the ordinary one 32) rather than on what was asked.
+  {
+    PmdMon plain, armored, other, otherPlain;
+    plain.load(150, false);
+    armored.load(150, false, SKIN_ARMORED);
+    other.load(25, false, SKIN_ARMORED);
+    otherPlain.load(25, false);
+    ck(plain.loaded && armored.loaded && armored.acts[PMD_IDLE].w != plain.acts[PMD_IDLE].w &&
+       armored.has(PMD_WALKL) && armored.has(PMD_WALKR) && !armored.has(PMD_SLEEP),
+       "the armored MEWTWO loads pa150.bin: its own idle and walks, nothing else");
+    ck(other.loaded && other.acts[PMD_IDLE].w == otherPlain.acts[PMD_IDLE].w &&
+       other.palCount == otherPlain.palCount && !memcmp(other.pal, otherPlain.pal, 2 * other.palCount),
+       "the skin asked of another species loads that species' ordinary sprite");
+  }
+
   printf("%s\n", bad?"FAILURES":"all good");
   return bad?1:0;
 }

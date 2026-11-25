@@ -114,7 +114,7 @@ uint8_t rouletteSpin();                      // 0..36, decided at SPIN
 uint8_t rouletteWheelIndex(uint8_t n);       // where n sits on the wheel
 
 // ---- the prize shop -------------------------------------------------------------
-enum PrizeKind : uint8_t { PK_BACK = 0, PK_AVATAR, PK_CARDBG, PK_KINDS };
+enum PrizeKind : uint8_t { PK_BACK = 0, PK_AVATAR, PK_CARDBG, PK_MON, PK_KINDS };
 // How many prizes of each kind exist. Avatars count only those the casino
 // sells (the free starting set is not for sale).
 uint16_t casinoPrizeCount(uint8_t kind);
@@ -155,6 +155,33 @@ bool casinoPrizeSold(uint8_t kind, uint16_t i);      // THE shop rule: listed, c
 // Records a tower-prize avatar as owned (tower.cpp). False if it is not one or
 // is already owned. Saves.
 bool casinoGrantAvatar(uint16_t shopIdx);
+// THE price of a prize, for the buy path, the tile and the tests alike:
+// CASINO_PRICE for every cosmetic, each creature's own price for PK_MON.
+uint32_t casinoPrizePrice(uint8_t kind, uint16_t i);
+
+// ---- prize CREATURES (PK_MON) ---------------------------------------------------
+// Bought, never "owned": each purchase delivers a new creature to the PC BOX,
+// and the counter can be visited again. Ordering is the cosmetics' rule --
+// coins FIRST -- plus a refund if the box write did not land, since a creature
+// cannot be "recorded" the way a bit can.
+struct CasinoMonPrize {
+  int16_t dex;
+  uint8_t skin;        // skins.h
+  uint8_t level;
+  uint8_t iv;          // every IV
+  uint32_t price;
+};
+#define CASINO_MON_COUNT 1
+extern const CasinoMonPrize CASINO_MONS[CASINO_MON_COUNT];
+struct PartyMon;
+// The creature prize `i` would hand over (moves from its real learnset at its
+// level, a rolled personality, care state like a caught one).
+PartyMon casinoPrizeMon(uint16_t i);
+enum CasMonResult : uint8_t { CMB_OK = 0, CMB_NONE, CMB_COINS, CMB_BOX_FULL, CMB_SPEND, CMB_STORE };
+// Buys prize creature `i`: checks the coins and the box, spends, stores durably
+// in the PC box, refunds if the store failed. `boxSlot` gets the slot on success.
+CasMonResult casinoBuyMon(uint16_t i, uint32_t coins, bool (*spend)(uint32_t),
+                          void (*refund)(uint32_t), int16_t *boxSlot);
 uint16_t casinoShopCount(uint8_t kind);               // what the shop LISTS
 int casinoShopAt(uint8_t kind, uint16_t pos);         // list position -> prize index, -1 past the end
 // Spends CASINO_PRICE from `coins` and records the prize. False (nothing

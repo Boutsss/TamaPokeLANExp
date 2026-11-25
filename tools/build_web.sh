@@ -176,6 +176,9 @@ PYEOF
 
 echo "Empaquetando sprites..."
 if compgen -G "tools/sdcard/mons/*.bin" >/dev/null; then
+    # The armored MEWTWO skin is generated from its committed sheet, so the
+    # Kanto pack always carries the current pa150.bin.
+    python3 tools/gen_armored.py || { echo "could not build the armored skin -- refusing"; exit 1; }
     python3 tools/pack_bundle.py
 else
     echo "Sin fuentes de sprites; conservando los .pak y regenerando su indice..."

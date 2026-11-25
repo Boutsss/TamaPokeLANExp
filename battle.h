@@ -28,6 +28,7 @@ struct Combatant {
   bool recharge = false;     // EF_RECHARGE spent this creature's next turn
   uint16_t charging = 0;     // EF_CHARGE move already wound up
   bool shiny = false;        // which sprite variant to stream
+  uint8_t skin = 0;          // and which skin (skins.h); cosmetic only
   uint8_t held = ITEM_NONE;  // held item snapshot for this battle
   bool itemUsed = false;     // consumable already triggered this battle
   int8_t holder = -1;        // player's pet/party/box slot; -1 for opponents/LAN

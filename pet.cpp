@@ -273,7 +273,9 @@ static constexpr size_t PET_V3_SEVOPEN = 4;     // u8  stashed egg's evolution d
 static constexpr size_t PET_V3_FAV = 5;         // u8  1 = a favourite (was reserved: old saves read 0)
 static constexpr size_t PET_V3_LEN0 = 6;      // what v3.28-v3.36 wrote
 static constexpr size_t PET_V3_MOVESHI = 6;   // u8[4] the high byte of each move ID (v3.37)
-static constexpr size_t PET_V3_LEN = 10;
+static constexpr size_t PET_V3_LEN1 = 10;     // what v3.37-v3.47 wrote
+static constexpr size_t PET_V3_SKIN = 10;     // u8  a cosmetic skin (skins.h), v3.48
+static constexpr size_t PET_V3_LEN = 11;
 static constexpr size_t PET_BODY = PET_TAIL_MON + sizeof(PartyMon) + PET_V3_LEN;
 static_assert(PET_BODY + CKPT_CRC <= PET_CORE_CAP, "raise PET_CORE_CAP");
 
@@ -632,6 +634,7 @@ void Pet::newEgg() {
   frozen = false;
   held = 0;
   persona = PT_NONE;   // an egg has no personality until it hatches
+  skin = SKIN_NONE;    // a skin belongs to the individual, never to its egg
   const bool landed = save();
   if (opened) {
     if (bred && landed) breedCommitTaken();   // step 3: only once the egg is durable
@@ -846,6 +849,7 @@ void Pet::reviveFrom(const PartyMon &m) {
   shiny = m.shiny != 0;
   held = itemIsHeld(m.held) ? m.held : ITEM_NONE;
   persona = personaValid(m.persona) ? m.persona : PT_NONE;
+  skin = m.skin();
   ivAtk = m.ivAtk; ivDef = m.ivDef; ivSpe = m.ivSpe; ivHp = m.ivHp;
   trAtk = m.trAtk; trDef = m.trDef; trSpe = m.trSpe;
   for (int i = 0; i < MOVE_SLOTS; i++) moves[i] = m.move(i);
@@ -907,6 +911,7 @@ PartyMon Pet::toPartyMon() const {
   m.ageMinutes = ageMinutes;
   m.held = held;
   m.persona = persona;
+  m.setSkin(skin);     // after m.dex: setSkin checks the species
   m.eggPaid = eggPaid ? PM_EGG_PAID : 0;
   m.fav = favorite ? PM_FAV : 0;
   return m;
@@ -929,6 +934,7 @@ bool Pet::switchTo(const PartyMon &m) {
   shiny = m.shiny != 0;
   held = itemIsHeld(m.held) ? m.held : ITEM_NONE;
   persona = personaValid(m.persona) ? m.persona : PT_NONE;
+  skin = m.skin();
   ivAtk = m.ivAtk; ivDef = m.ivDef; ivSpe = m.ivSpe; ivHp = m.ivHp;
   trAtk = m.trAtk; trDef = m.trDef; trSpe = m.trSpe;
   for (int i = 0; i < MOVE_SLOTS; i++) moves[i] = m.move(i);
@@ -1732,6 +1738,7 @@ void Pet::hatch() {
   // One personality, rolled once, for life. Only the player's own creature: a
   // scratch Pet (a battle foe) has no use for one and must not spend a roll.
   persona = opened ? personaRoll() : PT_NONE;
+  skin = SKIN_NONE;    // a hatchling is never born wearing one
   trAtk = trDef = trSpe = 0;
   goodTicks = 0;
   berryKnown = false;
@@ -2206,6 +2213,7 @@ bool Pet::saveCoreSnapshot() {
     v3[PET_V3_SEVOPEN] = stashEvoPen;
     v3[PET_V3_FAV] = favorite ? 1 : 0;
     for (int i = 0; i < MOVE_SLOTS; i++) v3[PET_V3_MOVESHI + i] = (uint8_t)(moves[i] >> 8);
+    v3[PET_V3_SKIN] = skin;
   }
 
   uint16_t total = ckptSeal(buf, PET_BODY, PET_CORE_MAGIC, PET_CORE_VERSION, nextGen);
@@ -2262,6 +2270,7 @@ bool Pet::loadCoreSnapshot() {
   stashTarget = 0;
   stashEvoPen = 0;
   uint8_t movesHiRead[MOVE_SLOTS] = { 0, 0, 0, 0 };   // an older record: every move < 256
+  uint8_t skinRead = SKIN_NONE;
   if (body >= PET_TAIL_MON) {
     size_t monLen = ckptRd16(buf + PET_TAIL_MONLEN);
     if (monLen && PET_TAIL_MON + monLen + PET_V3_LEN0 <= body) {
@@ -2275,8 +2284,10 @@ bool Pet::loadCoreSnapshot() {
       stashEvoPen = eggStashed ? v3[PET_V3_SEVOPEN] : 0;
       favorite = v3[PET_V3_FAV] == 1;
       // the move high bytes, if this record is new enough to carry them
-      if (PET_TAIL_MON + monLen + PET_V3_LEN <= body)
+      if (PET_TAIL_MON + monLen + PET_V3_LEN1 <= body)
         for (int i = 0; i < MOVE_SLOTS; i++) movesHiRead[i] = v3[PET_V3_MOVESHI + i];
+      // the skin, if this record is new enough to carry one (absent = none)
+      if (PET_TAIL_MON + monLen + PET_V3_SKIN + 1 <= body) skinRead = v3[PET_V3_SKIN];
     }
     if (monLen && PET_TAIL_MON + monLen <= body) {
       // Prefix rule again: a record from before PartyMon grew lands in the front
@@ -2307,6 +2318,7 @@ bool Pet::loadCoreSnapshot() {
   ivSpe = snapshot.ivSpe; ivHp = snapshot.ivHp;
   trAtk = snapshot.trAtk; trDef = snapshot.trDef; trSpe = snapshot.trSpe;
   for (int i = 0; i < MOVE_SLOTS; i++) moves[i] = (uint16_t)(snapshot.moves[i] | ((uint16_t)movesHiRead[i] << 8));
+  skin = skinRead < SKIN_COUNT ? skinRead : SKIN_NONE;
   lastLearnLevel = snapshot.lastLearnLevel;
   berryKnown = snapshot.berryKnown != 0; shiny = snapshot.shiny != 0;
   eggShiny = snapshot.eggShiny != 0; starterPick = snapshot.starterPick != 0;
@@ -2401,6 +2413,7 @@ bool Pet::save() {
   SAVE_KEY(prefs.putBool("shy", shiny), "shy");
   SAVE_KEY(prefs.putBool("eshy", eggShiny), "eshy");
   SAVE_KEY(prefs.putUChar("prsn", persona), "prsn");
+  SAVE_KEY(prefs.putUChar("skin", skin), "skin");
   SAVE_KEY(prefs.putBool("stpk", starterPick), "stpk");
   SAVE_KEY(prefs.putUChar("evop", evoPen), "evop");
   SAVE_KEY(prefs.putUChar("slpa", sleepAuto), "slpa");
@@ -2467,6 +2480,7 @@ void Pet::load() {
   shiny = prefs.getBool("shy", false);
   eggShiny = prefs.getBool("eshy", false);
   { uint8_t t = prefs.getUChar("prsn", 0); persona = personaValid(t) ? t : PT_NONE; }
+  { uint8_t t = prefs.getUChar("skin", 0); skin = t < SKIN_COUNT ? t : SKIN_NONE; }
   starterPick = prefs.getBool("stpk", false);
   evoPen = prefs.getUChar("evop", 0);
   sleepAuto = prefs.getUChar("slpa", SLEEP_NONE);

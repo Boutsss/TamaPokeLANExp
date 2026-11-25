@@ -25,6 +25,7 @@
 #include "backs.h"
 #include "badges.h"
 #include "avatars.h"
+#include "armored_art.h"   // the armored MEWTWO prize tile (tools/gen_armored.py)
 #include <stdarg.h>
 #include "party.h"
 #include "save.h"
@@ -73,7 +74,7 @@ struct RimPage {
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
-#define FW_VERSION "3.47"
+#define FW_VERSION "3.48"
 
 Arduino_DataBus *bus = new Arduino_ESP32QSPI(
   LCD_CS, LCD_SCLK, LCD_SDIO0, LCD_SDIO1, LCD_SDIO2, LCD_SDIO3);
@@ -106,6 +107,7 @@ PmdMon pmd;         // sprite PMD multi-accion (pantalla principal)
 PmdMon evoPmd;      // forma anterior, solo durante el parpadeo de evolucion
 int16_t monFor = -2;
 bool monShinyFor = false;
+uint8_t monSkinFor = 0;      // the skin (skins.h) the loaded sprite is for
 
 // comportamiento del bicho en pantalla
 struct {
@@ -1253,17 +1255,18 @@ void setup() {
 
 // carga/descarga el sprite de SD cuando cambia la especie
 void ensureMon() {
-  if (pet.speciesId == monFor && monShinyFor == pet.shiny && !sdDirty) return;
+  if (pet.speciesId == monFor && monShinyFor == pet.shiny && monSkinFor == pet.skinShown() && !sdDirty) return;
   sdDirty = false;
   monFor = pet.speciesId;
   monShinyFor = pet.shiny;
+  monSkinFor = pet.skinShown();
   mon.unload();
   pmd.unload();
   beh.x = beh.targetX = 233;
   beh.mode = 0;
   beh.until = 0;
   if (pet.speciesId >= 1 && pet.speciesId <= DEX_COUNT) {
-    pmd.load(pet.speciesId, pet.shiny);          // principal: PMD
+    pmd.load(pet.speciesId, pet.shiny, pet.skinShown());   // principal: PMD
     if (!pmd.loaded) mon.load(pet.speciesId, pet.shiny);  // respaldo: B/N
   }
 }
@@ -4548,12 +4551,14 @@ static void drawBattleBack() {
 // Streams a side's sprite if it is not already the one loaded. Called whenever
 // a creature steps in, never per frame.
 static void btlSyncSprite(uint8_t who, const Combatant &c) {
-  int16_t key = c.dex * (c.shiny ? -1 : 1);
+  // The key folds in the skin (x 2048, past any dex) so a skinned and a plain
+  // creature of one species never share a cached sprite.
+  int16_t key = (int16_t)((c.dex + 2048 * skinFor(c.dex, c.skin)) * (c.shiny ? -1 : 1));
   if (btlPmdDex[who] == key && btlPmd[who].loaded) return;
   btlPmd[who].unload();
   btlPmdDex[who] = 0;
   if (c.dex < 1 || c.dex > DEX_COUNT) return;
-  if (btlPmd[who].load(c.dex, c.shiny)) btlPmdDex[who] = key;   // NOT (uint8_t): Hoenn runs past 255
+  if (btlPmd[who].load(c.dex, c.shiny, c.skin)) btlPmdDex[who] = key;   // NOT (uint8_t): Hoenn runs past 255
 }
 
 static void btlFreeSprites() {

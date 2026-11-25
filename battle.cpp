@@ -43,6 +43,7 @@ void combatantFromPet(Combatant &c, const Pet &p) {
        p.spaStat(), p.spdStat(), p.speStat());
   for (int i = 0; i < MOVE_SLOTS; i++) c.moves[i] = p.moves[i];
   c.shiny = p.shiny;
+  c.skin = p.skinShown();
   c.held = itemIsHeld(p.held) ? p.held : ITEM_NONE;
   c.bond = p.bond;
   c.hpType = hiddenPowerType(p.ivHp, p.ivAtk, p.ivDef, p.ivSpe);
@@ -55,6 +56,7 @@ void combatantFromParty(Combatant &c, const PartyMon &m) {
        party.spaOf(m), party.spdOf(m), party.speOf(m));
   for (int i = 0; i < MOVE_SLOTS; i++) c.moves[i] = m.move(i);
   c.shiny = m.shiny != 0;
+  c.skin = m.skin();
   c.held = itemIsHeld(m.held) ? m.held : ITEM_NONE;
   c.bond = m.bond;
   c.hpType = hiddenPowerType(m.ivHp, m.ivAtk, m.ivDef, m.ivSpe);

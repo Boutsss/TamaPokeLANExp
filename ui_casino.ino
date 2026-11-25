@@ -83,7 +83,12 @@ void casBetBtn(int *x, int *y, int *w, int *h) { *w = 150; *h = 38; *x = CX - 75
 // casShopPage is a uint8_t (the rim's page pointer), so the longest list must
 // fit 255 pages: 1530 prizes at six a page, comfortably past CASINO_AVATARS_MAX.
 static_assert((CASINO_AVATARS_MAX + CAS_SHOP_PER - 1) / CAS_SHOP_PER <= 255, "casShopPage would wrap");
-void casTab(uint8_t i, int *x, int *y, int *w, int *h) { *w = 118; *h = 40; *y = 64; *x = CX - 180 + i * 122; }
+// One tab per PrizeKind, sized from PK_KINDS so a new kind gets its tab here.
+void casTab(uint8_t i, int *x, int *y, int *w, int *h) {
+  const int total = 364, gap = 4;
+  *w = (total - gap * (PK_KINDS - 1)) / PK_KINDS; *h = 40; *y = 64;
+  *x = CX - total / 2 + i * (*w + gap);
+}
 void casTile(uint8_t i, int *x, int *y, int *w, int *h) {
   *w = 132; *h = 78;
   *x = (i % 2) ? CX + 4 : CX - 136;
@@ -116,6 +121,7 @@ static void casButton(int x, int y, int w, int h, const char *label, uint16_t fi
   casText(x + w / 2, y + h / 2 - 8, label, dim ? 0x8410 : UI_INK, 2);
 }
 static const uint16_t CAS_RED = 0xE8E4, CAS_GOLD = 0xFEA0, CAS_FELT = 0x2C6A, CAS_FELT_D = 0x1B47;
+static const uint16_t CAS_PURPLE = 0x895F;   // the armored skin's tag
 
 // Small integer sine: s(i) for i in 0..255 is round(127*sin(2*pi*i/256)).
 static int8_t isin8(uint8_t i) {
@@ -876,10 +882,24 @@ static void casRouletteTap(int16_t px, int16_t py) {
 
 // ---------------------------------------------------------------- the prize shop
 static void casDrawBgSwatch(int x, int y, int w, int h, uint8_t bg);
+// A creature purchase's outcome, shown for a moment over the grid.
+uint16_t casMonNote = STR_COUNT;     // STR_COUNT = nothing to say
+uint32_t casMonNoteUntil = 0;
+// A prize creature's tile picture: the still frame baked into the firmware
+// (armored_art.h), so the counter shows it even with no SD card.
+static void casDrawPrizeMon(int x, int y, uint16_t i) {
+  if (i >= CASINO_MON_COUNT || CASINO_MONS[i].skin != SKIN_ARMORED) return;
+  for (int r = 0; r < ARMORED_H; r++)
+    for (int c = 0; c < ARMORED_W; c++) {
+      uint8_t v = ARMORED_IDX[r * ARMORED_W + c];
+      if (v == 0xFF) continue;
+      gfx->fillRect(x + c * 2, y + r * 2, 2, 2, ARMORED_PAL[v]);
+    }
+}
 static void renderCasShop() {
   casTable(T(S_CAS_PRIZES));
-  const char *tabs[3] = { T(S_CAS_BACKS), T(S_CAS_AVATARS), T(S_CAS_CARDS) };
-  for (uint8_t i = 0; i < 3; i++) {
+  const char *tabs[PK_KINDS] = { T(S_CAS_BACKS), T(S_CAS_AVATARS), T(S_CAS_CARDS), T(S_CAS_MONS) };
+  for (uint8_t i = 0; i < PK_KINDS; i++) {
     int x, y, w, h; casTab(i, &x, &y, &w, &h);
     gfx->fillRoundRect(x, y, w, h, 12, i == casShopKind ? CAS_GOLD : CAS_FELT_D);
     gfx->drawRoundRect(x, y, w, h, 12, UI_WHITE);
@@ -901,6 +921,7 @@ static void renderCasShop() {
     // the preview, left
     if (casShopKind == PK_BACK) casDrawBack(x + 6, y + 6, 44, 64, i);
     else if (casShopKind == PK_AVATAR) drawAvatar(SHOP_AVATAR_FIRST + i, x + 6, y + 10, 3);
+    else if (casShopKind == PK_MON) casDrawPrizeMon(x + 4, y + 10, i);
     else casDrawBgSwatch(x + 6, y + 8, 50, 62, i);
     // the name and the price / state, right
     const char *nm = casinoPrizeName(casShopKind, i);
@@ -908,19 +929,27 @@ static void renderCasShop() {
     gfx->setTextSize(1);
     gfx->setCursor(x + 60, y + 14);
     gfx->print(nm);
+    if (casShopKind == PK_MON && CASINO_MONS[i].skin == SKIN_ARMORED) {
+      gfx->setTextColor(CAS_PURPLE);
+      gfx->setCursor(x + 60, y + 28);
+      gfx->print(T(S_CAS_ARMORED));
+    }
     const char *st = eq ? T(S_CAS_EQUIPPED) : own ? T(S_CAS_OWNED) : armed ? T(S_CAS_AGAIN) : nullptr;
     gfx->setCursor(x + 60, y + 48);
     if (st) { gfx->setTextColor(eq ? CAS_RED : 0x3D66); gfx->print(st); }
     else {
-      gfx->setTextColor(pet.coins >= CASINO_PRICE ? UI_INK : CAS_RED);
-      gfx->setTextSize(2);
-      char pr[8]; snprintf(pr, sizeof(pr), "%u", (unsigned)CASINO_PRICE);
+      const uint32_t price = casinoPrizePrice(casShopKind, i);
+      gfx->setTextColor(pet.coins >= price ? UI_INK : CAS_RED);
+      gfx->setTextSize(price > 99999 ? 1 : 2);   // a seven-digit price at size 2 leaves the tile
+      char pr[12]; snprintf(pr, sizeof(pr), "%lu", (unsigned long)price);
       gfx->print(pr);
     }
   }
+  if (casMonNote < STR_COUNT && (int32_t)(casMonNoteUntil - millis()) > 0)
+    casBanner(T((StrId)casMonNote), casMonNote == S_CAS_TO_BOX ? CAS_GOLD : CAS_RED);
 }
 static void casShopTap(int16_t px, int16_t py) {
-  for (uint8_t i = 0; i < 3; i++) {
+  for (uint8_t i = 0; i < PK_KINDS; i++) {
     int x, y, w, h; casTab(i, &x, &y, &w, &h);
     if (inBox(px, py, x, y, w, h)) { casShopKind = i; casShopPage = 0; casArmed = -1; sfxPlay(SFX_TAP); return; }
   }
@@ -938,6 +967,15 @@ static void casShopTap(int16_t px, int16_t py) {
       return;
     }
     if (casArmed != (int16_t)i) { casArmed = i; sfxPlay(SFX_TAP); return; }   // 9999 coins: tap twice
+    if (casShopKind == PK_MON) {        // a creature: to the PC box, never "owned"
+      CasMonResult r = casinoBuyMon(i, pet.coins, casSpendCoins, casPay, nullptr);
+      casArmed = -1;
+      casMonNote = r == CMB_OK ? S_CAS_TO_BOX : r == CMB_BOX_FULL ? S_CAS_BOX_FULL : STR_COUNT;
+      casMonNoteUntil = millis() + 2500;
+      casSetMood(r == CMB_OK ? DM_GRUMBLE : DM_LAUGH);
+      sfxPlay(r == CMB_OK ? SFX_TAP : SFX_DENY);
+      return;
+    }
     uint32_t coins = pet.coins;
     bool ok = casinoBuy(casShopKind, i, coins, casSpendCoins);
     casArmed = -1;

@@ -9,7 +9,7 @@ bool sdDirty = false;
 bool sdArtDirty = false;
 SdThumbs thumbs;
 
-bool PmdMon::load(int16_t dexNum, bool shiny) {
+bool PmdMon::load(int16_t dexNum, bool shiny, uint8_t skin) {
   // int16_t, NOT uint8_t. The dex reached 386 and this did not follow, so
   // everything from 256 up wrapped into Kanto: MARSHTOMP (258) opened
   // p002.bin and drew an IVYSAUR. Same trap that caught DexEntry::evolvesTo
@@ -18,11 +18,23 @@ bool PmdMon::load(int16_t dexNum, bool shiny) {
   unload();
   if (!sdReady) return false;
 
-  char path[28];
-  snprintf(path, sizeof(path), "/mons/p%s%03u.bin", shiny ? "s" : "", (unsigned)dexNum);
-  File f = SD_MMC.open(path, FILE_READ);
+  // The file name is sdSpriteName()'s (skins.h), shared with the emulator.
+  // Skin first, then shiny, then plain: a missing variant is never a blank.
+  char name[20], path[28];
+  File f;
+  if (skinFor(dexNum, skin)) {
+    sdSpriteName(name, sizeof(name), dexNum, shiny, skin);
+    snprintf(path, sizeof(path), "/mons%s", name);
+    f = SD_MMC.open(path, FILE_READ);
+  }
+  if (!f) {
+    sdSpriteName(name, sizeof(name), dexNum, shiny, SKIN_NONE);
+    snprintf(path, sizeof(path), "/mons%s", name);
+    f = SD_MMC.open(path, FILE_READ);
+  }
   if (!f && shiny) {  // sin shiny PMD: usa el normal
-    snprintf(path, sizeof(path), "/mons/p%03u.bin", (unsigned)dexNum);
+    sdSpriteName(name, sizeof(name), dexNum, false, SKIN_NONE);
+    snprintf(path, sizeof(path), "/mons%s", name);
     f = SD_MMC.open(path, FILE_READ);
   }
   if (!f) return false;

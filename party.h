@@ -1,4 +1,6 @@
 #pragma once
+#include "skins.h"
+#include <stddef.h>
 #include <Arduino.h>
 #include <Preferences.h>
 
@@ -73,6 +75,10 @@ struct PartyMon {
   uint8_t poops = 0, weight = 0, bond = 0;
   uint8_t berryKnown = 0, careMistakes = 0;
   uint8_t evoDeclinedLv = 0, lastLearnLevel = 0;
+  // A cosmetic skin (skins.h), PM_SKIN_TAG | skin. Lives in what was padding
+  // before ageMinutes, so the record size did not change (offsetof asserted
+  // below); read it through skin(), which also checks the species.
+  uint8_t skinTag = 0;
   // The real age. `level` stays as its cached mirror so every list, the battle
   // squad builder and the box screen keep reading one byte instead of dividing.
   uint32_t ageMinutes = 0;
@@ -101,7 +107,13 @@ struct PartyMon {
   bool paidEgg() const { return eggPaid == PM_EGG_PAID; }
   bool isFav() const { return fav == PM_FAV; }
   bool hasCareState() const { return stateVersion >= 1; }
+  uint8_t skin() const {
+    return (skinTag & 0xF0) == PM_SKIN_TAG ? skinFor(dex, skinTag & 0x0F) : SKIN_NONE;
+  }
+  void setSkin(uint8_t s) { s = skinFor(dex, s); skinTag = s ? (uint8_t)(PM_SKIN_TAG | s) : 0; }
 };
+static_assert(offsetof(PartyMon, skinTag) == 42 && offsetof(PartyMon, ageMinutes) == 44,
+              "skinTag must sit in the old padding before ageMinutes");
 
 // sizeof(PartyMon) is load-bearing in four places (CLAUDE.md section 5), and
 // eggPaid and fav were placed in old padding precisely so it would not move.
@@ -141,6 +153,10 @@ public:
   // if the record is verifiably on flash; on any failure RAM is put back and
   // nothing is claimed. `where` = 0..5 party, 6.. box (the breed.h indices).
   bool storeDurably(const PartyMon &m, int16_t *where);
+  // The box half of storeDurably(), on its own: into the first free BOX slot,
+  // written and read back, or nothing at all. A Game Corner prize creature
+  // goes straight to the box this way.
+  bool boxStoreDurably(const PartyMon &m, uint16_t *slot);
   // Takes out the record at `where` only if it is still exactly `expect` (the
   // slot may have changed since it was offered), WITHOUT returning its held
   // item to the bag -- a traded creature takes its item with it. Written and

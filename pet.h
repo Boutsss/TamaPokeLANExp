@@ -160,6 +160,10 @@ public:
   bool shiny = false;       // variante de color rara (se sortea en el huevo)
   uint8_t held = 0;         // held item; persisted in the checkpoint's pad0 byte
   uint8_t persona = 0;      // personality (persona.h); the checkpoint's PET_TAIL_RSVD byte
+  // A cosmetic skin (skins.h): the pet checkpoint's PET_V3_SKIN byte and the
+  // legacy key "skin". Stored raw; ask skinShown(), which checks the species.
+  uint8_t skin = 0;
+  uint8_t skinShown() const { return isEgg() ? SKIN_NONE : skinFor(speciesId, skin); }
   uint32_t ageMinutes = 0;
   int16_t speciesId = -1;      // numero de Pokedex (1..DEX_COUNT), -1 = huevo
   int16_t prevSpeciesId = -1;  // para la animacion de evolucion

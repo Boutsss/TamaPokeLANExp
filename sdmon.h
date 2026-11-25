@@ -1,5 +1,6 @@
 #pragma once
 #include <Arduino.h>
+#include "skins.h"
 
 // Sprite animado TPK1 (formato heredado, camino de respaldo). El proyecto usa
 // PMD/TPK2 (PmdMon) para todo; esta ruta queda inactiva si no hay NNN.bin en la SD.
@@ -43,7 +44,9 @@ struct PmdMon {
   uint8_t *blob = nullptr;
   PmdAct acts[PMD_NACTS];
 
-  bool load(int16_t dexNum, bool shiny = false);
+  // `skin` (skins.h) tries that creature's own file first; any missing variant
+  // falls back to the ordinary sprite, so an SD without it still draws it.
+  bool load(int16_t dexNum, bool shiny = false, uint8_t skin = 0);
   void unload();
   bool has(uint8_t a) const { return loaded && a < PMD_NACTS && acts[a].frames > 0; }
 };

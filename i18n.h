@@ -543,6 +543,10 @@ enum StrId : uint16_t {
   S_DEX_SWIPE,
   S_DEX_NOENTRY,
   S_TW_COSTUME,     // tower floor 100: "NEW COSTUME!"
+  S_CAS_MONS,       // the prize counter's creature tab
+  S_CAS_TO_BOX,     // a prize creature delivered to the PC box
+  S_CAS_BOX_FULL,   // ... refused: no room in the box
+  S_CAS_ARMORED,    // the armored skin's tag on its prize tile
   STR_COUNT
 };
 

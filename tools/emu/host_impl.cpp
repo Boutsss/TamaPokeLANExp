@@ -68,16 +68,23 @@ static uint8_t *slurp(const std::string &path, uint32_t *size) {
 // sprite_test catches both, and could not run at all until unpack_bundle.py
 // existed -- so a test written to catch a sprite-truncation bug was skipped on
 // every machine while a sprite-truncation bug sat two lines away from it.
-bool PmdMon::load(int16_t dexNum, bool shiny) {
+bool PmdMon::load(int16_t dexNum, bool shiny, uint8_t skin) {
   if (!sdDexInRange(dexNum)) return false;
   unload();
+  // Same order and the same names as the board (sdSpriteName, skins.h).
   char name[24];
-  snprintf(name, sizeof(name), "/p%s%03u.bin", shiny ? "s" : "", (unsigned)dexNum);
   uint32_t size = 0;
-  blob = slurp(g_spriteDir + name, &size);
+  if (skinFor(dexNum, skin)) {
+    sdSpriteName(name, sizeof(name), dexNum, shiny, skin);
+    blob = slurp(g_spriteDir + name, &size);
+  }
+  if (!blob) {
+    sdSpriteName(name, sizeof(name), dexNum, shiny, SKIN_NONE);
+    blob = slurp(g_spriteDir + name, &size);
+  }
   if (!blob && shiny) {
     // No shiny variant packed: fall back to the normal one, as the firmware does.
-    snprintf(name, sizeof(name), "/p%03u.bin", (unsigned)dexNum);
+    sdSpriteName(name, sizeof(name), dexNum, false, SKIN_NONE);
     blob = slurp(g_spriteDir + name, &size);
   }
   if (!blob) return false;

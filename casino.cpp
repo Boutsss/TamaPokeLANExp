@@ -1,5 +1,8 @@
 #include "casino.h"
 #include "casino_art.h"
+#include "pet.h"
+#include "party.h"
+#include "persona.h"
 #include <Preferences.h>
 #include <string.h>
 
@@ -218,6 +221,7 @@ uint16_t casinoPrizeCount(uint8_t kind) {
     case PK_BACK: return CARD_BACK_COUNT;
     case PK_AVATAR: return SHOP_AVATAR_COUNT;
     case PK_CARDBG: return CARD_BG_COUNT;
+    case PK_MON: return CASINO_MON_COUNT;
     default: return 0;
   }
 }
@@ -261,6 +265,7 @@ const char *casinoPrizeName(uint8_t kind, uint16_t i) {
     case PK_BACK: return CARD_BACKS[i].name;
     case PK_AVATAR: return SHOP_AVATAR_NAMES[i];
     case PK_CARDBG: return CARD_BGS[i].name;
+    case PK_MON: return DEX_TBL[CASINO_MONS[i].dex].name;
     default: return "?";
   }
 }
@@ -297,12 +302,68 @@ static void own(uint8_t kind, uint16_t i) {
 }
 
 bool casinoBuy(uint8_t kind, uint16_t i, uint32_t &coins, bool (*spend)(uint32_t)) {
+  if (kind == PK_MON) return false;   // creatures go through casinoBuyMon()
   if (!casinoPrizeSold(kind, i) || casinoOwns(kind, i)) return false;
-  if (coins < CASINO_PRICE) return false;
-  if (!spend || !spend(CASINO_PRICE)) return false;   // coins first
+  const uint32_t price = casinoPrizePrice(kind, i);
+  if (coins < price) return false;
+  if (!spend || !spend(price)) return false;   // coins first
   own(kind, i);
   casinoSave();
   return true;
+}
+
+// ---- prize creatures
+// The armored MEWTWO: level 1, every IV perfect, 1,000,000 coins.
+const CasinoMonPrize CASINO_MONS[CASINO_MON_COUNT] = {
+  { 150, SKIN_ARMORED, 1, 31, 1000000UL },
+};
+static_assert(1000000UL <= COIN_CAP, "a prize nobody can afford");
+
+uint32_t casinoPrizePrice(uint8_t kind, uint16_t i) {
+  if (kind == PK_MON) return i < CASINO_MON_COUNT ? CASINO_MONS[i].price : 0xFFFFFFFFu;
+  return CASINO_PRICE;
+}
+
+PartyMon casinoPrizeMon(uint16_t i) {
+  PartyMon m;
+  if (i >= CASINO_MON_COUNT) return m;
+  const CasinoMonPrize &p = CASINO_MONS[i];
+  // Moves through a scratch Pet, exactly as a battle foe gets them: the real
+  // learnset at this level, never a hand-picked list that could drift from it.
+  Pet t;
+  t.speciesId = p.dex;
+  t.ageMinutes = (uint32_t)(p.level ? p.level - 1 : 0) * MINUTES_PER_LEVEL;
+  t.ivAtk = t.ivDef = t.ivSpe = t.ivHp = p.iv;
+  t.relearnFromLevel();
+  while (t.hasLearnOffer()) t.declineLearn();
+  m.dex = p.dex;
+  m.level = p.level;
+  m.ivAtk = m.ivDef = m.ivSpe = m.ivHp = p.iv;
+  for (int k = 0; k < MOVE_SLOTS; k++) m.setMove(k, t.moves[k]);
+  // care state from the start, like a caught creature: its age IS its level
+  m.stateVersion = 1;
+  m.ageMinutes = t.ageMinutes;
+  m.lastLearnLevel = p.level;
+  m.persona = personaRoll();
+  m.setSkin(p.skin);           // after m.dex: setSkin checks the species
+  return m;
+}
+
+CasMonResult casinoBuyMon(uint16_t i, uint32_t coins, bool (*spend)(uint32_t),
+                          void (*refund)(uint32_t), int16_t *boxSlot) {
+  if (i >= CASINO_MON_COUNT) return CMB_NONE;
+  const uint32_t price = casinoPrizePrice(PK_MON, i);
+  if (coins < price) return CMB_COINS;
+  if (!party.box || party.boxFirstFree() < 0) return CMB_BOX_FULL;   // before a coin moves
+  const PartyMon m = casinoPrizeMon(i);
+  if (!spend || !spend(price)) return CMB_SPEND;                       // coins first
+  uint16_t slot = 0;
+  if (!party.boxStoreDurably(m, &slot)) {
+    if (refund) refund(price);   // the creature did not land: neither did the price
+    return CMB_STORE;
+  }
+  if (boxSlot) *boxSlot = (int16_t)slot;
+  return CMB_OK;
 }
 
 bool casinoGrantAvatar(uint16_t i) {

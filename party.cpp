@@ -236,11 +236,19 @@ bool Party::storeDurably(const PartyMon &m, int16_t *where) {
     save();
     return false;
   }
-  i = boxFirstFree();
+  uint16_t b = 0;
+  if (!boxStoreDurably(m, &b)) return false;
+  if (where) *where = (int16_t)(PARTY_SLOTS + b);
+  return true;
+}
+
+bool Party::boxStoreDurably(const PartyMon &m, uint16_t *slot) {
+  if (m.empty() || !box) return false;
+  int i = boxFirstFree();
   if (i < 0) return false;
   PartyMon old = box[i];
   box[i] = m;
-  if (boxSave() && boxStoreSlotIs((uint16_t)i, box[i])) { if (where) *where = (int16_t)(PARTY_SLOTS + i); return true; }
+  if (boxSave() && boxStoreSlotIs((uint16_t)i, box[i])) { if (slot) *slot = (uint16_t)i; return true; }
   box[i] = old;
   boxSave();
   return false;

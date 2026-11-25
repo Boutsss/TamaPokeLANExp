@@ -55,6 +55,8 @@ const SaveField SAVE_FIELDS[] = {
   { "dcare", SK_BYTES },
   // the live creature's personality (legacy mirror of the checkpoint byte)
   { "prsn", SK_U8 },
+  // the live creature's cosmetic skin (legacy mirror of the checkpoint byte)
+  { "skin", SK_U8 },
   // the shiny chain (chain.cpp)
   { "wchain", SK_BYTES },
   // Battle Tower run and gym rematches won (tower.cpp)
