@@ -3,7 +3,7 @@
 [![Flash in browser](https://img.shields.io/badge/flash-in%20browser-FF6B00?logo=googlechrome&logoColor=white)](https://reallyjustsomeguy.github.io/TamaPokeLANExp/web/)
 [![MakerWorld](https://img.shields.io/badge/MakerWorld-3D%20case-00AE42?logo=bambulab&logoColor=white)](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)
 ![Board](https://img.shields.io/badge/board-ESP32--S3%20round%20AMOLED-E7352C?logo=espressif&logoColor=white)
-![Firmware](https://img.shields.io/badge/firmware-v3.31-8A2BE2)
+![Firmware](https://img.shields.io/badge/firmware-v3.32-8A2BE2)
 ![Code](https://img.shields.io/badge/code-MIT-blue)
 ![Languages](https://img.shields.io/badge/languages-6-FFCB05)
 [![Stars](https://img.shields.io/github/stars/DylanPDao/TamaPoke?style=flat&logo=github&color=yellow)](https://github.com/DylanPDao/TamaPoke/stargazers)
@@ -495,7 +495,7 @@ the lobby. Let go any earlier and the row turns back to ARCADE. A Team Rocket
 grunt deals; he laughs when you lose and grumbles when you win.
 
 It plays like the GBC Game Corner: **you buy coins with your money, and you
-play and buy prizes with coins only** -- prizes never take money.
+play and buy prizes with coins only** -- prizes never take money. There are five games: slots, High/Low, blackjack, roulette and pinball.
 
 | | |
 |---|---|
@@ -505,7 +505,8 @@ play and buy prizes with coins only** -- prizes never take money.
 | **High / Low** | guess whether the next card is higher or lower (ace low, king high). A tie loses. Each right guess doubles the pot (up to 9,999); CASH OUT whenever. |
 | **Blackjack** | one deck, reshuffled every hand. Dealer stands on all 17s. Blackjack pays 3:2, a win 1:1, a push returns the bet. DOUBLE on your first two cards takes exactly one more card at twice the bet. |
 | **Roulette** | a single-zero wheel (0-36, in the real pocket order) with a Poke Ball hub. Bet on RED or BLACK, ODD or EVEN, 1-18 or 19-36 (each pays 1:1), GREEN -- the zero -- (pays 35:1), a DOZEN (tap again to change which; pays 2:1) or a single NUMBER (tap its right half to step up, left half to step down; pays 35:1). 0 loses every bet except GREEN or a straight bet on 0. Every bet returns 36 coins in 37 over the long run. The result is drawn when you press SPIN; the wheel and the ball only travel to it. |
-| Leaving | swipe down. A blackjack hand in play is stood on and settled; a High/Low pot is cashed out; spinning reels and a turning wheel stop and pay. |
+| **Pinball** | the PINBALL button under the others. **10 coins** for **3 balls**. Hold a finger on the **left half** of the screen for the left flipper and the **right half** for the right one (one finger, one flipper). Each of Team Rocket's three **R bumpers** scores **100**, each **Poke Ball target** 250 and lights up; light all three for a **1,000 bonus** and the **multiplier** goes up one (to **x5**, which multiplies the bumpers and the bonus too). It pays by your final score: **5,000: 10 coins**, **9,000: 25**, **15,000: 50**, **25,000: 100**. Over many games a player who catches about three balls in four gets back roughly 90% of what they put in, and one who never flips gets almost nothing. Your best score is kept. |
+| Leaving | swipe down. A blackjack hand in play is stood on and settled; a High/Low pot is cashed out; spinning reels and a turning wheel stop and pay. Pinball does **not** leave while a ball is rolling (a flipper press that slides would end your game); between balls it does, and the game is paid for what it scored. |
 
 **Prizes** -- everything is **9,999 coins** (about $200,000 worth at the
 counter, so winning at the tables is how you get there). Tap a prize once to select it and
