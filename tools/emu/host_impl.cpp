@@ -198,7 +198,7 @@ const uint8_t *linkNowPeerMac() { return gFakePeerMacSet ? gFakePeerMac : nullpt
 static LinkNowStats gNoStats;
 const LinkNowStats &linkNowStats() { return gNoStats; }
 // audio is silent here, but the sketch calls these, so they have to exist
-static uint8_t g_emuVol = 7, g_emuMusic = 0;
+static uint8_t g_emuVol = AUDIO_VOL_DEFAULT, g_emuMusic = 0;
 void audioMusic(uint8_t id) { g_emuMusic = id; }
 void audioSetVolume(uint8_t v) { g_emuVol = v > 10 ? 10 : v; }
 uint8_t audioVolume() { return g_emuVol; }

@@ -126,7 +126,7 @@ static const TuneDef MUSIC[] = {
   { M_VICTORY, 5, false },
 };
 static volatile uint8_t gMusic = MUS_NONE;
-static volatile uint8_t gVol = 7;
+static volatile uint8_t gVol = AUDIO_VOL_DEFAULT;
 
 static int16_t buf[256 * 2];  // estéreo intercalado (L=R)
 static int16_t mono[256];
@@ -289,8 +289,8 @@ void audioBegin() {
   Preferences p;
   p.begin("tamapoke", true);
   gOn = p.getBool("snd", true);
-  gVol = p.getUChar("vol", 7);
-  if (gVol > 10) gVol = 7;
+  gVol = p.getUChar("vol", AUDIO_VOL_DEFAULT);
+  if (gVol > 10) gVol = AUDIO_VOL_DEFAULT;
   p.end();
 
   gReady = true;

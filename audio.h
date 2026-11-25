@@ -33,6 +33,10 @@ void audioMusic(uint8_t id);
 
 // 0..10. Stored, and applied as the square wave's amplitude; 0 is silence
 // without disabling the system, which is what a mute expects to do.
+// A board that has never saved a volume starts at AUDIO_VOL_DEFAULT (v3.39: 1,
+// was 7 -- quiet out of the box). The ONE default: the firmware, its
+// out-of-range fallback and the emulator stub all read it.
+#define AUDIO_VOL_DEFAULT 1
 void audioSetVolume(uint8_t v);
 uint8_t audioVolume();
 

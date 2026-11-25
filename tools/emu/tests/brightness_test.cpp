@@ -9,6 +9,7 @@
 #include "Arduino_GFX_Library.h"
 #include "Preferences.h"
 #include "pet.h"
+#include "audio.h"
 #include <cstdio>
 uint32_t g_seed=61; FakeSerial Serial; FakeESP ESP; FakeWire Wire;
 volatile int g_touchX=0,g_touchY=0; volatile bool g_touchDown=false;
@@ -26,6 +27,7 @@ int main(){
   setup();
   for (int i=0;i<3;i++) render();
   ck(maxBrightness() == 10, "a fresh board is at full brightness");
+  ck(audioVolume() == 1 && AUDIO_VOL_DEFAULT == 1, "and its sound volume starts at 1 (v3.39)");
 
   // level 10 is the panel as it always was
   ck(brightnessTarget(false, true, 0, 10) == 180 && brightnessTarget(false, false, 0, 10) == 145,
