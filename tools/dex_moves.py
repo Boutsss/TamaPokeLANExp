@@ -57,10 +57,91 @@ EF_MULTI = 8        # hits 2-5 times, power is per hit
 EF_HEAL = 9         # param = percent of max VIT restored
 EF_RECHARGE = 10    # user loses the following turn, exposed
 EF_CHARGE = 11      # turn 1 charges; param 1 = invulnerable while charging
+# --- v3.37: the rules the second batch of moves needs (battle.cpp) ---------
+# APPEND-ONLY like the moves: moves.h stores the number, and both the
+# generator and the engine name them.
+EF_PROTECT = 12       # nothing hits the user this turn; chained use gets less likely
+EF_ENDURE = 13        # survives this turn's hits at 1 HP
+EF_WEATHER = 14       # param W_*: 1 rain, 2 sun, 3 sand, 4 hail, five turns
+EF_HAZARD = 15        # param 1 stealth rock, 2 spikes, 3 toxic spikes, 4 sticky web
+EF_SPIN = 16          # damage, then clears the user's side of hazards, seeds and binds
+EF_DEFOG = 17         # clears hazards on both sides and the foe's screens; foe evasion -1
+EF_SCREEN = 18        # param 1 reflect, 2 light screen, 3 aurora veil (hail only)
+EF_SUBSTITUTE = 19    # a quarter of max HP into a decoy that takes the hits
+EF_REST = 20          # full heal, sleeps exactly two turns
+EF_SLEEPTALK = 21     # asleep: one of its other moves, at random
+EF_SNORE = 22         # damage, only while asleep
+EF_HALFHP = 23        # damage = half the target's current HP
+EF_ENDEAVOR = 24      # the target's HP drops to the user's
+EF_OHKO = 25          # faints the target; fails on a higher level
+EF_SELFKO = 26        # the user faints (EXPLOSION, SELF-DESTRUCT)
+EF_VARPOW = 27        # param VP_*: power decided at use time
+EF_COUNTER = 28       # param 1 physical x2, 2 special x2, 3 either x1.5 (last hit taken)
+EF_FAKEOUT = 29       # first turn out only; param 0 also flinches
+EF_LEECHSEED = 30     # 1/8 a turn drained to the opposing creature
+EF_BIND = 31          # damage, then 1/8 a turn for 4-5 turns, and it cannot switch
+EF_YAWN = 32          # falls asleep at the end of next turn
+EF_TAUNT = 33         # cannot use status moves for three turns
+EF_ENCORE = 34        # repeats its last move for three turns
+EF_CURSE = 35         # Ghost: half its HP to curse the foe; others +ATK +DEF -SPE
+EF_BELLYDRUM = 36     # half its HP for ATK +6
+EF_SHELLSMASH = 37    # ATK/SP.A/SPE +2, DEF/SP.D -1
+EF_HAZE = 38          # every stage on both sides back to 0
+EF_CLEARSMOG = 39     # damage, and the target's stages back to 0
+EF_PSYCHUP = 40       # copies the target's stages
+EF_PAINSPLIT = 41     # both creatures' HP to the average
+EF_TAILWIND = 42      # four turns of double speed for the user's side
+EF_TRICKROOM = 43     # five turns: slower first
+EF_SWAGGER = 44       # raises the target's statMask by stages, then confuses it
+EF_DESTINYBOND = 45   # whoever faints the user next faints too
+EF_PERISH = 46        # both creatures out now faint in three turns
+EF_AQUARING = 47      # 1/16 a turn back; param 1 (INGRAIN) also cannot switch
+EF_WISH = 48          # half its max HP back at the end of next turn
+EF_SAFEGUARD = 49     # five turns: no status for the user's side
+EF_MIST = 50          # five turns: no stat drops for the user's side
+EF_FOCUSENERGY = 51   # param 2 = crit stage +2 (FOCUS ENERGY), 3 = next hit crits (LASER FOCUS)
+EF_SPLASH = 52        # nothing at all
+EF_ACUPRESSURE = 53   # one random stat +2
+EF_TOPSYTURVY = 54    # the target's stages inverted
+EF_CHARGEUP = 55      # next Electric move doubled, SP.D +1
+EF_HEAL_WEATHER = 56  # 1/2, 2/3 in sun (or sand, param 1), 1/4 in other weather
+EF_TRAP = 57          # the target cannot switch out
+EF_TERRAIN = 58       # param 1 electric, 2 grassy, 3 misty, 4 psychic, five turns
+EF_MEMENTO = 59       # the user faints; statMask/stages on the target
+EF_HIDDENPOWER = 60   # type from the IVs, power 60
+EF_MAGNITUDE = 61     # power 10-150 by the games' odds
+EF_KNOCKOFF = 62      # x1.5 into a held item, which it then loses for the battle
+EF_FINALGAMBIT = 63   # damage = the user's HP, and the user faints
+EF_FOCUSPUNCH = 64    # fails if the user was hit this turn before it moved
+EF_SUCKER = 65        # fails unless the target is about to attack
+EF_DREAMEATER = 66    # only on a sleeping target; param = percent drained
+EF_TRIATTACK = 67     # ailChance of burn, freeze or paralysis, one of the three
+EF_WAKEUP = 68        # double power on that ailment (param), then cures it
+EF_ESCALATE = 69      # doubles each consecutive use, up to param doublings
+EF_LOCKIN = 70        # locked in for 2-3 turns, then confused
+EF_FUTURE = 71        # lands two turns later
+
+# EF_VARPOW kinds
+VP = ('NONE FACADE RETURN FRUSTRATION PAYBACK ASSURANCE REVENGE HEX VENOSHOCK BRINE ACROBATICS '
+      'GYRO ELECTRO REVERSAL ERUPTION STORED PUNISH WEATHERBALL WRINGOUT TANTRUM WEIGHT HEAVY').split()
+
+# Flags, per move (dex_moves_meta.py). Bits in MoveEntry::flags.
+MF_IGNORE_STAGES = 1   # ignores the target's DEF/SP.D stages (SACRED SWORD)
+MF_PHYS_DEF = 2        # special, but against Defense (PSYSHOCK)
+MF_FOUL = 4            # uses the TARGET's attack (FOUL PLAY)
+MF_BREAK_SCREEN = 8    # breaks REFLECT and LIGHT SCREEN first (BRICK BREAK)
+MF_FREEZE_DRY = 16     # super effective on Water
+MF_HITS_AIR = 32       # reaches a creature in the air (FLY, BOUNCE)
+MF_HITS_GROUND = 64    # reaches one underground (DIG)
+MF_HITS_WATER = 128    # reaches one underwater (DIVE)
+MF_RAIN_SURE = 256     # cannot miss in rain (THUNDER)
+MF_HAIL_SURE = 512     # cannot miss in hail (BLIZZARD)
 
 # Stat bitmask for EF_STAGE. One delta applies to every bit set, which is how
 # DRAGON DANCE (ATK+SPE) and BULK UP (ATK+DEF) get to be one table row.
 ST_ATK, ST_DEF, ST_SPA, ST_SPD, ST_SPE = 1, 2, 4, 8, 16
+# v3.37: accuracy and evasion stages, for SAND ATTACK, DOUBLE TEAM and friends
+ST_ACC, ST_EVA = 32, 64
 
 TG_SELF, TG_FOE = 0, 1
 
@@ -110,7 +191,7 @@ MOVES = [
     ("RAZOR LEAF",   "razor-leaf",    'grass',    MC_PHYS,  55,  95, EF_NONE,      0, 0, 0, TG_FOE),
     ("MEGA DRAIN",   "mega-drain",    'grass',    MC_SPEC,  40, 100, EF_DRAIN,    50, 0, 0, TG_FOE),
     # charges in the open: the one 2-turn move that really does cost you a hit
-    ("SOLAR BEAM",   "solar-beam",    'grass',    MC_SPEC, 120, 100, EF_CHARGE,    0, 0, 0, TG_FOE),
+    ("SOLAR BEAM",   "solar-beam",    'grass',    MC_SPEC, 120, 100, EF_CHARGE,    2, 0, 0, TG_FOE),
     # --- ICE --------------------------------------------------------------
     ("AURORA BEAM",  "aurora-beam",   'ice',      MC_SPEC,  65, 100, EF_NONE,      0, 0, 0, TG_FOE),
     ("ICE PUNCH",    "ice-punch",     'ice',      MC_PHYS,  75, 100, EF_NONE,      0, 0, 0, TG_FOE, AIL_FREEZE, 10),
@@ -163,7 +244,7 @@ MOVES = [
     # --- DRAGON -----------------------------------------------------------
     ("DRAGON RAGE",  "dragon-rage",   'dragon',   MC_SPEC,   0, 100, EF_FIXED,    40, 0, 0, TG_FOE),
     ("DRAGON CLAW",  "dragon-claw",   'dragon',   MC_PHYS,  80, 100, EF_NONE,      0, 0, 0, TG_FOE),  # LATER (Gen 3)
-    ("OUTRAGE",      "outrage",       'dragon',   MC_PHYS, 120, 100, EF_NONE,      0, 0, 0, TG_FOE),  # LATER (Gen 2)
+    ("OUTRAGE",      "outrage",       'dragon',   MC_PHYS, 120, 100, EF_LOCKIN,    0, 0, 0, TG_FOE),  # LATER (Gen 2)
     # --- DARK -------------------------------------------------------------
     # BITE existed in Gen 1 but as a Normal move; Dark from Gen 2 on
     ("BITE",         "bite",          'dark',     MC_PHYS,  60, 100, EF_NONE,      0, 0, 0, TG_FOE),  # LATER
@@ -232,8 +313,9 @@ MOVES = [
     ("CONFUSE RAY",  "confuse-ray",   'ghost',    MC_STATUS, 0, 100, EF_NONE,      0, 0, 0, TG_FOE, AIL_CONFUSE, 100),
 ]
 
-# Accuracy drops (SAND ATTACK, SMOKESCREEN, FLASH) are deliberately left out:
-# accuracy stages are a whole second stage system for one marginal effect.
+# Accuracy drops (SAND ATTACK, SMOKESCREEN, FLASH) were left out here because
+# accuracy stages did not exist; they do since v3.37 (ST_ACC/ST_EVA), and those
+# moves arrived with the second batch.
 
 # The Gen 1-7 moves the engine can play (v3.33), APPENDED after everything
 # above: tools/pick_moves.py chose and wrote them once, and that file is
@@ -244,6 +326,11 @@ try:
     from dex_moves_more import MORE_MOVES   # noqa: E402 (it reads the constants above)
 except ImportError:   # before pick_moves.py has written it
     MORE_MOVES = []
-MOVES = MOVES_BASE + MORE_MOVES
+# ...and the second batch (v3.37, tools/pick_moves2.py), after those.
+try:
+    from dex_moves_more2 import MORE2_MOVES
+except ImportError:
+    MORE2_MOVES = []
+MOVES = MOVES_BASE + MORE_MOVES + MORE2_MOVES
 
 SLUG_TO_NAME = {slug: name for name, slug, *_ in MOVES if slug}

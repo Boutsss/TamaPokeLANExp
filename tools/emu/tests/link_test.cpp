@@ -199,7 +199,7 @@ int main(){
     for (int i=0;i<LINK_NAME_LEN;i++) nm.name[i]='X';
     linkMonTo(c,nm);
     ck(strlen(c.name)<sizeof(c.name), "an unterminated wire name is terminated");
-    ck(linkSafeMove(255)==0 && linkSafeMove(1)==1, "linkSafeMove bounds a move index");
+    ck(linkSafeMove(MOVE_COUNT)==0 && linkSafeMove(9999)==0 && linkSafeMove(MOVE_COUNT-1)==MOVE_COUNT-1 && linkSafeMove(1)==1, "linkSafeMove bounds a move index (16-bit)");
   }
 
   printf("%s\n", bad?"FAILURES":"all good");

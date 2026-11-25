@@ -1833,6 +1833,39 @@ pet checkpoint's v3 tail is read by whichever prefix is present.
 Learnset counts and indices are 16-bit too (`learnCount()`, `LEARNABLE_MAX` 1024):
 MEW alone passes 255 once the table grows.
 
+### The second batch of moves, and the rules they need (v3.37)
+
+`tools/pick_moves2.py` added 245 moves (`dex_moves_more2.py`, APPEND-ONLY from
+the moment it is committed) and `dex_moves_meta.py` (priority, crit stage,
+flinch chance and `MF_` flags for EVERY move -- safe to regenerate, it changes
+how a move plays, never which move an ID is). `MOVE_COUNT` is 500.
+
+- **Every `EF_`, `VP_` and `MF_` constant is defined ONCE, in `dex_moves.py`**,
+  and `gen_moves.py` emits the C enums from it. Never hand-write one in C.
+- **`pick_moves2.py --force` must not read its own previous output as "already
+  taken".** It did once and rewrote the batch with only the 11 moves that were
+  new -- `have` is `MOVES_BASE + MORE_MOVES` for exactly that reason.
+- The field is ONE global, `gField` (`battleFieldReset()` per fight). Each
+  `Combatant` carries its `side`; **`battleOnEntry()` is what sets it**, so
+  every place a creature comes on (`btlFieldStart()` at every fight start,
+  `btlArrive()` at every switch) must call it, or a REFLECT shields the wrong
+  side. `fieldui_test` drives this through the real screen and both hooks were
+  negative-checked.
+- `battleTurnStart()` must run before ordering (locks: ENCORE, THRASH; SUCKER
+  PUNCH reads `queuedMove`), `battleEndTurn(c, &other, log)` for both, then
+  `battleEndRound()` once. A test that skips them is testing a different game.
+- `battleCanSwitch()` is THE trap rule: the menu switch and the LAN host's
+  remote switch both ask it.
+- KNOCK OFF clears `Combatant::held` but not `itemUsed`, so `heldBattleSync()`
+  never consumes the real item: knocked off for the battle only.
+- `relearnFromLevel()`'s `autoPickPenalty()` keeps EXPLOSION, SNORE and friends
+  out of every AUTOMATIC moveset (hatchlings, gym leaders, wild creatures).
+- Crits are x1.5 now (Gen 6 on), not x2.
+- `mechanics_test` drives each rule through the engine; seven were broken on
+  purpose and each failed it. Left for a later batch: anything that forces or
+  passes a switch (ROAR, U-TURN, BATON PASS) -- it needs the switch screen to
+  open on the engine's say-so, and a LAN guest to be asked.
+
 ### The party is the live pet + FIVE banked (v3.31)
 
 Party slot 1 on screen is the creature you raise (`partyLivePos()`/

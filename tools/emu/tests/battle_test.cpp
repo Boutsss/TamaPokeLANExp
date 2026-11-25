@@ -38,8 +38,8 @@ static void mk(Combatant &c, int16_t dex, uint8_t lvl) {
   combatantFromPet(c, p);
 }
 
-static uint8_t findMove(const char *name) {
-  for (uint8_t i = 1; i < MOVE_COUNT; i++)
+static uint16_t findMove(const char *name) {
+  for (uint16_t i = 1; i < MOVE_COUNT; i++)
     if (!strcmp(MOVE_TBL[i].name, name)) return i;
   return 0;
 }
@@ -55,7 +55,7 @@ int main() {
   // --- type chart drives damage
   Combatant zard, blast, venu;
   mk(zard, 6, 50); mk(blast, 9, 50); mk(venu, 3, 50);
-  uint8_t flame = findMove("FLAMETHROWER"), surf = findMove("SURF");
+  uint16_t flame = findMove("FLAMETHROWER"), surf = findMove("SURF");
   uint16_t vsGrass = battleDamage(zard, venu, flame, false, 255);
   uint16_t vsWater = battleDamage(zard, blast, flame, false, 255);
   printf("     FLAMETHROWER: vs VENUSAUR %u, vs BLASTOISE %u\n", vsGrass, vsWater);
@@ -64,7 +64,7 @@ int main() {
   // --- SWORDS DANCE really doubles physical output
   Combatant m1, m2;
   mk(m1, 68, 50); mk(m2, 68, 50);
-  uint8_t chop = findMove("KARATE CHOP");
+  uint16_t chop = findMove("KARATE CHOP");
   uint16_t before = battleDamage(m1, m2, chop, false, 255);
   TurnLog lg;
   battleAct(m1, m2, findMove("SWORDS DANCE"), lg);
@@ -91,7 +91,7 @@ int main() {
   mk(fast, 65, 50);   // Alakazam, 120 base speed
   mk(slow, 143, 50);  // Snorlax, 30 base speed
   ck(battleMovesFirst(fast, flame, slow, flame), "the faster creature acts first");
-  uint8_t quick = findMove("QUICK ATTACK");
+  uint16_t quick = findMove("QUICK ATTACK");
   ck(battleMovesFirst(slow, quick, fast, flame), "QUICK ATTACK beats raw speed");
 
   // --- paralysis halves speed
@@ -127,7 +127,7 @@ int main() {
   Combatant gh, norm;
   mk(gh, 94, 50);    // Gengar, Ghost
   mk(norm, 143, 50); // Snorlax, Normal
-  uint8_t slam = findMove("BODY SLAM");
+  uint16_t slam = findMove("BODY SLAM");
   ck(battleDamage(norm, gh, slam, false, 255) == 0, "NORMAL does nothing to a GHOST");
 
   // --- a full fight terminates and someone wins
@@ -215,7 +215,7 @@ int main() {
     Combatant attacker, sash; mk(attacker, 6, 100); mk(sash, 9, 50);
     attacker.base[SI_ATK] = 1000;
     sash.maxHp = sash.hp = 2; sash.held = IT_FOCUS_SASH;
-    uint8_t tackle = findMove("TACKLE");
+    uint16_t tackle = findMove("TACKLE");
     for (int i = 0; i < 100 && !sash.itemUsed; i++) battleAct(attacker, sash, tackle, lg);
     ck(sash.hp == 1 && sash.itemUsed && lg.defItem == IT_FOCUS_SASH,
        "FOCUS SASH survives a lethal hit from full HP at 1 HP");

@@ -20,6 +20,16 @@ from dex_moves import (MOVES, MC_PHYS, MC_SPEC, MC_STATUS, EF_STAGE,
                        AIL_NONE, AIL_PARA, AIL_BURN, AIL_POISON, AIL_SLEEP,
                        AIL_FREEZE, AIL_CONFUSE)
 from dex_move_names import MOVE_NAME_LANGS, MOVE_NAMES
+import dex_moves as _D
+# Every EF_ and MF_ constant, by value, straight from dex_moves.py: the C enums
+# below are generated from this, so the two can never disagree.
+EF_NAMES = sorted(((v, k) for k, v in vars(_D).items() if k.startswith('EF_') and isinstance(v, int)))
+MF_NAMES = sorted(((v, k) for k, v in vars(_D).items() if k.startswith('MF_') and isinstance(v, int)))
+# Priority, critical stage, flinch chance and flags per move (pick_moves2.py).
+try:
+    from dex_moves_meta import META
+except ImportError:
+    META = {}
 
 # The ailment pair is optional in MOVES: only the ~17 moves that inflict one
 # spell it out, the rest are (AIL_NONE, 0). Keeps the table readable and means
@@ -42,6 +52,12 @@ try:
     from dex_learnsets_more import LEARNSETS_MORE
 except ImportError:
     LEARNSETS_MORE = {}
+try:   # the second batch (tools/fetch_more_learnsets.py --batch 2), after those
+    from dex_learnsets_more2 import LEARNSETS_MORE2
+    for _n, _rows in LEARNSETS_MORE2.items():
+        LEARNSETS_MORE[_n] = list(LEARNSETS_MORE.get(_n, [])) + [r for r in _rows if r[0] not in {x[0] for x in LEARNSETS_MORE.get(_n, [])}]
+except ImportError:
+    pass
 def _append(base, extra):
     have = {x[0] for x in base}
     return list(base) + [r for r in extra if r[0] not in have]
@@ -73,9 +89,12 @@ def main():
         seen.add(ident(name))
         if cat == MC_STATUS and power:
             sys.exit('%s: un movimiento de estado no puede tener potencia' % name)
-        if cat != MC_STATUS and not power and eff not in (4, 5):  # FIXED_LVL / FIXED
+        if cat != MC_STATUS and not power and eff not in (_D.EF_FIXED_LVL, _D.EF_FIXED, _D.EF_HALFHP,
+                                                           _D.EF_ENDEAVOR, _D.EF_OHKO, _D.EF_COUNTER,
+                                                           _D.EF_FINALGAMBIT):
             sys.exit('%s: potencia 0 sin dano fijo' % name)
-        if (eff == EF_STAGE) != bool(mask):
+        # a stage mask belongs to EF_STAGE, and to the three rules that carry one
+        if bool(mask) != (eff in (EF_STAGE, _D.EF_SWAGGER, _D.EF_DEFOG, _D.EF_MEMENTO)) and not (eff == EF_STAGE and not mask):
             sys.exit('%s: EF_STAGE y statMask no concuerdan' % name)
         if mask and not stages:
             sys.exit('%s: statMask sin stages' % name)
@@ -115,25 +134,17 @@ def main():
              % (MC_PHYS, MC_SPEC, MC_STATUS))
 
     o.append('// Efectos. param lleva la carga util de cada uno.\n')
-    o.append('enum : uint8_t {\n'
-             '  EF_NONE = 0,\n'
-             '  EF_STAGE,       // statMask + stages sobre target\n'
-             '  EF_RECOIL,      // param = denominador (3 -> 1/3 del dano hecho)\n'
-             '  EF_DRAIN,       // param = % del dano hecho que se cura\n'
-             '  EF_FIXED_LVL,   // dano = nivel del atacante, ignora stats\n'
-             '  EF_FIXED,       // param = dano fijo\n'
-             '  EF_PRIORITY,    // param = prioridad, actua antes\n'
-             '  EF_NEVER_MISS,  // no tira precision\n'
-             '  EF_MULTI,       // 2-5 golpes, power es por golpe\n'
-             '  EF_HEAL,        // param = % de vitalidad maxima curada\n'
-             '  EF_RECHARGE,    // pierde el turno siguiente, expuesto\n'
-             '  EF_CHARGE,      // turno 1 carga; param 1 = invulnerable mientras\n'
-             '};\n\n')
+    # generated from dex_moves.py (EF_NAMES): what each one does is documented there
+    o.append('enum : uint8_t {\n' + ''.join('  %s = %d,\n' % (k, v) for v, k in EF_NAMES) + '};\n\n')
+    o.append('// EF_VARPOW kinds (dex_moves.py VP)\n')
+    o.append('enum : uint8_t {\n' + ''.join('  VP_%s = %d,\n' % (k, i) for i, k in enumerate(_D.VP)) + '};\n\n')
+    o.append('// MoveEntry::flags (dex_moves.py MF_)\n')
+    o.append('enum : uint16_t {\n' + ''.join('  %s = %d,\n' % (k, v) for v, k in MF_NAMES) + '};\n\n')
 
     o.append('// Mascara de stats para EF_STAGE: un solo delta se aplica a\n'
              '// todos los bits activos (DRAGON DANCE = ATK|SPE +1).\n')
-    o.append('enum : uint8_t { ST_ATK = %d, ST_DEF = %d, ST_SPA = %d, ST_SPD = %d, ST_SPE = %d };\n'
-             % (ST_ATK, ST_DEF, ST_SPA, ST_SPD, ST_SPE))
+    o.append('enum : uint8_t { ST_ATK = %d, ST_DEF = %d, ST_SPA = %d, ST_SPD = %d, ST_SPE = %d, ST_ACC = %d, ST_EVA = %d };\n'
+             % (ST_ATK, ST_DEF, ST_SPA, ST_SPD, ST_SPE, _D.ST_ACC, _D.ST_EVA))
     o.append('enum : uint8_t { TG_SELF = %d, TG_FOE = %d };\n\n' % (TG_SELF, TG_FOE))
     o.append('// Status ailments. Battle-only: they live in the battle state and\n'
              '// clear when it ends, so nothing is written to the pet or replayed\n'
@@ -156,6 +167,11 @@ def main():
              '  uint8_t target;    // TG_*\n'
              '  uint8_t ailment;   // AIL_*, 0 = none\n'
              '  uint8_t ailChance; // percent, 0 = never\n'
+             '  // v3.37 (dex_moves_meta.py)\n'
+             '  int8_t  prio;      // priority bracket; EF_PRIORITY moves carry theirs here too\n'
+             '  uint8_t crit;      // critical-hit stage the move adds (0 = the base rate)\n'
+             '  uint8_t flinch;    // percent chance to flinch the target\n'
+             '  uint16_t flags;    // MF_*\n'
              '};\n\n')
 
     o.append('// Move IDs are 16-bit since v3.37: stored creatures keep the low byte where\n'
@@ -173,25 +189,30 @@ def main():
         if not m:
             return '0'
         bits = [n for n, b in (('ST_ATK', ST_ATK), ('ST_DEF', ST_DEF), ('ST_SPA', ST_SPA),
-                               ('ST_SPD', ST_SPD), ('ST_SPE', ST_SPE)) if m & b]
+                               ('ST_SPD', ST_SPD), ('ST_SPE', ST_SPE), ('ST_ACC', _D.ST_ACC),
+                               ('ST_EVA', _D.ST_EVA)) if m & b]
         return ' | '.join(bits)
 
-    EFN = {0: 'EF_NONE', 1: 'EF_STAGE', 2: 'EF_RECOIL', 3: 'EF_DRAIN', 4: 'EF_FIXED_LVL',
-           5: 'EF_FIXED', 6: 'EF_PRIORITY', 7: 'EF_NEVER_MISS', 8: 'EF_MULTI',
-           9: 'EF_HEAL', 10: 'EF_RECHARGE', 11: 'EF_CHARGE'}
+    EFN = {v: k for v, k in EF_NAMES}
 
     o.append('static const MoveEntry MOVE_TBL[MOVE_COUNT] = {\n')
-    o.append('  { "-", T_NORMAL, MC_STATUS, 0, 0, EF_NONE, 0, 0, 0, TG_SELF, AIL_NONE, 0 },  // 0: sin usar\n')
+    o.append('  { "-", T_NORMAL, MC_STATUS, 0, 0, EF_NONE, 0, 0, 0, TG_SELF, AIL_NONE, 0, 0, 0, 0, 0 },  // 0: sin usar\n')
+    MFV = {k: v for v, k in MF_NAMES}
+    def meta_of(slug, eff, param):
+        p, c, f, fl = META.get(slug, (None, 0, 0, []))
+        if p is None: p = param if eff == _D.EF_PRIORITY else 0
+        return p, c, f, ' | '.join(fl) if fl else '0'
     AILN = {AIL_NONE: 'AIL_NONE', AIL_PARA: 'AIL_PARA', AIL_BURN: 'AIL_BURN',
             AIL_POISON: 'AIL_POISON', AIL_SLEEP: 'AIL_SLEEP',
             AIL_FREEZE: 'AIL_FREEZE', AIL_CONFUSE: 'AIL_CONFUSE'}
     for i, m in enumerate(MOVES):
         (name, slug, typ, cat, power, acc, eff, param, mask, stages, tgt,
          ail, ach) = unpack(m)
-        o.append('  { "%s", T_%s, %s, %d, %d, %s, %d, %s, %d, %s, %s, %d },  // %d\n'
+        pr, cr, fli, fls = meta_of(slug, eff, param)
+        o.append('  { "%s", T_%s, %s, %d, %d, %s, %d, %s, %d, %s, %s, %d, %d, %d, %d, %s },  // %d\n'
                  % (name, typ.upper(), cname(cat), power, acc, EFN[eff], param,
                     maskname(mask), stages, 'TG_SELF' if tgt == TG_SELF else 'TG_FOE',
-                    AILN[ail], ach, i + 1))
+                    AILN[ail], ach, pr, cr, fli, fls, i + 1))
     o.append('};\n\n')
 
     # --- learnsets, CSR ---------------------------------------------------

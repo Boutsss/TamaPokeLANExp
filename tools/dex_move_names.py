@@ -116,3 +116,9 @@ try:
     MOVE_NAMES.update(MORE_NAMES)
 except ImportError:
     pass
+# ...and the second batch (tools/pick_moves2.py), on the same terms.
+try:
+    from dex_moves_more2 import MORE2_NAMES   # noqa: E402
+    MOVE_NAMES.update(MORE2_NAMES)
+except ImportError:
+    pass

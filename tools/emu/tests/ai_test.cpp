@@ -63,6 +63,9 @@ int main(){
 
   // it must not throw a move the target is immune to
   Combatant norm,ghost; mk(norm,143,50); mk(ghost,94,50);
+  // its default set can be all Normal and Fighting (GIGA IMPACT, BODY SLAM...),
+  // in which case there is nothing better to pick; give it one move that lands
+  norm.moves[3]=MV_CRUNCH;
   bool everImmune=false;
   for(int i=0;i<40;i++){
     uint16_t p2 =aiChooseMove(norm,ghost,true);

@@ -30,7 +30,7 @@ static void mk(Combatant &c, int16_t dex, uint8_t lvl) {
   p.ageMinutes = (uint32_t)(lvl - 1) * MINUTES_PER_LEVEL; p.relearnFromLevel(); combatantFromPet(c, p);
 }
 // Use mv until it lands (status moves can miss): the outcome of a hit.
-static TurnLog landed(int16_t atkDex, int16_t defDex, uint8_t mv, Combatant *out) {
+static TurnLog landed(int16_t atkDex, int16_t defDex, uint16_t mv, Combatant *out) {
   TurnLog log;
   for (int k = 0; k < 50; k++) {
     Combatant a, d; mk(a, atkDex, 50); mk(d, defDex, 50);
@@ -42,9 +42,9 @@ static TurnLog landed(int16_t atkDex, int16_t defDex, uint8_t mv, Combatant *out
 }
 // When can this species use mv? 255 = never. moveUnlockLevel() is THE answer
 // the picker (learnableFor) and relearnFromLevel() both ask.
-static uint8_t unlockAt(int16_t dex, uint8_t mv) {
+static uint8_t unlockAt(int16_t dex, uint16_t mv) {
   uint8_t best = 255;
-  for (uint8_t i = 0; i < learnCount(dex); i++)
+  for (uint16_t i = 0; i < learnCount(dex); i++)
     if (learnMove(dex, i) == mv) { uint8_t u = moveUnlockLevel(dex, i); if (u < best) best = u; }
   return best;
 }

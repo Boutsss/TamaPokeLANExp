@@ -66,7 +66,7 @@ int main() {
   for (int i = 0; i < MOVE_SLOTS; i++) {
     if (!baby.moves[i]) continue;
     bool found = false;
-    for (uint8_t k = 0; k < learnCount(6); k++)
+    for (uint16_t k = 0; k < learnCount(6); k++)
       if (learnMove(6, k) == baby.moves[i] && learnLevel(6, k) <= 1) found = true;
     if (!found) legal = false;
   }
@@ -99,7 +99,7 @@ int main() {
   uint16_t cand[8];
   uint8_t n = p.pendingLearnables(cand, 8);
   bool alreadyKnown = false;
-  for (uint8_t i = 0; i < n; i++)
+  for (uint16_t i = 0; i < n; i++)
     if (p.knowsMove(cand[i])) alreadyKnown = true;
   printf("     L100 learnables not yet known: %u\n", n);
   ck(!alreadyKnown, "pendingLearnables never offers a known move");
@@ -145,7 +145,7 @@ int main() {
   {
     int zero = 0, tooEarly = 0;
     for (int16_t d = 1; d <= DEX_COUNT; d++)
-      for (uint8_t i = 0; i < learnCount(d); i++) {
+      for (uint16_t i = 0; i < learnCount(d); i++) {
         uint8_t at = moveUnlockLevel(d, i);
         if (at == 0) zero++;
         if (learnLevel(d, i) == 0 && at < 20) tooEarly++;
@@ -155,7 +155,7 @@ int main() {
 
     const int16_t CHARMELEON = 5;
     bool early = false, late = false, ember1 = false, flame34 = false;
-    for (uint8_t i = 0; i < learnCount(CHARMELEON); i++) {
+    for (uint16_t i = 0; i < learnCount(CHARMELEON); i++) {
       uint16_t mv = learnMove(CHARMELEON, i);
       if (mv >= MOVE_COUNT) continue;
       uint8_t at = moveUnlockLevel(CHARMELEON, i);

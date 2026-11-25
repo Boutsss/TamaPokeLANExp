@@ -1396,6 +1396,19 @@ uint8_t moveUnlockLevel(int16_t dex, uint16_t idx) {
   return tmLevelFor(MOVE_TBL[mv]);       // a TM: no natural level, so the gate
 }
 
+// Moves a creature should not be handed automatically -- every default set,
+// every gym leader's and every wild creature's comes from relearnFromLevel(),
+// so without this a Golem would open with EXPLOSION and a Snorlax with SNORE.
+// They stay learnable; a player who wants one picks it.
+static int16_t autoPickPenalty(const MoveEntry &m) {
+  switch (m.effect) {
+    case EF_SELFKO: case EF_FINALGAMBIT: case EF_SNORE: case EF_DREAMEATER: return 300;
+    case EF_FOCUSPUNCH: case EF_FAKEOUT: case EF_FUTURE: return 60;
+    case EF_SUCKER: case EF_LOCKIN: return 15;
+    default: return 0;
+  }
+}
+
 void Pet::relearnFromLevel() {
   for (int i = 0; i < MOVE_SLOTS; i++) moves[i] = 0;
   if (isEgg()) return;
@@ -1432,6 +1445,7 @@ void Pet::relearnFromLevel() {
     if (m.cat != MC_STATUS && (m.type == d.type1 || m.type == d.type2)) sc += 40;
     if (m.effect == EF_RECHARGE) sc -= 35;   // a free turn for the opponent
     if (m.effect == EF_RECOIL) sc -= 20;
+    sc -= autoPickPenalty(m);
     sc += at;
     if (sc < 1) sc = 1;
     int slot = -1;
@@ -1473,6 +1487,7 @@ void Pet::relearnFromLevel() {
     int16_t sc = (int16_t)m.power;
     if (m.effect == EF_RECHARGE) sc -= 35;
     if (m.effect == EF_RECOIL) sc -= 20;
+    sc -= autoPickPenalty(m);
     if (sc > bestSc) { bestSc = sc; best = mv; }
   }
   if (best) moves[MOVE_SLOTS - 1] = best;

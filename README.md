@@ -3,7 +3,7 @@
 [![Flash in browser](https://img.shields.io/badge/flash-in%20browser-FF6B00?logo=googlechrome&logoColor=white)](https://boutsss.github.io/TamaPokeLANExp/web/)
 [![MakerWorld](https://img.shields.io/badge/MakerWorld-3D%20case-00AE42?logo=bambulab&logoColor=white)](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)
 ![Board](https://img.shields.io/badge/board-ESP32--S3%20round%20AMOLED-E7352C?logo=espressif&logoColor=white)
-![Firmware](https://img.shields.io/badge/firmware-v3.36-8A2BE2)
+![Firmware](https://img.shields.io/badge/firmware-v3.37-8A2BE2)
 ![Code](https://img.shields.io/badge/code-MIT-blue)
 ![Languages](https://img.shields.io/badge/languages-6-FFCB05)
 [![Stars](https://img.shields.io/github/stars/DylanPDao/TamaPoke?style=flat&logo=github&color=yellow)](https://github.com/DylanPDao/TamaPoke/stargazers)
@@ -278,13 +278,15 @@ While **awake**, per minute:
   sprite pack is on the card, so evolving can never hand you a creature the
   device cannot draw.
 
-Each creature also knows up to **4 moves**, from a pool of **254**: the original
-hand-picked set plus (v3.33) every Gen 1-7 move this battle engine can play the
-way the games do -- 159 of them, from STONE EDGE and ENERGY BALL to CALM MIND,
-BULLET SEED, AQUA JET, GIGA DRAIN and SPORE. Moves whose rules the engine does
-not have (weather, entry hazards, switching, Protect, two-turn moves, fixed or
-variable damage, OHKOs, abilities) were left out rather than played wrongly,
-and a flinch chance (the fang moves) is not modelled. Who learns what, and at
+Each creature also knows up to **4 moves**, from a pool of **499**: the original
+hand-picked set, (v3.33) the 159 Gen 1-7 moves the engine could already play,
+and (v3.37) 245 more that needed new battle rules -- PROTECT, SUBSTITUTE, the
+weathers, STEALTH ROCK and SPIKES, REFLECT and LIGHT SCREEN, FAKE OUT and every
+flinch, LOW KICK, FOUL PLAY, REST and SLEEP TALK... and the legendaries' signature
+moves (AEROBLAST, PSYSTRIKE, SACRED SWORD, ROAR OF TIME). See "Battle rules"
+below. Still left out, rather than played wrongly: moves that need abilities,
+double battles, held-item tricks, or that force or pass a switch (ROAR, U-TURN,
+BATON PASS -- a later update). Who learns what, and at
 which level, is the real games' data. A creature's existing moves never change
 on updating: new moves only ever join the list it can choose from. Two kinds:
 
@@ -625,6 +627,36 @@ otherwise status moves ignore the type chart, so CONFUSE RAY works on a
 Normal type. Asleep, a creature loses its turns for 2-4 turns, then wakes and
 acts. The hard-mode AI uses them when they can take hold, never on a foe that
 already has a status or that one more hit would finish.
+
+### Battle rules (v3.37)
+
+The engine now plays the Gen 7 rules these moves need. In short:
+
+| Rule | How it plays |
+|---|---|
+| Priority | every move has its real bracket: PROTECT +4, FAKE OUT +3, QUICK ATTACK +1, COUNTER -5, TRICK ROOM -7 |
+| Critical hits | x1.5 (Gen 6 on), base 1/16; high-crit moves 1/8; FOCUS ENERGY +2 (1/2); LASER FOCUS, STORM THROW and FROST BREATH always |
+| Accuracy / evasion | real stages: SAND ATTACK, DOUBLE TEAM, MINIMIZE... (+6 evasion leaves a sure hit about a third) |
+| Flinch | the real chance per move; only the creature still to act can flinch. FAKE OUT works on the first turn out only |
+| PROTECT, DETECT, ENDURE | each use in a row is a third as likely to work |
+| Weather (5 turns) | rain/sun: Water and Fire x1.5 / x0.5; sand and hail chip 1/16 (Rock, Ground, Steel / Ice spared), sand gives Rock SP.D x1.5; THUNDER never misses in rain, BLIZZARD in hail; SOLAR BEAM fires at once in sun |
+| Terrain (5 turns) | electric/grassy/psychic x1.5 for a grounded user; misty halves Dragon and blocks status; grassy heals 1/16; psychic blocks priority |
+| Hazards | STEALTH ROCK 1/8 x the type chart, SPIKES 1/8 · 1/6 · 1/4 (not Flying), TOXIC SPIKES (one layer poisons, two badly), STICKY WEB -1 speed. RAPID SPIN and DEFOG clear them |
+| Screens (5 turns) | REFLECT / LIGHT SCREEN halve that category, AURORA VEIL both (hail only); a critical hit ignores them; BRICK BREAK breaks them |
+| SUBSTITUTE | a quarter of max HP into a decoy; hits land on it, status moves and secondary effects do not get through |
+| Badly poisoned | TOXIC now escalates: 1/16, 2/16, 3/16... (starts over after a switch) |
+| Lasting effects | LEECH SEED 1/8 to the other side; binds (WRAP, FIRE SPIN...) 1/8 for 4-5 turns and no switching; CURSE, YAWN, TAUNT and ENCORE (3 turns), PERISH SONG, WISH, AQUA RING, INGRAIN, TAILWIND (4), TRICK ROOM (5), SAFEGUARD, MIST |
+| Two-turn moves | FLY, DIG, DIVE, BOUNCE, PHANTOM FORCE are out of reach while charging (THUNDER/HURRICANE reach a flyer, EARTHQUAKE a digger, SURF a diver) |
+| Variable power | LOW KICK / GRASS KNOT and HEAVY SLAM by real species weights; GYRO BALL, ELECTRO BALL, REVERSAL, ERUPTION, STORED POWER, FACADE, HEX, VENOSHOCK, BRINE, ACROBATICS, PAYBACK, REVENGE, WEATHER BALL, MAGNITUDE; RETURN and FRUSTRATION by the bond (0-100 -> power 0-102) |
+| Fixed damage | SUPER FANG (half), ENDEAVOR, the one-hit KOs (fail on a higher level), COUNTER / MIRROR COAT (x2), METAL BURST (x1.5), FINAL GAMBIT |
+| HIDDEN POWER | its type from the IVs (the real formula; SP.A and SP.D use the ATK and DEF IVs, as they do everywhere in this game) |
+| KNOCK OFF | x1.5 into a held item, which is lost **for that battle only** -- your creature still holds it afterwards |
+
+Leaving the field clears what a switch clears in the games (stat stages,
+confusion, seeds, binds, substitute, taunt, encore). A trapped creature
+cannot be switched out, and the battle says so. Movesets picked automatically
+-- a new hatchling's, a gym leader's, a wild creature's -- never take
+EXPLOSION, SELF-DESTRUCT, SNORE or the like; you can still teach them.
 
 The first five gym leaders sit at levels **14–43**, so you fight the early
 ladder on what your species actually learns; TMs arrive as you enter the back

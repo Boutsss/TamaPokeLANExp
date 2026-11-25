@@ -101,7 +101,7 @@ int main(){
     for (int16_t d = 1; d <= DEX_COUNT; d++) {
       const DexEntry &e = DEX_TBL[d];
       bool found = false;
-      for (uint8_t i = 0; i < learnCount(d) && !found; i++) {
+      for (uint16_t i = 0; i < learnCount(d) && !found; i++) {
         uint16_t mv = learnMove(d, i);
         if (mv >= MOVE_COUNT) continue;
         const MoveEntry &m = MOVE_TBL[mv];
@@ -131,7 +131,7 @@ int main(){
         if (!known(NO_LEARNSET, sizeof(NO_LEARNSET)/sizeof(*NO_LEARNSET), d)) empty++;
         continue;
       }
-      for (uint8_t i = 0; i < learnCount(d); i++)
+      for (uint16_t i = 0; i < learnCount(d); i++)
         if (learnMove(d, i) >= MOVE_COUNT) oob++;
     }
     ck(oob == 0, "no learnset entry points past the move table");

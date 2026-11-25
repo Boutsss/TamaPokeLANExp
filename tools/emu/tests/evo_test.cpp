@@ -30,10 +30,10 @@ static void show(Pet &p, const char *when) {
 
 // what the species could learn by this level but does not know
 static void pending(Pet &p) {
-  uint8_t n = learnCount(p.speciesId), miss = 0;
+  uint16_t n = learnCount(p.speciesId), miss = 0;
   char buf[240];
   buf[0] = 0;
-  for (uint8_t i = 0; i < n; i++) {
+  for (uint16_t i = 0; i < n; i++) {
     uint8_t at = learnLevel(p.speciesId, i);
     if (at == 0 || at > p.level()) continue;      // TMs are on-demand, skip
     uint16_t mv = learnMove(p.speciesId, i);

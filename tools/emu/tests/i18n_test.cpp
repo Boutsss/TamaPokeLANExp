@@ -38,7 +38,7 @@ int main() {
     int translated = 0;
     setLang((Lang)l);
     for (int move = 0; move < MOVE_COUNT; move++) {
-      const char *value = moveName((uint8_t)move);
+      const char *value = moveName((uint16_t)move);
       if (!value) { printf("NULL MOVE  %s index %d\n", LANG[l], move); bad++; continue; }
       for (const unsigned char *p = (const unsigned char *)value; *p; p++)
         if (*p > 0x7F) { printf("NON-ASCII MOVE  %s index %d: \"%s\"\n", LANG[l], move, value); bad++; break; }

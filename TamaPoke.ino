@@ -72,7 +72,7 @@ struct RimPage {
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
-#define FW_VERSION "3.36"
+#define FW_VERSION "3.37"
 
 Arduino_DataBus *bus = new Arduino_ESP32QSPI(
   LCD_CS, LCD_SCLK, LCD_SDIO0, LCD_SDIO1, LCD_SDIO2, LCD_SDIO3);
@@ -841,7 +841,8 @@ int8_t btlSwapWho = -1;        // 0 = your side, 1 = the foe's, -1 = nothing due
 uint8_t btlMenu = 0;
 #define BTL_LUNGE_MS 260
 #define BTL_HIT_MS 420
-char btlMsg[6][40];
+#define BTL_MSG_MAX 12    // a v3.37 turn can say a lot: hazards, weather, a substitute...
+char btlMsg[BTL_MSG_MAX][40];
 uint8_t btlMsgCount = 0;   // queued lines; a tap shows the next
 #define BTL_CELL_W 160
 #define BTL_CELL_H 54
@@ -4552,7 +4553,7 @@ static void btlFreeSprites() {
 }
 
 static void btlSay(const char *fmt, ...) {
-  if (btlMsgCount >= 6) return;
+  if (btlMsgCount >= BTL_MSG_MAX) return;
   va_list ap;
   va_start(ap, fmt);
   vsnprintf(btlMsg[btlMsgCount], sizeof(btlMsg[0]), fmt, ap);
@@ -4575,15 +4576,26 @@ static void btlSfxFor(const TurnLog &lg) {
   if (lg.move && MOVE_TBL[lg.move].cat == MC_STATUS && !lg.missed) sfxPlay(SFX_STATUS);
 }
 
+// The TurnLog's notes (battle.h BN_*), in order. Each string takes the name of
+// whoever the note is about; the few with no %s simply ignore it.
+static void btlNotes(const Combatant &actor, const Combatant &target, const TurnLog &lg) {
+  for (uint8_t i = 0; i < lg.noteN; i++) {
+    uint8_t bn = lg.note[i];
+    if (bn == BN_NONE || bn >= BN_COUNT) continue;
+    btlSay(T((StrId)(S_BN_PROTECTED + (bn - 1))), lg.noteWho[i] ? target.name : actor.name);
+  }
+}
+
 static void btlNarrate(const Combatant &actor, const Combatant &target, const TurnLog &lg) {
   if (lg.skipped) return;
+  if (!lg.move && lg.noteN && !lg.damage) { btlNotes(actor, target, lg); return; }   // a flinch, a woken creature
   btlSfxFor(lg);
   if (lg.atkItem) btlSay(T(S_BTL_USED), actor.name, itemEntry(lg.atkItem).name);
   if (lg.defItem) btlSay(T(S_BTL_USED), target.name, itemEntry(lg.defItem).name);
   if (lg.hurtSelf) { btlSay(T(S_BTL_HURTSELF)); return; }
   if (lg.charged) { btlSay(T(S_BTL_USED), actor.name, moveName(lg.move)); return; }
   if (lg.move) btlSay(T(S_BTL_USED), actor.name, moveName(lg.move));
-  if (lg.missed) { btlSay(T(S_BTL_MISS), actor.name); return; }
+  if (lg.missed) { btlSay(T(S_BTL_MISS), actor.name); btlNotes(actor, target, lg); return; }
   if (lg.immune) { btlSay(T(S_BTL_IMMUNE)); return; }
   if (lg.crit) btlSay(T(S_BTL_CRIT));
   if (lg.damage && lg.effPct > 100) btlSay(T(S_BTL_SUPER));
@@ -4593,7 +4605,28 @@ static void btlNarrate(const Combatant &actor, const Combatant &target, const Tu
                                      S_AIL_SLEEP, S_AIL_FREEZE, S_AIL_CONFUSE };
     if (lg.inflicted < 7) btlSay(T(S_BTL_STATUS), target.name, T(AIL_STR[lg.inflicted]));
   }
+  btlNotes(actor, target, lg);
   if (lg.targetFainted) btlSay(T(S_BTL_FAINT), target.name);
+}
+
+// The field starts empty every fight, and both creatures take their sides.
+static void btlFieldStart() {
+  battleFieldReset();
+  TurnLog t;
+  battleOnEntry(btlYou, 0, t);
+  battleOnEntry(btlFoe, 1, t);
+}
+
+// A creature has just come on: the hazards on its side bite, and the player
+// is told. A faint from them is caught by the usual checks on the next turn.
+static void btlArrive(uint8_t side) {
+  Combatant &c = side ? btlFoe : btlYou;
+  TurnLog t;
+  battleOnEntry(c, side, t);
+  btlNotes(c, c, t);
+  if (t.inflicted) btlSay(T(S_BTL_STATUS), c.name, T(S_AIL_POISON));
+  if (t.targetFainted) btlSay(T(S_BTL_FAINT), c.name);
+  btlHpShown[side] = c.hp;
 }
 
 // Builds one opponent through Pet, so it gets the same stat formula and the
@@ -4694,6 +4727,7 @@ void startLinkBattle() {
   btlEnterUntil[0] = btlEnterUntil[1] = 0;
   btlHpShown[0] = btlYou.maxHp;
   btlHpShown[1] = btlFoe.maxHp;
+  btlFieldStart();
   btlSyncSprite(0, btlYou);
   btlSyncSprite(1, btlFoe);
   audioMusic(MUS_BATTLE);
@@ -4737,6 +4771,7 @@ void startGhostBattle(uint8_t i) {
   btlEnterUntil[0] = btlEnterUntil[1] = 0;
   btlHpShown[0] = btlYou.maxHp;
   btlHpShown[1] = btlFoe.maxHp;
+  btlFieldStart();
   btlSyncSprite(0, btlYou);
   btlSyncSprite(1, btlFoe);
   audioMusic(MUS_BATTLE);
@@ -4847,6 +4882,7 @@ static void btlOpenTeam(const TrainerMon *team, uint8_t n, uint8_t iv, bool smar
   btlEnterUntil[0] = btlEnterUntil[1] = 0;
   btlHpShown[0] = btlYou.maxHp;
   btlHpShown[1] = btlFoe.maxHp;
+  btlFieldStart();
   btlSyncSprite(0, btlYou);
   btlSyncSprite(1, btlFoe);
   audioMusic(MUS_BATTLE);
@@ -4880,6 +4916,7 @@ void startBattle(int16_t dex, uint8_t lvl) {
   btlEnterUntil[0] = btlEnterUntil[1] = 0;
   btlHpShown[0] = btlYou.maxHp;
   btlHpShown[1] = btlFoe.maxHp;
+  btlFieldStart();
   btlSyncSprite(0, btlYou);
   btlSyncSprite(1, btlFoe);
   audioMusic(MUS_BATTLE);
@@ -5101,7 +5138,8 @@ static void btlResolve(uint16_t yourMove) {
     uint8_t act = lan.pendingAct;
     if (LINK_ACT_IS_SWITCH(act)) {
       uint8_t to = LINK_ACT_SLOT(act);
-      if (to < btlFoeSquadN && to != btlFoeAt && !btlFoeSquad[to].fainted()) {
+      if (to < btlFoeSquadN && to != btlFoeAt && !btlFoeSquad[to].fainted() && battleCanSwitch(btlFoe)) {
+        battleOnSwitchOut(btlFoe);
         btlFoeSquad[btlFoeAt] = btlFoe;     // remember how battered it was
         btlFoeAt = to;
         btlFoe = btlFoeSquad[to];
@@ -5110,6 +5148,7 @@ static void btlResolve(uint16_t yourMove) {
         btlLungeUntil[1] = btlHitUntil[1] = btlFaintUntil[1] = 0;
         btlEnterUntil[1] = now + BTL_ENTER_MS;
         btlSay(T(S_BTL_SENDS), lan.peerName, btlFoe.name);
+        btlArrive(1);
         foeSwitched = true;
       }
       foeMove = 0;
@@ -5131,6 +5170,8 @@ static void btlResolve(uint16_t yourMove) {
     }
   }
   (void)foeSwitched;
+  // ENCORE and THRASH-style locks replace the choice; SUCKER PUNCH reads it
+  battleTurnStart(btlYou, yourMove, btlFoe, foeMove);
 
   uint8_t clawSide = 0;
   bool youFirst = battleMovesFirst(btlYou, yourMove, btlFoe, foeMove, &clawSide);
@@ -5158,11 +5199,13 @@ static void btlResolve(uint16_t yourMove) {
   if (btlFoe.hp < hp0Foe) btlHitUntil[1] = now + BTL_HIT_MS;
   if (btlLink && btlLinkHost) btlShipResult(yourMove, foeMove, hp0You, hp0Foe);
   if (!btlYou.fainted() && !btlFoe.fainted()) {
-    battleEndTurn(btlYou, lg);
-    if (lg.damage) btlNarrate(btlYou, btlYou, lg);
-    battleEndTurn(btlFoe, lg);
-    if (lg.damage) btlNarrate(btlFoe, btlFoe, lg);
+    battleEndTurn(btlYou, &btlFoe, lg);
+    if (lg.damage || lg.noteN) btlNarrate(btlYou, btlYou, lg);
+    battleEndTurn(btlFoe, &btlYou, lg);
+    if (lg.damage || lg.noteN) btlNarrate(btlFoe, btlFoe, lg);
   }
+  battleEndRound(lg);
+  btlNotes(btlYou, btlYou, lg);
   heldBattleSync(pet, party, btlYou);
   // Someone went down. The replacement is NOT swapped in here -- that made the
   // change instant and read as a jump cut. Flag it, let the sprite drop out of
@@ -5649,6 +5692,7 @@ void renderBattle() {
 static void btlDoSwap() {
   uint32_t now = millis();
   if (btlSwapWho == 1 && btlFoeIsSquad()) {
+    battleOnSwitchOut(btlFoe);
     btlFoeSquad[btlFoeAt] = btlFoe;
     // the next one still standing, not simply the next index
     uint8_t nxt = btlFoeAt;
@@ -5661,6 +5705,7 @@ static void btlDoSwap() {
     btlLungeUntil[1] = btlHitUntil[1] = btlFaintUntil[1] = 0;
     btlEnterUntil[1] = now + BTL_ENTER_MS;
     btlSay(T(S_BTL_SENDS), btlLink ? lan.peerName : btlFoeName, btlFoe.name);
+    btlArrive(1);
   } else if (btlSwapWho == 1) {
     btlFoeAt++;
     foeFromSpecies(btlFoe, btlTeam[btlFoeAt].dex, btlTeam[btlFoeAt].level, btlTeamIv);
@@ -5669,7 +5714,9 @@ static void btlDoSwap() {
     btlLungeUntil[1] = btlHitUntil[1] = btlFaintUntil[1] = 0;
     btlEnterUntil[1] = now + BTL_ENTER_MS;
     btlSay(T(S_BTL_SENDS), btlFoeName, btlFoe.name);
+    btlArrive(1);
   } else if (btlSwapWho == 0) {
+    battleOnSwitchOut(btlYou);
     btlSquad[btlSquadAt] = btlYou;     // remember how battered it was
     btlSquadAt++;
     btlYou = btlSquad[btlSquadAt];
@@ -5678,6 +5725,7 @@ static void btlDoSwap() {
     btlLungeUntil[0] = btlHitUntil[0] = btlFaintUntil[0] = 0;
     btlEnterUntil[0] = now + BTL_ENTER_MS;
     btlSay(T(S_BTL_GO), btlYou.name);
+    btlArrive(0);
   }
   btlSwapWho = -1;
 }
@@ -5686,6 +5734,9 @@ static void btlDoSwap() {
 // being a free look at the matchup every round.
 static void btlSwitchTo(uint8_t i) {
   if (i >= btlSquadN || i == btlSquadAt) return;
+  // MEAN LOOK, a bind, INGRAIN: the one rule, asked here and by the LAN host
+  if (!battleCanSwitch(btlYou)) { btlMenu = 0; btlSay(T(S_BN_TRAPPED_NOSWITCH), btlYou.name); return; }
+  battleOnSwitchOut(btlYou);
   btlSquad[btlSquadAt] = btlYou;
   btlSquadAt = i;
   btlYou = btlSquad[i];
@@ -5695,6 +5746,7 @@ static void btlSwitchTo(uint8_t i) {
   btlEnterUntil[0] = millis() + BTL_ENTER_MS;
   btlMenu = 0;
   btlSay(T(S_BTL_GO), btlYou.name);
+  btlArrive(0);
   btlResolve(0);          // move 0 = no attack, so only the foe acts
 }
 
@@ -8262,6 +8314,7 @@ bool startWildBattle(uint8_t region, bool hard) {
   btlEnterUntil[0] = btlEnterUntil[1] = 0;
   btlHpShown[0] = btlYou.maxHp;
   btlHpShown[1] = btlFoe.maxHp;
+  btlFieldStart();
   btlSyncSprite(0, btlYou);
   btlSyncSprite(1, btlFoe);
   audioMusic(MUS_BATTLE);

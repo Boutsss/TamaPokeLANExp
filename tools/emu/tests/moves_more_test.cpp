@@ -12,6 +12,7 @@
 #include "Preferences.h"
 #include "pet.h"
 #include "party.h"
+#include "link.h"
 #include "battle.h"
 #include "dex.h"
 #include <cstdio>
@@ -26,16 +27,23 @@ static void mk(Combatant &c, int16_t dex, uint8_t lvl) {
   Pet p; p.dbgHatchAs(dex, false); p.ivAtk = p.ivDef = p.ivSpe = p.ivHp = 20;
   p.ageMinutes = (uint32_t)(lvl - 1) * MINUTES_PER_LEVEL; p.relearnFromLevel(); combatantFromPet(c, p);
 }
-static uint8_t unlockAt(int16_t dex, uint8_t mv) {
+static uint8_t unlockAt(int16_t dex, uint16_t mv) {
   uint8_t best = 255;
-  for (uint8_t i = 0; i < learnCount(dex); i++)
+  for (uint16_t i = 0; i < learnCount(dex); i++)
     if (learnMove(dex, i) == mv) { uint8_t u = moveUnlockLevel(dex, i); if (u < best) best = u; }
   return best;
 }
 
 int main() {
   ck(MV_DARK_PULSE == 89 && MV_CONFUSE_RAY == 95, "every older move kept its index");
-  ck(MOVE_COUNT == 255, "the table stops at 254 moves (+ the filler): a byte still holds every ID");
+  // v3.37: move IDs are 16-bit, and the second batch took the table past a byte
+  ck(MOVE_COUNT > 256, "the table has grown past 255 moves (16-bit IDs, v3.37)");
+  {
+    PartyMon pm; pm.setMove(0, MOVE_COUNT - 1); pm.setMove(3, 256);
+    LinkMon lm = {}; lm.setMove(1, MOVE_COUNT - 1);
+    ck(pm.move(0) == MOVE_COUNT - 1 && pm.move(3) == 256 && lm.move(1) == MOVE_COUNT - 1,
+       "a stored and a wire creature both hold a move ID past 255 exactly");
+  }
   ck(MV_ROCK_TOMB > MV_CONFUSE_RAY && MV_BULLET_SEED > MV_CONFUSE_RAY, "the new moves come after them");
 
   // a sure stage drop on the foe
@@ -87,7 +95,7 @@ int main() {
     int nobody = 0;
     for (int mv = MV_CONFUSE_RAY + 1; mv < MOVE_COUNT; mv++) {
       bool any = false;
-      for (int16_t d = 1; d <= DEX_COUNT && !any; d++) if (unlockAt(d, (uint8_t)mv) != 255) any = true;
+      for (int16_t d = 1; d <= DEX_COUNT && !any; d++) if (unlockAt(d, (uint16_t)mv) != 255) any = true;
       if (!any) { nobody++; printf("      nobody learns %s\n", MOVE_TBL[mv].name); }
     }
     ck(nobody == 0, "every new move can be learned by somebody");
