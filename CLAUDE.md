@@ -910,10 +910,11 @@ silence, so the only loop was flash-listen-guess-reflash. Demos: `duty`, `env`,
 0, two voices genuinely mixing, volume 0 truly silent. Whether a tune sounds
 GOOD is still ears-only, which is exactly why the WAV export exists.
 
-Still to do: the synth is built and tested but **the firmware still plays the
-old tone table** -- wiring `audio.cpp`'s task onto GbSynth is next, then parsing
-`pret/pokered`'s `audio/music/*.asm` (same `square_note`/`duty_cycle` vocabulary
-as the cries) into note data for the real battle themes.
+**Done:** `audio.cpp`'s task renders through GbSynth -- effects on a pulse
+voice (impacts on the noise channel) and the real battle and victory themes from
+`pret/pokered` on two voices (`tools/gen_music.py` -> `music.h`'s `MUSIC_TBL`).
+The old square-wave `playTone()` and its hand-written note tables were dead code
+and are gone (v3.53). What is left is ears-only: the levels on a real speaker.
 
 ### Found by hand on the board, not by any test
 

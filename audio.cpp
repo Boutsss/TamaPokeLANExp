@@ -109,22 +109,8 @@ static const SfxDef SFX[SFX_COUNT] = {
   {N_VICTORY, 6},
 };
 
-// A loop, not a one-shot: the task walks it and starts over.
-static const Note M_BATTLE[] = {
-  {392, 150}, {523, 150}, {659, 150}, {523, 150},
-  {440, 150}, {587, 150}, {698, 150}, {587, 150},
-  {392, 150}, {523, 150}, {659, 200}, {0, 100},
-  {659, 120}, {587, 120}, {523, 120}, {440, 240}, {0, 160},
-};
-static const Note M_VICTORY[] = {
-  {784, 140}, {880, 140}, {988, 140}, {1047, 420}, {0, 200},
-};
-struct TuneDef { const Note *n; uint8_t len; bool loop; };
-static const TuneDef MUSIC[] = {
-  { nullptr, 0, false },
-  { M_BATTLE, 17, true },
-  { M_VICTORY, 5, false },
-};
+// Which track is playing: an index into music.h's MUSIC_TBL (the real themes,
+// tools/gen_music.py), walked note by note on two voices by audioTask().
 static volatile uint8_t gMusic = MUS_NONE;
 static volatile uint8_t gVol = AUDIO_VOL_DEFAULT;
 
@@ -138,32 +124,6 @@ static uint16_t hzToGb(uint16_t hz) {
   if (!hz) return 0;
   int32_t f = 2048 - (int32_t)(131072u / hz);
   return (f < 0 || f > 2047) ? 0 : (uint16_t)f;
-}
-
-// reproduce un tono (o silencio si f==0) con rampa de ataque/caida anti-click
-static void playTone(uint16_t f, uint16_t ms) {
-  if (!gVol) { delay(ms); return; }   // muted: keep the timing, make no sound
-  int total = SAMPLE_RATE * ms / 1000;
-  int half = f ? (SAMPLE_RATE / (2 * f)) : 0;  // medio periodo en muestras
-  const int16_t amp = (int16_t)(500 * (gVol > 10 ? 10 : gVol));  // 0..5000
-  int phase = 0, done = 0;
-  bool high = true;
-  while (done < total) {
-    int n = total - done; if (n > 256) n = 256;
-    for (int i = 0; i < n; i++) {
-      int16_t s = 0;
-      if (f) {
-        s = high ? amp : -amp;
-        int idx = done + i;
-        if (idx < 64) s = (int16_t)(s * idx / 64);                 // ataque
-        else if (idx > total - 96) s = (int16_t)(s * (total - idx) / 96);  // caida
-        if (++phase >= half) { phase = 0; high = !high; }
-      }
-      buf[i * 2] = s; buf[i * 2 + 1] = s;
-    }
-    i2s.write((uint8_t *)buf, n * 4);
-    done += n;
-  }
 }
 
 // Renders `ms` of audio and pushes it to the codec. Everything sounds through
