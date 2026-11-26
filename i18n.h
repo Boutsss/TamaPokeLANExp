@@ -549,6 +549,11 @@ enum StrId : uint16_t {
   S_CAS_ARMORED,    // the armored skin's tag on its prize tile
   S_AV_PICK_FMT,    // the avatar picker's title: "AVATARS %u" unlocked
   S_AV_LEGENDS_FMT, // ... and the tower's legendary costumes owned, once any are
+  S_HELP,           // the menu row and the card's title: "HOW TO PLAY"
+  S_HELP_NEXT,      // the how-to-play card's button, before the last page
+  S_HELP_DONE,      // ... and on the last page: "GOT IT"
+  S_HELP_T1, S_HELP_T2, S_HELP_T3, S_HELP_T4,   // page titles, in order
+  S_HELP_B1, S_HELP_B2, S_HELP_B3, S_HELP_B4,   // page bodies: lines split on '\n'
   STR_COUNT
 };
 

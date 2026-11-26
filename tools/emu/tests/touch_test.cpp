@@ -85,6 +85,7 @@ static void fire() {
 
 // One press/release at (x,y), driven exactly as the SDL event loop drives it.
 uint8_t btlSwitchList(uint8_t *out); void btlSwitchCellPos(uint8_t pos, int *x, int *y);
+extern bool helpOpen; void helpBtn(int *x, int *y, int *w, int *h);
 static void click(int x, int y) {
   g_touchX = x; g_touchY = y; g_touchDown = true;
   fire();
@@ -126,6 +127,13 @@ int main(int argc, char **argv) {
 
   if (pet.awaitingStarter()) { printf("FAIL: click did not register\n"); return 1; }
   printf("PASS: tap reached onTap and picked a starter\n");
+
+  // A first game opens the how-to-play card next; tap through it with its own
+  // button, as a new player would, so what follows starts on the pet.
+  if (!helpOpen) { printf("FAIL: the first starter did not open the how-to-play card\n"); return 1; }
+  for (int i = 0; i < 8 && helpOpen; i++) { int bx, by, bw, bh; helpBtn(&bx, &by, &bw, &bh); click(bx + bw / 2, by + bh / 2); }
+  if (helpOpen) { printf("FAIL: the how-to-play card's button did not close it\n"); return 1; }
+  printf("PASS: tapped through the how-to-play card\n");
 
   // --fast must still do its job: with no finger down, game time has to run at
   // the scale. Otherwise the touch fix would have quietly neutered the flag.

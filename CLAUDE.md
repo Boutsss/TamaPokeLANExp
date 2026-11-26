@@ -2109,6 +2109,18 @@ the pet; up keeps the region shortcut it always had.
 is on the axis or pages calls it immediately before `gfx->flush()`. A screen
 either has the chrome or visibly does not.
 
+### The how-to-play card (v3.54)
+
+`ui_help.ino`, SCR_HELP: four pages (care, gestures, the rim, growing up),
+opened once by the first starter TAP (`helpOfferFirstTime()`, NVS `"help"`, in
+`SAVE_FIELDS`; WIPE brings it back) and from the menu's last row, which used to
+be CLOSE -- tapping outside or any swipe already closed the menu. It pages on
+the rim AND with a finger-sized NEXT, because it is what teaches the rim. Any
+test that picks the starter by tapping now lands on it: tap through it with
+`helpBtn()`, as `touch_test` does. `help_ui_test` checks every line of every
+page in all six languages against the chord it is drawn on, so a longer
+translation fails a test instead of running off the glass.
+
 ### Round-panel geometry: ask, never guess
 
 `uiSafeHalfWidth(y)` is the half-chord at row y, and `uiSafeHalfWidthFor(y0,y1)`

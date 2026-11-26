@@ -74,7 +74,7 @@ struct RimPage {
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
-#define FW_VERSION "3.53"
+#define FW_VERSION "3.54"
 
 Arduino_DataBus *bus = new Arduino_ESP32QSPI(
   LCD_CS, LCD_SCLK, LCD_SDIO0, LCD_SDIO1, LCD_SDIO2, LCD_SDIO3);
@@ -172,7 +172,8 @@ uint8_t tasksPage = 0;
 #define MENU_H 326
 #define MENU_ROW_H 36
 #define MENU_ROW_GAP 4
-// 7 compact rows: STATS / BAG / POKEDEX / SETTINGS / TASKS / RETIRE / CLOSE.
+// 7 compact rows: STATS / BAG / POKEDEX / SETTINGS / TASKS / RETIRE / HOW TO PLAY.
+// (The last was CLOSE; tapping outside the panel or any swipe already closes it.)
 // The 36 px row height keeps all seven inside the existing 326 px panel and
 // leaves its rounded corners safely on the circular display.
 #define MENU_ROWS 7
@@ -283,7 +284,7 @@ enum : uint8_t {
   SCR_STARTER = 0, SCR_REGION, SCR_GALLERY, SCR_DEXPICK, SCR_MOVEPICK, SCR_BOX,
   SCR_PARTY, SCR_KEYBOARD, SCR_CARD, SCR_PLAYER, SCR_CLOCK, SCR_GYM, SCR_GYMPICK,
   SCR_EXPLORE, SCR_MART, SCR_LAN, SCR_PICK, SCR_BATTLE, SCR_WIN, SCR_LEARN, SCR_TRAIN, SCR_MENU,
-  SCR_BAGSCR, SCR_GAME, SCR_MAIN, SCR_TASKS, SCR_DAYCARE, SCR_DCPICK, SCR_TOWER, SCR_CHAL, SCR_ARCADE, SCR_TRADE, SCR_TRADEPICK, SCR_FRIENDS, SCR_CASINO, SCR_CASSHOP, SCR_CARDBOOK, SCR_BOXFILTER, SCR_MONSTATS, SCR_BOXLIST, SCR_AVPICK, SCR_COUNT
+  SCR_BAGSCR, SCR_GAME, SCR_MAIN, SCR_TASKS, SCR_DAYCARE, SCR_DCPICK, SCR_TOWER, SCR_CHAL, SCR_ARCADE, SCR_TRADE, SCR_TRADEPICK, SCR_FRIENDS, SCR_CASINO, SCR_CASSHOP, SCR_CARDBOOK, SCR_BOXFILTER, SCR_MONSTATS, SCR_BOXLIST, SCR_AVPICK, SCR_HELP, SCR_COUNT
 };
 extern const char *const SCREEN_NAME[SCR_COUNT];   // const is internal linkage in C++
 
@@ -344,6 +345,14 @@ uint8_t avPickPages();
 void avPickOpenNow();
 void renderAvPick();
 bool avPickTap(int16_t px, int16_t py);
+// ui_help.ino: the how-to-play card, once after the first starter and from the menu
+extern bool helpOpen; extern uint8_t helpPage;
+uint8_t helpPages();
+void helpOpenNow();
+void helpOfferFirstTime();
+void helpClose();
+void renderHelp();
+void helpTap(int16_t px, int16_t py);
 bool startWildBattle(uint8_t region, bool hard);
 void startTowerBattle();
 void startChallengeBattle();
@@ -361,7 +370,7 @@ const char *const SCREEN_NAME[SCR_COUNT] = {
   "starter", "region", "gallery", "dexpick", "movepick", "box",
   "party", "keyboard", "card", "player", "clock", "gym", "gympick",
   "explore", "mart", "lan", "pick", "battle", "win", "learn", "train", "menu",
-  "bag", "minigame", "main", "tasks", "daycare", "dcpick", "tower", "challenge", "arcade", "trade", "tradepick", "friends", "casino", "casshop", "cardbook", "boxfilter", "monstats", "boxlist", "avpick"
+  "bag", "minigame", "main", "tasks", "daycare", "dcpick", "tower", "challenge", "arcade", "trade", "tradepick", "friends", "casino", "casshop", "cardbook", "boxfilter", "monstats", "boxlist", "avpick", "help"
 };
 
 // Badge art for a region, or nullptr when that region has none yet.
@@ -2020,6 +2029,7 @@ void openClock();  // prototipo
 
 void onSwipeV(int dir) {
   if (pet.awaitingStarter()) return;  // bloqueado durante la eleccion de inicial
+  if (helpOpen) { if (dir > 0) helpClose(); return; }   // down closes the card
   if (menuOpen) { menuOpen = false; return; }   // any swipe closes the menu
   if (tasksOpen) { tasksOpen = false; return; }
   if (battleOpen) return;   // no swiping out of a fight
@@ -2563,6 +2573,7 @@ void onSwipe(int dir) {
   // horizontal still pages it there. The rim is not a gesture anyone has been
   // taught on the first screen they ever see.
   if (pet.awaitingStarter()) { rpickSwipe(dir); return; }
+  if (helpOpen) return;   // pages on the rim; the card is not on the tile axis
   if (menuOpen) { menuOpen = false; return; }   // any swipe closes the menu
   // The arcade: BERRY CATCH is played by dragging sideways; in the other games
   // a horizontal swipe leaves, banking what was earned (ui_arcade.ino).
@@ -2626,11 +2637,13 @@ void onTap(int16_t x, int16_t y) {
       if (x >= 70 && x <= 396 && y >= ry && y <= ry + STARTER_ROW_H) {
         pet.chooseStarter(starterOf(pet.region, (uint8_t)i));
         sfxPlay(SFX_TAP);
+        helpOfferFirstTime();   // a first game: how to play, once
         break;
       }
     }
     return;
   }
+  if (helpOpen) { helpTap(x, y); return; }
   if (battleOpen) {
     battleTap(x, y);
     return;
@@ -2861,7 +2874,8 @@ void onTap(int16_t x, int16_t y) {
         if (!pet.canRetireNow()) { sfxPlay(SFX_DENY); return; }
         choiceKind = 3; choiceUntil = millis() + 12000;
       }
-      return;                                     // i == 6 is CLOSE: just shut
+      else if (i == 6) { helpOpenNow(); }          // HOW TO PLAY
+      return;
     }
     return;
   }
@@ -3196,6 +3210,7 @@ RTC_NOINIT_ATTR uint32_t gCrumbHeap;
 // Which screen is on the panel RIGHT NOW, in the same order render() tests.
 uint8_t uiCurrentScreen() {
   if (pet.awaitingStarter()) return starterRegionDone ? SCR_STARTER : SCR_REGION;
+  if (helpOpen) return SCR_HELP;
   if (galleryOpen) return galleryPick ? SCR_DEXPICK : SCR_GALLERY;
   if (movePickOpen) return SCR_MOVEPICK;
   if (kbOpen && partyOpen) return SCR_KEYBOARD;   // naming a PC box: on top of it
@@ -3333,6 +3348,7 @@ static RimPage uiRimTarget(uint16_t *pages) {
     case SCR_CASSHOP: p = &casShopPage; n = casShopPages(); break;
     case SCR_CARDBOOK: p = &cardBookPage; n = cardBookPages(); break;
     case SCR_AVPICK:  p = &avPickPage;  n = avPickPages(); break;
+    case SCR_HELP:    p = &helpPage;    n = helpPages(); break;
     case SCR_CARD:    p = &cardPage;    n = CARD_PAGES; break;
     case SCR_MOVEPICK: {
       uint16_t *all = gLearnBuf;
@@ -3708,6 +3724,7 @@ void render() {
     else renderStarterSelect();
     return;
   }
+  if (helpOpen) { renderHelp(); return; }
   if (galleryOpen) {
     if (galleryPick) { renderRegionPick(RPICK_FOR_DEX); return; }
     renderGallery();
@@ -7322,7 +7339,7 @@ static void menuRowLabel(int i, char *out, size_t n) {
     case 3: snprintf(out, n, "%s", T(S_SETTINGS)); break;
     case 4: snprintf(out, n, "%s", T(S_TK_MENU)); break;
     case 5: snprintf(out, n, "%s", T(S_RETIRE)); break;
-    default: snprintf(out, n, "%s", T(S_CLOSE)); break;
+    default: snprintf(out, n, "%s", T(S_HELP)); break;
   }
 }
 
@@ -7347,10 +7364,9 @@ void drawMenu() {
 
   for (int i = 0; i < MENU_ROWS; i++) {
     int y = MENU_ROW_Y(i);
-    bool close = (i == MENU_ROWS - 1);
     bool dead = (i == 5 && !pet.canRetireNow());   // an egg or a companion
     gfx->fillRoundRect(MENU_X + 18, y, MENU_W - 36, MENU_ROW_H, 12,
-                       close || dead ? UI_TRACK : UI_BG_DAY);
+                       dead ? UI_TRACK : UI_BG_DAY);
     gfx->drawRoundRect(MENU_X + 18, y, MENU_W - 36, MENU_ROW_H, 12, UI_INK);
     char lbl[28];
     menuRowLabel(i, lbl, sizeof(lbl));
