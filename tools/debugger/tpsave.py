@@ -12,6 +12,7 @@ the same trap CLAUDE.md warns about for anything that "restates" a table
 instead of deriving it. There is no way to derive this one from Python, so
 re-check by hand against the current C++ when any of those files change.
 """
+import os
 import re
 import struct
 from collections import OrderedDict
@@ -56,6 +57,10 @@ SAVE_FIELDS = [
     ("party", SK_BYTES), ("box", SK_BYTES), ("boxnm", SK_BYTES), ("bag", SK_BYTES),
     ("rivals", SK_BYTES),
     ("lang", SK_U8), ("snd", SK_BOOL), ("vol", SK_U8),
+    # v3.44+: the Game Corner's coins (full 32-bit count) and prize record, and
+    # the live creature's cosmetic skin. Shown and edited through the
+    # checkpoints like the rest (see legacy_view / fold_legacy_into_checkpoints).
+    ("coin2", SK_U32), ("skin", SK_U8), ("casino", SK_BYTES),
 ]
 SAVE_FIELD_KIND = dict(SAVE_FIELDS)
 
@@ -66,11 +71,11 @@ LIVE_PET_KEYS = [
     "full", "joy", "ene", "hyg", "poop", "wgt", "age", "dexn", "eggT2",
     "crack", "mist", "sleep", "lend", "seen", "bond", "nick", "froz",
     "ivat", "ivdf", "ivsp", "ivhp", "tatk", "tdef", "tspe", "mvlv",
-    "bk", "shy", "eshy", "stpk", "evop", "slpa", "rtpn",
+    "bk", "shy", "eshy", "stpk", "evop", "slpa", "rtpn", "skin",
 ]
 PLAYER_KEYS = [
     "tnam", "avt2", "avtr", "badg", "reg", "regn", "badh", "strk", "bstrk", "cday",
-    "medal", "tmedal", "mstone", "wlt", "stps", "ghi", "shi", "qhi",
+    "medal", "tmedal", "mstone", "wlt", "stps", "ghi", "shi", "qhi", "coin2",
     "lang", "snd", "vol",
 ]
 
@@ -120,6 +125,8 @@ FRIENDLY_NAMES = {
     "mstone": "Milestone flags (bitmask)",
     "ghi": "Minigame high score: punching bag", "shi": "Minigame high score: reaction test",
     "qhi": "Minigame high score: joy game",
+    "coin2": "Game Corner coins (up to 10,000,000)",
+    "skin": "Cosmetic skin (1 = armored MEWTWO; only on MEWTWO)",
     "wlt": "Poke Mart wallet ($, 1 pedometer step = $1, capped at 999999)",
     "stps": "Lifetime pedometer step count (never spent, display only)",
     "lang": "Language index", "snd": "Sound enabled", "vol": "Volume (0-10)",
@@ -328,6 +335,7 @@ assert PARTY_MON_SIZE == 56, f"PartyMon layout drifted: {PARTY_MON_SIZE} != 56 (
 LEGACY_MON_SIZE = 48   # before held items / personalities / favourites
 PM_FAV = 0xF7          # PartyMon::fav's magic "is a favourite" value
 PM_EGG_PAID = 0xE9
+PM_SKIN_TAG = 0xA0     # skins.h: PartyMon/LinkMon store PM_SKIN_TAG | skin
 # The PC box (v3.30): 40 boxes of 30, carried as one "pcNN" field per box that
 # holds anything, each record [slot in box][PartyMon].
 BOX_BOXES, BOX_PER_BOX = 40, 30
@@ -355,6 +363,11 @@ def decode_party_mon(raw: bytes) -> dict:
     d["nick"] = d["nick"].split(b"\x00", 1)[0].decode("ascii", "replace")
     d["moves"] = [d.pop(f"move{i}") | (d.pop(f"moveHi{i}") << 8) for i in range(4)]
     d["empty"] = d["dex"] < 1
+    # v3.48: a cosmetic skin lives in the first pad byte as PM_SKIN_TAG | skin,
+    # and counts only on MEWTWO (skins.h skinFor). _padbytes carries it back
+    # out unchanged, so editing a creature never strips its skin.
+    tag = d["_padbytes"][0]
+    d["skin"] = (tag & 0x0F) if (tag & 0xF0) == PM_SKIN_TAG and (tag & 0x0F) == 1 and d["dex"] == 150 else 0
     d["favourite"] = d.get("fav") == PM_FAV
     return d
 
@@ -621,6 +634,10 @@ def decode_pet_checkpoint(raw: bytes) -> dict:
             hi_at = PET_TAIL_MON + mon_len + 6
             if body_len >= hi_at + 4:
                 d["moves"] = [m | (raw[hi_at + i] << 8) for i, m in enumerate(d["moves"])]
+            # v3.48: the live creature's cosmetic skin (pet.cpp PET_V3_SKIN)
+            skin_at = PET_TAIL_MON + mon_len + 10
+            d["skin_at"] = skin_at if body_len >= skin_at + 1 else None
+            d["skin"] = raw[skin_at] if body_len >= skin_at + 1 else 0
     return d
 
 
@@ -703,6 +720,7 @@ PLAYER_LEGACY = {
     "badh": "badgesHard", "strk": "streak", "bstrk": "bestStreak", "cday": "lastCareDay",
     "tmedal": "totalMedals", "mstone": "lastMilestone", "ghi": "gameHi",
     "shi": "strHi", "qhi": "spdHi", "wlt": "wallet", "stps": "stepsTotal",
+    "coin2": "coins",
 }
 # Every key the firmware used to mirror (pet.cpp LEGACY_KEYS). With a
 # checkpoint present they are stale by definition.
@@ -724,6 +742,8 @@ def legacy_view(pet_ck, ply_ck) -> "tuple[dict, dict]":
             if key in SAVE_FIELD_KIND:
                 player[key] = ply_ck[name]
         player["avtr"] = player["avt2"] if player.get("avt2", 0) < 256 else 0
+    if pet_ck and pet_ck.get("valid"):
+        live["skin"] = pet_ck.get("skin", 0)
     return live, player
 
 
@@ -772,6 +792,10 @@ def fold_legacy_into_checkpoints(fields: "OrderedDict") -> "OrderedDict":
                 buf[off:off + 12] = b.ljust(12, b"\x00")
             else:
                 struct.pack_into("<" + fmt, buf, off, int(v))
+        if "skin" in out:
+            ck = decode_pet_checkpoint(bytes(out[pk][1]))
+            if ck.get("skin_at") is not None:
+                buf[ck["skin_at"]] = int(decode_scalar(*out["skin"])) & 0xFF
         _reseal(buf)
         out[pk] = (SK_BYTES, bytes(buf))
     if yk:
@@ -793,6 +817,11 @@ def fold_legacy_into_checkpoints(fields: "OrderedDict") -> "OrderedDict":
                     struct.pack_into("<H", buf, L["need"] + 10, int(v))
             elif name in ("wallet", "stepsTotal") and L["body"] >= L["need"] + 8:
                 struct.pack_into("<I", buf, L["need"] + (0 if name == "wallet" else 4), int(v))
+            elif name == "coins" and L["body"] >= L["need"] + 10:
+                c = max(0, min(int(v), 10_000_000))   # COIN_CAP (coins.h)
+                struct.pack_into("<H", buf, L["need"] + 8, min(c, 0xFFFF))   # what a downgrade reads
+                if L["body"] >= L["need"] + 16:
+                    struct.pack_into("<I", buf, L["need"] + 12, c)
         _reseal(buf)
         out[yk] = (SK_BYTES, bytes(buf))
     for key in list(out):
@@ -815,6 +844,34 @@ def newer_checkpoint(a: "dict|None", b: "dict|None"):
     if gb is None:
         return a
     return a if ((ga - gb) & 0xFFFFFFFF) < 0x80000000 and ga != gb else (a if ga == gb else b)
+
+
+# ---- the Game Corner's prize record ("casino", casino.cpp pack()) -----------
+# [ver u8][len u8] backs u32, bgs[8], avatars[16] (shop 0..127), back u8, bg u8,
+# hlBest u16, bjWins u16, slotBest u32, avatarsHi[16] (128..255),
+# avatarsX[96] (256..1023). Append-only: an older, shorter record simply ends.
+_TOWER_RE = re.compile(r"TOWER_AVATARS\[TOWER_AVATAR_COUNT\] = \{(.*?)\};", re.S)
+
+
+def parse_tower_avatars(avatar_names_h: str) -> list:
+    """The shop indices of the Battle Tower's legendary costumes, read from the
+    generated avatar_names.h -- never a second copy of the list."""
+    try:
+        text = open(avatar_names_h, encoding="utf-8").read()
+        return [int(x) for x in re.findall(r"\d+", _TOWER_RE.search(text).group(1))]
+    except Exception:
+        return []
+
+
+def decode_casino(raw: bytes, tower: list = ()) -> dict:
+    b = bytes(raw).ljust(152, b"\x00")
+    owned = bytearray(b[14:30]) + bytearray(b[44:60]) + bytearray(b[60:156])
+    bits = {i for i in range(len(owned) * 8) if owned[i // 8] >> (i % 8) & 1}
+    return {"version": b[0], "length": b[1],
+            "avatars_owned": len(bits), "legends_owned": len(bits & set(tower)),
+            "legends_total": len(tower),
+            "hlBest": struct.unpack_from("<H", b, 32)[0], "bjWins": struct.unpack_from("<H", b, 34)[0],
+            "slotBest": struct.unpack_from("<I", b, 36)[0]}
 
 
 # ---- species names, derived from dex.h, never restated --------------------
@@ -919,6 +976,9 @@ def decode_save(raw: bytes, dex_h_path: str = None, items_h_path: str = None) ->
     result["live_pet"].update(lv)
     result["player"].update(pv)
 
+    if "casino" in fields:
+        tower = parse_tower_avatars(os.path.join(os.path.dirname(dex_h_path), "avatar_names.h")) if dex_h_path else []
+        result["casino"] = decode_casino(fields["casino"][1], tower)
     result["findings"] = find_integrity_issues(result)
     return result
 

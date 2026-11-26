@@ -1520,7 +1520,12 @@ class App:
         self._refresh_rivals_tree()
         self._refresh_checkpoint_view()
         self._refresh_findings()
-        self.editor_summary_var.set(f"Loaded from {source} -- {decoded['field_count']} fields")
+        summary = f"Loaded from {source} -- {decoded['field_count']} fields"
+        if decoded.get("casino"):
+            c = decoded["casino"]
+            summary += (f" -- prize avatars {c['avatars_owned']}"
+                        f", legendary costumes {c['legends_owned']}/{c['legends_total']}")
+        self.editor_summary_var.set(summary)
 
     def _update_live_level(self):
         try:

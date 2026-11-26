@@ -95,6 +95,27 @@ def main():
            'and its own export shows every edit: ivat=%s bond=%s tnam=%s badg=%s' % (lv.get('ivat'), lv.get('bond'), pv.get('tnam'), pv.get('badg')))
         same = all(pc2[k] == pet0[k] for k in ('speciesId', 'ivDef', 'ivSpe', 'ivHp', 'trAtk', 'trDef', 'trSpe', 'moves', 'nick'))
         ck(same, 'and everything NOT edited came through unchanged (species, IVs, training, moves, nickname)')
+
+    # ---- the Game Corner coins and the armored skin, through the firmware
+    raw2 = emu(['EGG 150', 'LVL 20', 'EXPORT', 'WIPE'])
+    s2 = tpsave.decode_save(raw2, dex_h_path=os.path.join(ROOT, 'dex.h'))
+    f2 = OrderedDict(s2['fields'])
+    f2['coin2'] = (tpsave.SK_U32, tpsave.encode_scalar(tpsave.SK_U32, 1234567))
+    f2['skin'] = (tpsave.SK_U8, tpsave.encode_scalar(tpsave.SK_U8, 1))
+    lines2 = [l for l in tpsave.export_text_from_bytes(tpsave.encode_export(tpsave.fold_legacy_into_checkpoints(f2))).splitlines()
+              if l.startswith('IMPORT')]
+    b2 = tpsave.decode_save(emu(lines2, then=['EXPORT', 'WIPE']), dex_h_path=os.path.join(ROOT, 'dex.h'))
+    ck(b2['ok'] and b2['player'].get('coin2') == 1234567 and b2['live_pet'].get('skin') == 1,
+       'coins (past 65,535) and the skin go in through the editor and come back from the firmware: %s / %s'
+       % (b2['player'].get('coin2'), b2['live_pet'].get('skin')))
+    tower = tpsave.parse_tower_avatars(os.path.join(ROOT, 'avatar_names.h'))
+    rec = bytearray(152); rec[0], rec[1] = 1, 152
+    t0 = tower[0]                                  # a costume, in the 128..255 block
+    rec[44 + (t0 - 128) // 8] |= 1 << (t0 % 8)
+    rec[14] |= 1                                   # and shop avatar 0, an ordinary prize
+    c = tpsave.decode_casino(bytes(rec), tower)
+    ck(len(tower) == 94 and c['avatars_owned'] == 2 and c['legends_owned'] == 1,
+       'the Game Corner summary counts owned prizes and, of them, legendary costumes (%s)' % c)
     print('all good' if not bad else 'FAILURES')
     return 1 if bad else 0
 
