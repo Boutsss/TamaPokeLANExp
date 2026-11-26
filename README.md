@@ -3,7 +3,7 @@
 [![Flash in browser](https://img.shields.io/badge/flash-in%20browser-FF6B00?logo=googlechrome&logoColor=white)](https://boutsss.github.io/TamaPokeLANExp/web/)
 [![MakerWorld](https://img.shields.io/badge/MakerWorld-3D%20case-00AE42?logo=bambulab&logoColor=white)](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)
 ![Board](https://img.shields.io/badge/board-ESP32--S3%20round%20AMOLED-E7352C?logo=espressif&logoColor=white)
-![Firmware](https://img.shields.io/badge/firmware-v3.54-8A2BE2)
+![Firmware](https://img.shields.io/badge/firmware-v3.55-8A2BE2)
 ![Code](https://img.shields.io/badge/code-MIT-blue)
 ![Languages](https://img.shields.io/badge/languages-6-FFCB05)
 [![Stars](https://img.shields.io/github/stars/DylanPDao/TamaPoke?style=flat&logo=github&color=yellow)](https://github.com/DylanPDao/TamaPoke/stargazers)
@@ -181,6 +181,8 @@ the navigation — three axes, one meaning each, everywhere:
   Its last row, **HOW TO PLAY**, is a four-page card covering the basics. It
   also opens on its own once, right after you choose your first starter.
   Tapping outside the menu or swiping closes it.
+
+  <img src="docs/screens/help.png" width="240">
 - **Tap the creature** to pet it. **Long press (3 s)** opens the **release**
   dialog — gated to the main screen only, so it can never fire on a party slot.
 - **Maximum brightness:** Settings has a **LIGHT 1-10** row (the sun) under

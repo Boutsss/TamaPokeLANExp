@@ -74,7 +74,7 @@ struct RimPage {
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
-#define FW_VERSION "3.54"
+#define FW_VERSION "3.55"
 
 Arduino_DataBus *bus = new Arduino_ESP32QSPI(
   LCD_CS, LCD_SCLK, LCD_SDIO0, LCD_SDIO1, LCD_SDIO2, LCD_SDIO3);
@@ -3094,6 +3094,8 @@ void drawClouds(uint32_t now, uint16_t col) {
   }
 }
 
+#define MOON_X 340
+#define MOON_Y 150
 void drawScene(uint8_t biome, uint32_t now, bool night) {
   int h = sceneHour();
   uint16_t top, bot;
@@ -3108,8 +3110,10 @@ void drawScene(uint8_t biome, uint32_t now, bool night) {
 
   // sol o luna
   if (night) {
-    gfx->fillCircle(360, 78, 24, C565(0xe8, 0xee, 0xf5));
-    gfx->fillCircle(370, 72, 22, lerp565(top, bot, 78, HORIZON));  // creciente
+    // Below the header, not behind it: the night name is near-white too, and
+    // a long one's level used to disappear into the moon.
+    gfx->fillCircle(MOON_X, MOON_Y, 24, C565(0xe8, 0xee, 0xf5));
+    gfx->fillCircle(MOON_X + 10, MOON_Y - 6, 22, lerp565(top, bot, MOON_Y, HORIZON));  // creciente
     for (auto &st : STARS) gfx->fillRect(st[0], st[1], 4, 4, UI_WHITE);
   } else if (h < 18) {
     gfx->fillCircle(360, 84, 26, h < 8 ? C565(0xff, 0xd9, 0x8a) : C565(0xff, 0xe7, 0x9f));
@@ -9349,8 +9353,15 @@ void drawSaveWarning() {
 void drawHeader(const char *name, uint16_t nameColor, const char *msg) {
   drawBattery();
   drawSaveWarning();
-  gfx->setTextColor(nameColor);
   gfx->setTextSize(3);
+  // At night the name is near-white and the moon sits under its right end, so
+  // a long name's level vanished into it ("Lv.t"): a dark shadow keeps it legible.
+  if (gNight) {
+    gfx->setTextColor(RGB565_BLACK);
+    gfx->setCursor(CX - strlen(name) * 9 + 2, HEADER_NAME_Y + 2);
+    gfx->print(name);
+  }
+  gfx->setTextColor(nameColor);
   gfx->setCursor(CX - strlen(name) * 9, HEADER_NAME_Y);
   gfx->print(name);
   gfx->setTextColor(inkColor());

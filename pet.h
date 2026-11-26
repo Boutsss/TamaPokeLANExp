@@ -594,6 +594,8 @@ public:
   // test: force what the egg holds and hatch it now (serial command EGG).
   // The legendary/shiny IV guarantees only fire inside hatch(), so without
   // this there is no way to exercise them from outside the class.
+  // Screenshots: no celebration banner over the creature (tools/emu --shot).
+  void dbgClearBanners() { medalUntil = 0; milestoneUntil = 0; }
   void dbgHatchAs(int16_t dex, bool wantShiny) {
     if (dex < 1 || dex > DEX_COUNT) return;
     eggTarget = dex;

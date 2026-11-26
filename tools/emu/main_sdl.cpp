@@ -326,6 +326,10 @@ static int shotMode(const char *screen, const char *out, int lvl, int iv, int de
   else if (!strcmp(screen, "explore")) exploreOpen = true;
   else if (!strcmp(screen, "explorechain")) { chainLink(16, pet.currentDay()); chainLink(16, pet.currentDay()); exploreOpen = true; }
   else if (!strcmp(screen, "mart")) { pet.wallet = 12345; pet.stepsTotal = 87654; martOpen = true; }
+  else if (!strcmp(screen, "help")) {   // the how-to-play card, its gestures page
+    extern bool helpOpen; extern uint8_t helpPage;
+    helpOpen = true; helpPage = 1;
+  }
   else if (!strcmp(screen, "martconfirm")) {
     pet.wallet = 12345; pet.stepsTotal = 87654; martOpen = true; martConfirmItem = IT_SUPERPOTION;
   }
@@ -532,6 +536,7 @@ static int shotMode(const char *screen, const char *out, int lvl, int iv, int de
     }
     if (!strcmp(screen, "monstats")) monStats = MS_PARTY_;
   }
+  pet.dbgClearBanners();   // a medal earned while setting up would cover the shot
   render();
   writePPM(out);
   return 0;
