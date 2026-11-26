@@ -74,7 +74,7 @@ struct RimPage {
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
-#define FW_VERSION "3.50"
+#define FW_VERSION "3.51"
 
 Arduino_DataBus *bus = new Arduino_ESP32QSPI(
   LCD_CS, LCD_SCLK, LCD_SDIO0, LCD_SDIO1, LCD_SDIO2, LCD_SDIO3);
@@ -283,7 +283,7 @@ enum : uint8_t {
   SCR_STARTER = 0, SCR_REGION, SCR_GALLERY, SCR_DEXPICK, SCR_MOVEPICK, SCR_BOX,
   SCR_PARTY, SCR_KEYBOARD, SCR_CARD, SCR_PLAYER, SCR_CLOCK, SCR_GYM, SCR_GYMPICK,
   SCR_EXPLORE, SCR_MART, SCR_LAN, SCR_PICK, SCR_BATTLE, SCR_WIN, SCR_LEARN, SCR_TRAIN, SCR_MENU,
-  SCR_BAGSCR, SCR_GAME, SCR_MAIN, SCR_TASKS, SCR_DAYCARE, SCR_DCPICK, SCR_TOWER, SCR_CHAL, SCR_ARCADE, SCR_TRADE, SCR_TRADEPICK, SCR_FRIENDS, SCR_CASINO, SCR_CASSHOP, SCR_CARDBOOK, SCR_BOXFILTER, SCR_MONSTATS, SCR_BOXLIST, SCR_COUNT
+  SCR_BAGSCR, SCR_GAME, SCR_MAIN, SCR_TASKS, SCR_DAYCARE, SCR_DCPICK, SCR_TOWER, SCR_CHAL, SCR_ARCADE, SCR_TRADE, SCR_TRADEPICK, SCR_FRIENDS, SCR_CASINO, SCR_CASSHOP, SCR_CARDBOOK, SCR_BOXFILTER, SCR_MONSTATS, SCR_BOXLIST, SCR_AVPICK, SCR_COUNT
 };
 extern const char *const SCREEN_NAME[SCR_COUNT];   // const is internal linkage in C++
 
@@ -338,6 +338,12 @@ void daycareTap(int16_t x, int16_t y);
 void daycareOpened();
 uint8_t martPages();
 uint16_t dcPickPages();
+// ui_avpick.ino: the avatar picker, a level deeper than the player card
+extern bool avPickOpen; extern uint8_t avPickPage;
+uint8_t avPickPages();
+void avPickOpenNow();
+void renderAvPick();
+bool avPickTap(int16_t px, int16_t py);
 bool startWildBattle(uint8_t region, bool hard);
 void startTowerBattle();
 void startChallengeBattle();
@@ -355,7 +361,7 @@ const char *const SCREEN_NAME[SCR_COUNT] = {
   "starter", "region", "gallery", "dexpick", "movepick", "box",
   "party", "keyboard", "card", "player", "clock", "gym", "gympick",
   "explore", "mart", "lan", "pick", "battle", "win", "learn", "train", "menu",
-  "bag", "minigame", "main", "tasks", "daycare", "dcpick", "tower", "challenge", "arcade", "trade", "tradepick", "friends", "casino", "casshop", "cardbook", "boxfilter", "monstats", "boxlist"
+  "bag", "minigame", "main", "tasks", "daycare", "dcpick", "tower", "challenge", "arcade", "trade", "tradepick", "friends", "casino", "casshop", "cardbook", "boxfilter", "monstats", "boxlist", "avpick"
 };
 
 // Badge art for a region, or nullptr when that region has none yet.
@@ -2126,6 +2132,7 @@ void onSwipeV(int dir) {
     sfxPlay(SFX_TAP);
     return;
   }
+  if (playerOpen && avPickOpen) { if (back) avPickOpen = false; return; }   // the picker, then the card
   if (playerOpen) { if (back) uiTileGo(TILE_PET); return; }
   if (partyOpen) {
     if (partyDetail) { if (back) partyDetail = 0; return; }
@@ -2684,6 +2691,7 @@ void onTap(int16_t x, int16_t y) {
     bagTap(x, y);
     return;
   }
+  if (playerOpen && avPickOpen) { avPickTap(x, y); return; }
   if (playerOpen) {
     if (playerPage == 0 && y >= 32 && y < 68) {   // the name: rename yourself
       openKeyboardFor(KB_TRAINER);
@@ -2692,9 +2700,9 @@ void onTap(int16_t x, int16_t y) {
     }
     // the avatar is the only other live target; everything else backs out
     if (playerPage == 0 && x > CX - 40 && x < CX + 40 && y > 70 && y < 146) {
-      // Only avatars the rank has unlocked; the rank page shows the rest.
-      pet.avatar = rankNextAvatar(pet.avatar);
-      pet.saveNow();
+      // The picker: a grid of every unlocked avatar (ui_avpick.ino). The
+      // rank page still shows what each locked one needs.
+      avPickOpenNow();
       sfxPlay(SFX_TAP);
       return;
     }
@@ -3193,7 +3201,7 @@ uint8_t uiCurrentScreen() {
   if (bagOpen) return SCR_BAGSCR;
   if (kbOpen) return SCR_KEYBOARD;
   if (cardOpen) return SCR_CARD;
-  if (playerOpen) return SCR_PLAYER;
+  if (playerOpen) return avPickOpen ? SCR_AVPICK : SCR_PLAYER;
   if (clockOpen) return SCR_CLOCK;
   if (btlWinUntil) return SCR_WIN;
   if (battleOpen) return SCR_BATTLE;
@@ -3292,7 +3300,7 @@ void uiTileGo(int i) {
       break;
     // Re-score on open: progress that arrived without an event (a restore, the
     // console) must not leave the card showing a stale rank. Never lowers it.
-    case SCR_PLAYER: playerOpen = true; playerPage = 0; rankUpdate(); break;
+    case SCR_PLAYER: playerOpen = true; avPickOpen = false; playerPage = 0; rankUpdate(); break;
     default: break;   // the pet tile is everything else being shut
   }
   sfxPlay(SFX_TAP);
@@ -3321,6 +3329,7 @@ static RimPage uiRimTarget(uint16_t *pages) {
     case SCR_TRADEPICK: r.p16 = &tradePage; n = tradePickPages(); break;
     case SCR_CASSHOP: p = &casShopPage; n = casShopPages(); break;
     case SCR_CARDBOOK: p = &cardBookPage; n = cardBookPages(); break;
+    case SCR_AVPICK:  p = &avPickPage;  n = avPickPages(); break;
     case SCR_CARD:    p = &cardPage;    n = CARD_PAGES; break;
     case SCR_MOVEPICK: {
       uint16_t *all = gLearnBuf;
@@ -3808,7 +3817,8 @@ void render() {
     return;
   }
   if (playerOpen) {
-    renderPlayer();
+    if (avPickOpen) renderAvPick();
+    else renderPlayer();
     return;
   }
   if (pet.hasLearnOffer()) {

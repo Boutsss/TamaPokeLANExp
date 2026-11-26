@@ -9,6 +9,8 @@
 #include "Arduino_GFX_Library.h"
 #include "Preferences.h"
 #include "pet.h"
+#include "casino.h"
+#include "avatar_names.h"
 #include "moves.h"
 #include "party.h"
 #include "card.h"
@@ -151,6 +153,13 @@ int main(){
   for (uint8_t k = 0; k < 4; k++) { TrainerCard c; c.fid = 100 + k; snprintf(c.name, sizeof c.name, "T%u", k); cardBookAdd(c, 1); }
   clearAll(); cardBookOpen=true;                  check("cardbook", &cardBookOpen, &cardBookPage);
   cardBookOpen=false;
+  // The avatar picker, a level deeper than the player card: rim paging, and it
+  // must stay the picker rather than dropping back to the card.
+  { extern bool avPickOpen; extern uint8_t avPickPage;
+    for (uint16_t i = 0; i < 40; i++) casinoGrantAvatar(TOWER_AVATARS[i]);   // enough for several pages
+    clearAll(); playerOpen=true; avPickOpen=true;   check("avpick",   &playerOpen,   &avPickPage);
+    if (strcmp(SCREEN_NAME[uiCurrentScreen()], "avpick")) { printf("FAIL  avpick     paging left the picker\n"); bad++; }
+    avPickOpen=false; playerOpen=false; }
   // The Pokedex pages within ONE region and changes region on a vertical swipe.
   // Every species must be reachable: it was capped at 10 flat pages when the dex
   // was 151 long, which silently hid everything past 160 once it grew to 386.

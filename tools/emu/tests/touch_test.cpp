@@ -232,14 +232,19 @@ int main(int argc, char **argv) {
            (int)tasksOpen, uiCurrentScreen());
     return 1;
   }
-  printf("PASS: menu TASKS row opens the daily/weekly task screen\\n");
+  printf("PASS: menu TASKS row opens the daily/weekly task screen\n");
   click(233, 423);  // task screen BACK pill
   if (tasksOpen || menuOpen) { printf("FAIL: task screen BACK did not return to the pet\\n"); return 1; }
-  printf("PASS: task screen BACK returns to the pet\\n");
+  printf("PASS: task screen BACK returns to the pet\n");
 
-  uint8_t oldAvatar = pet.avatar;
+  // The avatar opens the picker (v3.51); a cell there wears it.
+  uint16_t oldAvatar = pet.avatar;
   playerOpen = true;
   click(233, 100);
+  { extern bool avPickOpen; void avPickCell(uint8_t, int*, int*);
+    if (!avPickOpen) { printf("FAIL: tapping the avatar did not open the picker\n"); return 1; }
+    int ax, ay; avPickCell(1, &ax, &ay);
+    click(ax + 40, ay + 40); }
   Pet afterAvatar;
   afterAvatar.begin();
   if (pet.avatar == oldAvatar || afterAvatar.avatar != pet.avatar) {

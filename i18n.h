@@ -547,6 +547,8 @@ enum StrId : uint16_t {
   S_CAS_TO_BOX,     // a prize creature delivered to the PC box
   S_CAS_BOX_FULL,   // ... refused: no room in the box
   S_CAS_ARMORED,    // the armored skin's tag on its prize tile
+  S_AV_PICK_FMT,    // the avatar picker's title: "AVATARS %u" unlocked
+  S_AV_LEGENDS_FMT, // ... and the tower's legendary costumes owned, once any are
   STR_COUNT
 };
 
