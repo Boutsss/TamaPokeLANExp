@@ -57,7 +57,9 @@ bool cardFromWire(const uint8_t *i, uint8_t n, TrainerCard &c) {
   for (char *p = c.name; *p; p++) if (*p < 32 || *p > 126) *p = '?';   // the font is ASCII only
   if (!c.name[0]) snprintf(c.name, sizeof(c.name), "TRAINER");
   uint16_t av = n >= 32 ? r16(i + 30) : i[12];
-  c.setAvatar(av < AVATAR_COUNT ? av : 0);
+  // YOU is composed from THIS board's wardrobe, so another player's YOU would
+  // draw in our clothes: it arrives as RED, the classic stand-in.
+  c.setAvatar(av < AVATAR_COUNT && av != AVATAR_YOU ? av : 0);
   c.bg = i[13] < CARD_BG_COUNT ? i[13] : 0;
   c.rank = i[14] >= 1 && i[14] <= RANK_MAX ? i[14] : 1;
   c.badges = i[15] <= GYM_REGIONS * TRAINER_GYMS ? i[15] : 0;

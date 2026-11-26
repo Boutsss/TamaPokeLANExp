@@ -23,7 +23,7 @@ volatile int g_touchX = 0, g_touchY = 0; volatile bool g_touchDown = false;
 void FakeESP::restart() { exit(0); }
 int FakeSerial::available() { return 0; }
 String FakeSerial::readStringUntil(char) { return String(""); }
-void setup(); void loop(); void render(); void onTap(int16_t, int16_t); void onSwipeV(int);
+void setup(); void loop(); void render(); void onTap(int16_t, int16_t); void onSwipeV(int); void onSwipe(int); void uiBack();
 extern Pet pet;
 extern Arduino_Canvas *gfx;
 extern int g_emuRiseLast, g_emuRiseCount;
@@ -195,7 +195,7 @@ int main() {
   leaveSack();
   ck(!sackOpen && pet.trAtk == e / 4 && e / 4 > 8 / 4, "leaving early banks min(18, points/4), crits included");
   ck(pet.strHi == 8, "and records the 8 punches");
-  // the header strip still leaves (handled at press time in handleTouch)
+  // the header strip no longer leaves: only the held BACK button (ui_back.ino) does
   freshPet();
   startSack();
   leaveSack();
@@ -317,8 +317,10 @@ int main() {
   startSpeedGame(); skipIntro(); renderSpeed();
   for (int i = 0; i < 9; i++) { spdTK[0] = spdTK[1] = 0; spdSpawnAt(0, 2); spdTX[0] = 233; spdTY[0] = 233; spdTap(233, 233); }
   seff = spdEff();
-  onSwipeV(1);                                         // the swipe exit
-  ck(!spdOpen && pet.trSpe == seff / 2 && seff / 2 > 9 / 2, "swiping out early banks the effective score");
+  onSwipeV(1);
+  ck(spdOpen, "a swipe does NOT leave a minigame any more: it was the accidental exit players hit");
+  uiBack();                                            // the held BACK button
+  ck(!spdOpen && pet.trSpe == seff / 2 && seff / 2 > 9 / 2, "the held BACK button leaves early and banks the effective score");
 
   // ================================================================== BALL
   printf("-- ball game (DEF)\n");
@@ -402,7 +404,11 @@ int main() {
   geff = gameEff();
   gBX[0] = 233; gBY[0] = 300;
   gameTap(60, 40);                                 // empty header strip
-  ck(!gameOpen && pet.trDef == geff / 2 && geff / 2 > 10 / 2, "tapping the empty header leaves and banks the effective score");
+  ck(gameOpen, "tapping the empty header no longer quits: a fast tap at a high ball landed there");
+  onSwipe(1);
+  ck(gameOpen, "nor does a sideways swipe");
+  uiBack();                                        // the held BACK button
+  ck(!gameOpen && pet.trDef == geff / 2 && geff / 2 > 10 / 2, "the held BACK button leaves and banks the effective score");
   ck(pet.gameHi == 10, "and records the 10 hits");
   // the ceiling
   freshPet();

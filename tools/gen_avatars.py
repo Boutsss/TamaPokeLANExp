@@ -36,6 +36,8 @@ import zlib
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from avatars_original import ORIGINAL   # drawn for this project; appended after SHOP
+from avatars_original import STARTERS   # more of the free set; after everything, never sold
+from avatars_original import YOU        # the customisable trainer, after the starters
 from avatars_costume import costumes    # composed creature costumes, after ORIGINAL
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -193,8 +195,8 @@ def frames(repo, fn, accent, count=1):
 
 
 def emit(out, sym, pal, idx):
-    out.append('static const uint16_t %s_PAL[3] = { %s };'
-               % (sym, ', '.join('0x%04X' % c for c in pal)))
+    out.append('static const uint16_t %s_PAL[%d] = { %s };'
+               % (sym, len(pal), ', '.join('0x%04X' % c for c in pal)))
     out.append('static const uint8_t %s_IDX[%d] = {' % (sym, len(idx)))
     for r in range(len(idx) // SIZE):
         row = idx[r * SIZE:(r + 1) * SIZE]
@@ -256,6 +258,36 @@ def main():
         names.append((sym, label, 'original art' + (', legendary: aura' if legendary else ''), AVFX_AURA if legendary else 0))
         shopNames.append(label)
         emit(out, sym, [OUTLINE, accent, HIGHLIGHT], [CODE[c] for r in grid for c in r])
+    # The extra starters: free from rank 1, so NOT shop entries -- they come
+    # after every shop index (casino ownership bits must never move) and carry
+    # a full palette, since skin, hair and clothes are separate colours.
+    starterFirst = len(names)
+    starterLabels = set()
+    for k, (label, pal, grid) in enumerate(STARTERS):
+        if len(grid) != SIZE or any(len(r) != SIZE for r in grid) or len(label) > 10 \
+                or not label.isascii() or label in shopNames or label in starterLabels \
+                or label in [p[1] for p in PICKS]:
+            raise SystemExit('starter avatar %s: not 16x16, label too long/non-ASCII or taken' % label)
+        starterLabels.add(label)
+        used = sorted({c for r in grid for c in r} - {'.', '#'})
+        missing = [c for c in used if c not in pal]
+        if missing:
+            raise SystemExit('starter avatar %s: no colour for %s' % (label, ''.join(missing)))
+        code = {'.': 0xFF, '#': 0}
+        code.update({c: i + 1 for i, c in enumerate(used)})
+        sym = 'AV_ST%02d' % k
+        names.append((sym, label, 'original art, starter', 0))
+        emit(out, sym, [OUTLINE] + [pal[c] for c in used], [code[c] for r in grid for c in r])
+    # YOU: composed at draw time from the wardrobe; this is its stand-in art.
+    youIndex = len(names)
+    label, pal, grid = YOU
+    if len(grid) != SIZE or any(len(r) != SIZE for r in grid):
+        raise SystemExit('YOU: not 16x16')
+    used = sorted({c for r in grid for c in r} - {'.', '#'})
+    code = {'.': 0xFF, '#': 0}
+    code.update({c: i + 1 for i, c in enumerate(used)})
+    names.append(('AV_YOU', label, 'original art, the wardrobe trainer (composed at draw time)', 0))
+    emit(out, 'AV_YOU', [OUTLINE] + [pal[c] for c in used], [code[c] for r in grid for c in r])
     # Avatar indices are uint16_t (v3.45); the real ceiling is the casino's
     # ownership bitmask, CASINO_AVATARS_MAX in casino.h, which casino.cpp
     # static_asserts against SHOP_AVATAR_COUNT.
@@ -303,6 +335,11 @@ def main():
     for i in range(0, len(towerShop), 12):
         nm.append('  ' + ' '.join('%d,' % v for v in towerShop[i:i + 12]))
     nm.append('};')
+    nm.append('// The extra starters: free from rank 1 (rank.cpp), never sold, after every shop index.')
+    nm.append('#define STARTER_AVATAR_FIRST %d' % starterFirst)
+    nm.append('#define STARTER_AVATAR_COUNT %d' % len(STARTERS))
+    nm.append('// The customisable trainer: drawn from the wardrobe (wardrobe.cpp), free, never sold.')
+    nm.append('#define AVATAR_YOU %d' % youIndex)
     nm.append('')
     open(namesPath, 'w').write('\n'.join(nm))
     sys.stderr.write('wrote %s (%d avatars, %d in the shop)\n' % (outPath, len(names), len(shopNames)))

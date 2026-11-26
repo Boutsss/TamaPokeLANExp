@@ -68,6 +68,7 @@ static void clearAll(){
   daycareOpen=false; dcView=0;
   tasksOpen=false;
   bagOpen=false;
+  badgesOpen=false;
   partyDetail=0; boxSel=boxSwapFrom=0;
 }
 // Page it forward; the page must advance and the screen must stay open. Paging
@@ -92,6 +93,7 @@ extern bool casinoOpen; extern uint8_t casShopKind, casShopPage;
 extern const char *const SCREEN_NAME[];
 extern bool cardBookOpen; extern uint8_t cardBookPage;
 extern bool boxListOpen; extern uint8_t boxListPage;
+extern bool badgesOpen; extern uint8_t badgesPage;
 void casinoOpenNow(); void casinoClose(); void onTap(int16_t,int16_t); void casinoDbgSkipDoor();
 void casLobbyBtn(uint8_t i, int *x, int *y, int *w, int *h);
 
@@ -110,6 +112,8 @@ int main(){
   clearAll(); cardOpen=true;                      check("card",     &cardOpen,     &cardPage);
   clearAll(); gymOpen=true; gymPick=false;        check("gyms",     &gymOpen,      &gymPage);
   clearAll(); playerOpen=true;                    check("player",   &playerOpen,   &playerPage);
+  // the BADGES screen behind the card's button: one region a rim page
+  clearAll(); playerOpen=true; badgesOpen=true;   check("badges",   &badgesOpen,   &badgesPage);
   clearAll(); partyOpen=true; boxOpen=true;       check("box",      &boxOpen,      &boxPage);
   // the 40-box overview (tap the box's title): three pages of sixteen
   clearAll(); partyOpen=true; boxOpen=true; boxListOpen=true; check("boxlist", &boxListOpen, &boxListPage);
@@ -144,6 +148,7 @@ int main(){
     else printf("PASS  %-10s a horizontal swipe neither pages nor closes it\n", "tasks"); }
   // The Game Corner's prize shop pages on the rim (82 avatars: 14 pages),
   // and paging must neither leave the shop nor close the casino.
+  casino.welcomed = 1;   // the dealer's one-time welcome card would take the first tap (casino_ui_test covers it)
   clearAll(); casinoOpenNow(); casinoDbgSkipDoor();
   { int x,y,w,h; casLobbyBtn(5,&x,&y,&w,&h); onTap(x+w/2, y+h/2); }
   casShopKind = 1;                                check("casshop",  &casinoOpen,   &casShopPage);

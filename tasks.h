@@ -44,6 +44,11 @@ bool tasksClaimBonus();
 ItemKey tasksBonusItem();
 uint8_t tasksBonusQty();
 uint8_t tasksClaimable();
+// The daily set rolls every TASK_PERIOD_S (12 h) rather than at midnight, so a
+// player gets a fresh set morning and evening. tasksDay() is that PERIOD index
+// (epoch / TASK_PERIOD_S); the WEEKLY set still follows the calendar day,
+// through tasksWeekOf(epoch / 86400), the one week rule challenge.cpp shares.
+#define TASK_PERIOD_S 43200UL
 uint32_t tasksDay();
 uint32_t tasksWeek();
 bool tasksNoticeActive();

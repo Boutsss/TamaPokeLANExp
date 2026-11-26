@@ -46,6 +46,10 @@ const SaveField SAVE_FIELDS[] = {
   { "party", SK_BYTES }, { "box", SK_BYTES }, { "boxnm", SK_BYTES }, { "bag", SK_BYTES },
   // remembered LAN opponents -- its own key, same reasoning as the box
   { "rivals", SK_BYTES },
+  // the trainer card's latched stars and lifetime LAN wins (stars.cpp)
+  { "stars", SK_BYTES },
+  // the customisable trainer's look, owned cosmetics and arcade cooldowns
+  { "wardrobe", SK_BYTES },
   // settings, so a restored device plays the way it did
   { "lang", SK_U8 },    { "snd", SK_BOOL },   { "vol", SK_U8 },    { "bri", SK_U8 }, { "help", SK_U8 },
   { "tasks", SK_BYTES },

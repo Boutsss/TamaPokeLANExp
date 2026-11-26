@@ -31,6 +31,7 @@ extern Combatant btlYou;
 void startBattle(int16_t dex, uint8_t lvl);
 int btlCellIndexAt(int16_t x, int16_t y);
 void partyButtonRects(int *boxTop, int *boxBot, int *closeTop, int *closeBot);
+void uiBackRect(int *x, int *y, int *w, int *h); bool uiBackHit(int16_t px, int16_t py);
 void uiButtonHeights(int *out, int max, int *n);
 void gymHeaderRects(int *pillTop, int *pillBot, int *rowTop);
 int uiSleepButton(int *cx, int *cy);
@@ -142,6 +143,22 @@ int main(){
     ck(clBot < 466 && boxTop > 0, "both stay on the panel");
     printf("      BOX %d..%d, CLOSE %d..%d, gap %d px\n",
            boxTop, boxBot, clTop, clBot, clTop - boxBot);
+  }
+
+  // The held BACK button sits under screens whose own buttons reach y ~398
+  // (EXPLORE's GO, the bag's TAKE). Its hit area must never reach ABOVE the
+  // pill -- a tap on their lower edge has to stay theirs -- and must still be a
+  // fingertip tall and on the glass at every corner.
+  {
+    int bx, by, bw, bh; uiBackRect(&bx, &by, &bw, &bh);
+    ck(!uiBackHit(233, by - 1) && uiBackHit(233, by), "BACK's hit area starts exactly at its top edge");
+    int bot = by; while (uiBackHit(233, bot + 1)) bot++;
+    ck(bot - by + 1 >= 44, "and is at least a fingertip tall");
+    int lx = bx; while (uiBackHit(lx - 1, by)) lx--;
+    int rx = bx + bw; while (uiBackHit(rx + 1, by)) rx++;
+    auto onGlass = [](int x, int y) { long dx = x - 233, dy = y - 233; return dx * dx + dy * dy <= 233L * 233L; };
+    ck(onGlass(lx, bot) && onGlass(rx, bot), "its hit corners are on the glass");
+    printf("      BACK hit %d..%d x %d..%d\n", lx, rx, by, bot);
   }
 
   // Three separate "hard to hit" reports came in from the board, all the same

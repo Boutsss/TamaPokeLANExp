@@ -1,0 +1,23 @@
+# The exact toolchain the firmware is built with. arduino-cli reads this from
+# the sketch folder, fetches these versions into its own cache and ignores
+# whatever happens to be installed globally -- so build_web.sh, flash.sh and
+# tests/run.sh all build the same binary on every machine.
+#
+# Why it exists: v3.55's installer was built on a machine with SensorLib 0.5.2,
+# and the board panicked on every boot (InstrFetchProhibited inside
+# SensorQMI8658::begin(), called from pedoBegin()). The same source built with
+# 0.4.1 boots clean. Nothing in the repo recorded which versions a build used,
+# so a different machine silently produced a broken release.
+#
+# Bump a version here deliberately, and only after the result has booted on a
+# real board -- the emulator stubs every one of these libraries.
+profiles:
+  tamapoke:
+    fqbn: esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB
+    platforms:
+      - platform: esp32:esp32 (3.3.11)
+    libraries:
+      - GFX Library for Arduino (1.6.7)
+      - SensorLib (0.4.1)
+      - XPowersLib (0.3.3)
+default_profile: tamapoke

@@ -146,13 +146,23 @@ static void rankOnEvent(GameEv ev, int16_t arg) {
 }
 
 // ---------- unlocks ----------
+// The extra starters (after every shop index): free from rank 1, never sold.
+static bool isStarterAvatar(uint16_t a) {
+  return a >= STARTER_AVATAR_FIRST && a < STARTER_AVATAR_FIRST + STARTER_AVATAR_COUNT;
+}
+
 uint8_t rankAvatarNeeds(uint16_t avatar) {
+  if (isStarterAvatar(avatar) || avatar == AVATAR_YOU) return 1;
   return avatar < AVATAR_BASE_COUNT ? AVATAR_NEEDS[avatar] : 0;   // shop avatars: bought, not ranked
 }
 
 bool rankAvatarUnlocked(uint16_t avatar) {
   if (avatar >= AVATAR_COUNT) return false;
-  // The Game Corner's prizes are unlocked by buying them, not by rank.
+  if (avatar == AVATAR_YOU) return true;   // the customisable trainer: everyone's from the start
+  if (isStarterAvatar(avatar)) return true;
+  // The Game Corner's prizes are unlocked by buying them, not by rank -- and
+  // only the shop range is the casino's; anything past it is not a shop index.
+  if (avatar >= AVATAR_BASE_COUNT + SHOP_AVATAR_COUNT) return false;
   if (avatar >= AVATAR_BASE_COUNT) return casinoOwns(PK_AVATAR, avatar - AVATAR_BASE_COUNT);
   if ((s_avGrant >> avatar) & 1) return true;
   return s_top >= AVATAR_NEEDS[avatar];

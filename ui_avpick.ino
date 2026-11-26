@@ -20,10 +20,19 @@ uint8_t avPickPage = 0;
 #define AVP_TOP 82
 
 // The unlocked avatars in index order; returns how many. `out` may be null.
+// The order is the free set (RED, BLUE, GIRL ...), then the extra starters,
+// then everything else -- so a new player's ten choices sit on the first pages
+// instead of after 247 shop entries they do not own.
 uint16_t avPickList(uint16_t *out, uint16_t cap) {
   uint16_t n = 0;
-  for (uint16_t a = 0; a < AVATAR_COUNT; a++)
+  auto take = [&](uint16_t a) {
     if (rankAvatarUnlocked(a)) { if (out && n < cap) out[n] = a; n++; }
+  };
+  take(AVATAR_YOU);   // the customisable trainer first: it is the one you dress
+  for (uint16_t a = 0; a < AVATAR_BASE_COUNT; a++) take(a);
+  for (uint16_t k = 0; k < STARTER_AVATAR_COUNT; k++) take(STARTER_AVATAR_FIRST + k);
+  for (uint16_t a = AVATAR_BASE_COUNT; a < AVATAR_COUNT; a++)
+    if ((a < STARTER_AVATAR_FIRST || a >= STARTER_AVATAR_FIRST + STARTER_AVATAR_COUNT) && a != AVATAR_YOU) take(a);
   return n;
 }
 uint8_t avPickPages() {

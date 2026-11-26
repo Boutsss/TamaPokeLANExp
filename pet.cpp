@@ -1243,6 +1243,7 @@ void Pet::recordRivalResult(const uint8_t mac[6], const char *name, bool won) {
   if (idx < 0) memcpy(rec.mac, mac, 6);
   snprintf(rec.name, sizeof(rec.name), "%s", name);
   if (won) rec.wins++; else rec.losses++;
+  if (won) gameEvent(EV_LAN_WIN, 0);   // the lifetime count: rivals[] forgets past RIVAL_CAP
   int shiftEnd = (idx >= 0) ? idx : RIVAL_CAP - 1;
   for (int i = shiftEnd; i > 0; i--) rivals[i] = rivals[i - 1];
   rivals[0] = rec;
@@ -2161,6 +2162,7 @@ void Pet::caress() {
 
 void Pet::eggTap() {
   if (!isEgg()) return;
+  if (eggBySteps) return;   // it hatches by walking (addSteps); a tap only wobbles it
   if (++eggTaps >= 3) hatch();
   else save();
 }

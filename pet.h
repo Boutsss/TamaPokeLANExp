@@ -6,6 +6,7 @@
 #include "trainers.h"   // GYM_REGIONS sizes the badge masks
 #include "party.h"
 #include "persona.h"
+#include "avatar_names.h"   // AVATAR_YOU, the default for a new save
 
 // 1 tick = 1 minuto de juego. Baja este valor para probar mas rapido
 // (p. ej. 5000UL = las estadisticas caen 12x mas rapido).
@@ -14,6 +15,7 @@
 // de juego con cuidado perfecto. Baja a 1 para ver evoluciones al momento.
 #define MINUTES_PER_LEVEL 60
 #define MAX_LEVEL 100              // reached at 4d 3h; see level()
+#define EGG_HATCH_STEPS 200        // real steps that hatch an egg (with the step sensor)
 #define EAT_ANIM_MS 2500UL
 #define HEART_MS 1500UL
 #define EVOLVE_ANIM_MS 5200UL              // animacion de evolucion (mas larga = mas epica)
@@ -371,7 +373,7 @@ public:
   // passed 255. Stored as a downgrade-safe low byte ("avtr", plyA/B byte 17,
   // 0 when the real value does not fit) PLUS the full value appended ("avt2",
   // the player checkpoint's v4 tail). See Pet::avatarLegacyByte().
-  uint16_t avatar = 0;
+  uint16_t avatar = AVATAR_YOU;   // a NEW save wears the customisable trainer; a loaded one keeps its own
   uint8_t avatarLegacyByte() const { return avatar < 256 ? (uint8_t)avatar : 0; }
   // Kanto's ladder, under the keys it has always used. Johto and Hoenn live in
   // a SEPARATE array under new keys rather than widening these -- purely
@@ -434,6 +436,11 @@ public:
     uint32_t room = WALLET_CAP - wallet;
     wallet += (n < room) ? n : room;
     pendingSave = true;
+    if (eggBySteps && isEgg()) {             // walking hatches the egg
+      uint32_t s = (uint32_t)eggTaps + n;
+      eggTaps = (uint8_t)(s > EGG_HATCH_STEPS ? EGG_HATCH_STEPS : s);
+      if (eggTaps >= EGG_HATCH_STEPS) hatch();
+    }
   }
   // A Mart purchase: rare and player-initiated, so unlike addSteps() this saves
   // immediately -- the same as winBadge()/renameTrainer(). Returns false (and
@@ -503,7 +510,13 @@ public:
   uint8_t sleepAuto = SLEEP_NONE;   // who decided the current sleep state  // dormir / despertar
   void clean();
   void caress();  // tocar al bicho
-  void eggTap();  // tocar el huevo: 3 toques y eclosiona
+  void eggTap();  // tocar el huevo: 3 toques y eclosiona (only without a step counter)
+  // Eggs HATCH BY WALKING on a board with the step sensor: EGG_HATCH_STEPS real
+  // steps (addSteps). Set at boot from pedoBegin(); false in the emulator and on
+  // a board without the sensor, where the old three taps still hatch -- an egg
+  // that could never hatch would be the worst failure here.
+  bool eggBySteps = false;
+  void eggHatchNow() { if (isEgg()) hatch(); }   // the console's HATCH
   void newEgg();   // empezar de cero con un inicial aleatorio
   void release();  // soltar (pulsacion larga + confirmar)
   // THE answer for the long-press release, asked by release() itself and by
@@ -529,7 +542,14 @@ public:
   void startRunaway();   // tambien usable desde la consola serie (RUN)
 
   bool isEgg() const { return speciesId < 0; }
-  uint8_t eggCracks() const { return eggTaps; }
+  // The crack stage drawn on the egg, 0..2: taps, or steps scaled to three stages.
+  uint8_t eggCracks() const {
+    if (!eggBySteps) return eggTaps;
+    return (uint8_t)((uint16_t)eggTaps * 3 / EGG_HATCH_STEPS);
+  }
+  // Raw progress: taps, or steps walked (eggTaps holds either -- 200 fits its
+  // byte, so the saved egg needs no new field). 0 = an untouched egg.
+  uint8_t eggProgress() const { return eggTaps; }
   bool eating() const { return millis() < eatUntil; }
   bool showHeart() const { return millis() < heartUntil; }
   bool evolving() const { return millis() < evolveUntil; }

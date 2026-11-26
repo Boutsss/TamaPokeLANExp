@@ -19,7 +19,7 @@ int main(){
   bag.begin(); bag.clear();
   p.lastSeenEpoch=20000UL*86400UL+3600;
   tasksBegin(p); tasksRefresh();
-  ck(tasksDay()==20000,"task day follows pet clock");
+  ck(tasksDay()==20000UL*86400UL/TASK_PERIOD_S,"the task period follows the pet clock (12 h periods)");
   uint8_t first[TASK_SLOTS]; for(uint8_t i=0;i<TASK_SLOTS;i++) first[i]=tasksDef(i).kind;
   tasksRefresh();
   bool same=true; for(uint8_t i=0;i<TASK_SLOTS;i++) if(first[i]!=tasksDef(i).kind)same=false;
@@ -86,8 +86,8 @@ int main(){
   }
   // Move to a fresh later day, complete its first unclaimed task, then claim once.
   uint32_t claimDay=tasksDay()+1;
-  p.lastSeenEpoch=claimDay*86400UL+3600; tasksRefresh();
-  ck(tasksDay()==claimDay,"a later day rolls a new set");
+  p.lastSeenEpoch=claimDay*TASK_PERIOD_S+60; tasksRefresh();
+  ck(tasksDay()==claimDay,"the next 12-hour period rolls a new set");
   for(uint8_t s=0;s<TASK_DAILY;s++){
     if(tasksClaimed(s)) continue;
     const TaskDef &d=tasksDef(s);

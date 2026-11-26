@@ -251,6 +251,16 @@ arduino-cli upload -p /dev/cu.usbmodemXXXX --fqbn "$FQBN" .
 bash tools/build_web.sh   # recompiles, writes the 4 parts, bumps the manifest, repacks every region
 ```
 
+**The toolchain is pinned in `sketch.yaml`** (core, GFX, SensorLib, XPowersLib),
+and arduino-cli uses it automatically from the sketch folder — globally installed
+versions are ignored. v3.55's first installer was built on a machine with
+SensorLib 0.5.2 and panicked on every boot (`InstrFetchProhibited`, a virtual call
+inside `SensorQMI8658::begin()` from `pedoBegin()`); the identical source on 0.4.1
+boots clean. The emulator stubs all of these libraries, so **no test can catch a
+library bump — only a board can.** Bump a pin only after the result has booted on
+hardware. To tell which toolchain an existing binary came from without its ELF,
+the bootloader carries the IDF version as plain text (v5.5.5 = core 3.3.11).
+
 **PSRAM (OPI) is mandatory** — the 466×466×16-bit framebuffer is ~434 KB and lives there.
 Wrong partition scheme (no FAT) or PSRAM off = it builds and then fails on hardware.
 
@@ -2071,8 +2081,34 @@ is recorded here as fact so nobody redesigns it from the old notes.
 |---|---|---|
 | Horizontal | move along the TILE AXIS | `PLAYER . DAYCARE . PARTY . [PET] . EXPLORE . MART . GYM . DEX` |
 | Up | deeper (the pet's card, a sheet) | everywhere |
-| Down | BACK, one level | everywhere |
+| Down | BACK, one level | everywhere -- except a game in progress, left by the held BACK button only |
+| Hold BACK | BACK, one level (`uiBack()`) | every screen below the pet (`uiBackShownOn`) |
 | Rim drag | PAGE the current screen | every paged screen |
+
+**And a held BACK button (ui_back.ino), because a gesture is invisible.**
+Players got stuck on screens with no visible way out, and quit minigames by
+accident. Every screen below the pet shows a BACK pill at y 400..436 that
+fires only when HELD (`BACK_HOLD_MS`); a tap shows "hold to go back" and never
+falls through. Three rules hold it together, and each has already been needed:
+
+- **It is drawn from the canvas flush (`uiBeforeFlush`), not by renderers.**
+  ~60 renderers flush; adding it screen by screen is trap 1 waiting to happen.
+  The emulator's canvas calls the same hook (`gfx->beforeFlush`).
+- **It runs `uiBack()`, which is `swipeV(+1)` itself** -- the button can never
+  go somewhere the gesture would not. The one difference: a GAME IN PROGRESS
+  (the three minigames, an arcade round, a Game Corner hand) is left only by
+  the button. Swipes and top-strip taps no longer end games, because that is
+  what a fast finger hit.
+- **`uiBackShownOn()` is a switch over the named `ScreenId` with no default.**
+  A new screen is a decision, not an inheritance. And nothing else may sit in
+  y 400..: FILTER, LAN BATTLE and the party's old CLOSE were all moved for it,
+  pinned by `static_assert`s and `hit_test`. Party's LET GO (a creature waiting
+  for a slot) keeps its own red button and hides BACK, because backing out
+  there is irreversible.
+
+The board can be screenshotted over serial with `SHOT` (raw RGB565 after a
+`SHOT <w> <h>` line), and `TAP`/`DRAG` drive it -- use them to look before
+moving anything that touches the bottom of the panel.
 
 **The horizontal axis BUMPS at both ends and can no longer close anything.**
 That is the entire point. Paging and exiting used to be the SAME gesture -- a

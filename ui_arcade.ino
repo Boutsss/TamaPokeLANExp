@@ -38,18 +38,11 @@ static void featBegin(const char *title) {
   gfx->setCursor(CX - (int)strlen(title) * 6, 42);
   gfx->print(title);
 }
-static void featBackPill() {
-  const char *b = T(S_BACK);
-  gfx->fillRoundRect(CX - 70, ARC_BACK_Y, 140, ARC_BACK_H, 12, UI_TRACK);
-  gfx->drawRoundRect(CX - 70, ARC_BACK_Y, 140, ARC_BACK_H, 12, UI_INK);
-  gfx->setTextColor(UI_INK);
-  gfx->setTextSize(2);
-  gfx->setCursor(CX - (int)strlen(b) * 6, ARC_BACK_Y + 12);
-  gfx->print(b);
-}
-static bool featBackHit(int16_t x, int16_t y) {
-  return y >= ARC_BACK_Y - 6 && y <= ARC_BACK_Y + ARC_BACK_H + 10 && x >= CX - 90 && x <= CX + 90;
-}
+// The arcade's own instant-tap BACK pill is gone: the shared held BACK button
+// (ui_back.ino) sits in the same spot on every screen, the arcade included, and
+// two buttons there -- one instant, one held -- is the accident it exists to stop.
+static void featBackPill() {}
+static bool featBackHit(int16_t, int16_t) { return false; }
 static void featLine(int y, const char *txt, uint16_t col) {
   gfx->setTextColor(col);
   gfx->setTextSize(2);
@@ -144,6 +137,12 @@ uint16_t arcPts = 0;
 uint8_t arcGrade = 0;            // 0 C, 1 B, 2 A, 3 S
 bool arcNewHi = false;
 uint8_t arcJoyGot = 0, arcBondGot = 0, arcPrizeGot = 0;   // what the session paid
+// An S also wins a random wardrobe cosmetic (wardrobe.cpp), at most once every
+// WARDROBE_PRIZE_SECS per game. 0xFF = none this time; arcCosWait = seconds
+// left on that game's cooldown, shown instead.
+uint8_t arcCosGot = 0xFF;
+uint32_t arcCosWait = 0;
+static_assert(ARC_GAMES == WARDROBE_GAMES, "a cosmetic cooldown per arcade game");
 uint8_t arcFirstGot = 0;         // the first-S held item this session paid, or 0
 bool arcAllSGot = false;         // this session completed the four S ranks
 uint16_t arcBest[ARC_GAMES] = { 0 };
@@ -221,6 +220,7 @@ void arcFinish() {
   if (arcNewHi) arcBest[arcGame] = arcPts;
   arcJoyGot = arcBondGot = arcPrizeGot = arcFirstGot = 0;
   arcAllSGot = false;
+  arcCosGot = 0xFF; arcCosWait = 0;
   if (arcPts > 0) {
     pet.energy = pet.energy > ARC_ENERGY ? pet.energy - ARC_ENERGY : 0;
     arcJoyGot = arcJoyFor(arcGrade);
@@ -239,6 +239,14 @@ void arcFinish() {
     if ((arcFirstS & 0x0F) == 0x0F && !(arcFirstS & ARC_ALLS_BIT) && bag.add(ARC_ALLS_ITEM, ARC_ALLS_N)) {
       arcAllSGot = true;
       arcFirstS |= ARC_ALLS_BIT;
+    }
+    if (arcGrade == 3) {   // an S: a cosmetic, if this game is off its 4-hour cooldown
+      uint32_t nowSecs = rtcEpoch();
+      arcCosGot = wardrobeArcadePrize(arcGame, nowSecs);
+      if (arcCosGot == 0xFF) {
+        uint32_t ready = wardrobePrizeReadyAt(arcGame);
+        arcCosWait = ready > nowSecs ? ready - nowSecs : 0;
+      }
     }
     gameEvent(EV_PLAY, (int16_t)(arcPts > 32767 ? 32767 : arcPts));
   }
@@ -1076,6 +1084,7 @@ void arcStart(uint8_t g) {
   arcGrade = 0;
   arcNewHi = false;
   arcJoyGot = arcBondGot = arcPrizeGot = 0;
+  arcCosGot = 0xFF; arcCosWait = 0;
   trnGoAt = now + ARC_INTRO_MS;
   arcLastFrame = now;
   switch (g) {
@@ -1229,6 +1238,13 @@ static void renderArcResults(uint32_t now) {
     snprintf(b, sizeof(b), T(S_ARC_PRIZE), ITEM_TBL[arcPrizeGot].name);
     trnText(b, CX, py + 248, 2, ((now / 200) & 1) ? UI_BAR_OK : C565(0x1a, 0x8a, 0x3a));
   }
+  if (arcCosGot != 0xFF) {
+    snprintf(b, sizeof(b), T(S_ARC_COS_FMT), cosName(arcCosGot));
+    trnText(b, CX, py + 266, 1, ((now / 200) & 1) ? 0x895F : 0xD31B);
+  } else if (arcCosWait) {
+    snprintf(b, sizeof(b), T(S_ARC_COS_WAIT_FMT), (unsigned)(arcCosWait / 3600), (unsigned)(arcCosWait / 60 % 60));
+    trnText(b, CX, py + 266, 1, 0x8410);
+  }
   if (t >= ARC_RESULT_TAP_MS) trnText(T(S_ARC_TAPON), CX, py + ph - 24, 1, 0x8410);
 }
 
@@ -1284,8 +1300,9 @@ void arcadeTap(int16_t x, int16_t y) {
   // Pinball's flippers are HELD anywhere on a half, top included: no tap on
   // its table means anything, the header strip either.
   if (arcGame == ARC_PINBALL) return;
-  // the header strip leaves, banking; no game puts a target up there
-  if (y < ARC_HEADER_Y) { arcLeave(); return; }
+  // the header strip is dead: it used to leave, and a fast tap landed there by
+  // accident. Leaving is the held BACK button (ui_back.ino), banking as before.
+  if (y < ARC_HEADER_Y) return;
   if (trnInIntro(now)) return;
   switch (arcGame) {
     case ARC_CATCH: catTap(x, y); break;
@@ -1308,19 +1325,23 @@ void arcadeTouchPeek(bool pressed, int16_t x, int16_t y) {
   catGoal = catClampX(x);
 }
 
-// Horizontal: on the list, back to the training menu; in a game, leave it banking --
-// except BERRY CATCH, where a horizontal drag is how you play.
+// Horizontal: on the list, back to the training menu; on the results card, to
+// the list. Mid-round it does nothing -- it used to leave, and it was the exit
+// players hit by accident. The held BACK button (ui_back.ino) leaves a round.
 void arcadeSwipe(int dir) {
   (void)dir;
   if (arcGame == ARC_NONE) { arcadeBack(); return; }
   if (arcOver) { arcGame = ARC_NONE; arcOver = false; return; }
-  if (arcGame == ARC_CATCH) return;
-  if (arcGame == ARC_PINBALL && pinBallLive()) return;   // a slid flipper press is not a goodbye
-  arcLeave();
 }
 // Vertical: one level back -- a game (banked) to the list, the list to the
 // training menu (featSwipeV does that part).
 // True when it was handled here.
+// A round is being played (not the game list, not the GAME OVER card). Mid-round
+// only the held BACK button leaves -- a swipe is part of playing (SURF steers by
+// dragging) or an accident, never a request to quit.
+bool arcadeInRound() { return arcGame != ARC_NONE && !arcOver; }
+void arcadeLeaveRound() { if (arcadeInRound()) arcLeave(); }
+
 bool arcadeSwipeV(int dir) {
   (void)dir;
   if (arcGame == ARC_NONE) return false;

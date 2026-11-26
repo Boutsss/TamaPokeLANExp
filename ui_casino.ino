@@ -29,6 +29,11 @@ static const uint16_t TABLE_BETS[3] = { 5, 10, 50 };
 static uint8_t casBetI = 0;
 static uint16_t casBet() { return (casView == CV_SLOTS ? SLOT_BETS : TABLE_BETS)[casBetI % 3]; }
 static uint32_t casOpenedAt = 0;      // the secret door opens from here
+static bool casWelcome = false;        // the dealer's welcome card is up (first visit)
+// What the dealer says instead of his usual line, until casSayUntil.
+static char casSay[32] = "";
+static uint32_t casSayUntil = 0;
+#define CAS_SAY_MS 3000
 
 // the dealer's mood drives his animation and his line
 enum : uint8_t { DM_IDLE = 0, DM_DEAL, DM_LAUGH, DM_GRUMBLE };
@@ -418,7 +423,8 @@ void casDrawDealer(int cx, int top, int scale) {
     }
   // the line he says, in a bubble beside him
   const char *line = T(S_CAS_HELLO);
-  if (casMood == DM_LAUGH) line = T(S_CAS_HEH);
+  if (now < casSayUntil) line = casSay;              // the hourly gift, or when it comes back
+  else if (casMood == DM_LAUGH) line = T(S_CAS_HEH);
   else if (casMood == DM_GRUMBLE) line = T(S_CAS_LUCKY);
   else if ((now / 4000) % 3 == 2) line = T(S_CAS_SECRET);
   int bw = (int)strlen(line) * 6 + 16, bx = cx + 8 * scale, by = top - 2;
@@ -505,6 +511,31 @@ static void renderCasLobby() {
   for (uint8_t i = 0; i < CAS_LOBBY_BTNS; i++) {
     int x, y, w, h; casLobbyBtn(i, &x, &y, &w, &h);
     casButton(x, y, w, h, lab[i], i == 5 ? CAS_GOLD : UI_BG_DAY, false);
+  }
+  if (casWelcome) {
+    // the dealer's speech card, over the buttons, below him
+    char msg[96];
+    snprintf(msg, sizeof(msg), T(S_CAS_WELCOME_FMT), (unsigned)CASINO_WELCOME_COINS);
+    const int cy0 = 158, cw = 330, ch = 196;
+    gfx->fillRoundRect(CX - cw / 2, cy0, cw, ch, 18, UI_WHITE);
+    gfx->drawRoundRect(CX - cw / 2, cy0, cw, ch, 18, CAS_GOLD);
+    gfx->drawRoundRect(CX - cw / 2 + 1, cy0 + 1, cw - 2, ch - 2, 17, CAS_GOLD);
+    gfx->fillTriangle(CX - 12, cy0, CX + 12, cy0, CX, cy0 - 12, CAS_GOLD);   // points at him
+    gfx->setTextColor(UI_INK);
+    gfx->setTextSize(2);
+    int y = cy0 + 22;
+    for (char *line = msg; line && *line; y += 30) {
+      char *next = strchr(line, '\n');
+      if (next) *next++ = 0;
+      gfx->setCursor(CX - (int)strlen(line) * 6, y);
+      gfx->print(line);
+      line = next;
+    }
+    gfx->setTextColor(UI_INK_SOFT);
+    gfx->setTextSize(1);
+    const char *tap = T(S_CAS_WELCOME_TAP);
+    gfx->setCursor(CX - (int)strlen(tap) * 3, cy0 + ch - 22);
+    gfx->print(tap);
   }
 }
 
@@ -1358,9 +1389,24 @@ void casinoOpenNow() {
   casSetMood(DM_LAUGH);
   casOpenedAt = millis();
   sfxPlay(SFX_MEDAL);
+  // The first visit: the dealer stakes a new player. Once per save (a WIPE
+  // clears the flag with everything else). The flag is written BEFORE the
+  // coins, so a power cut between the two costs the gift rather than paying it
+  // twice -- the same "spend first" order every purchase here uses.
+  if (!casino.welcomed) {
+    casino.welcomed = 1;
+    if (casinoSave()) {
+      casPay(CASINO_WELCOME_COINS);
+      pet.saveNow();
+      casWelcome = true;
+    } else {
+      casino.welcomed = 0;   // the flag did not land: try again next visit
+    }
+  }
 }
 void casinoClose() {
   casinoOpen = false;
+  casWelcome = false;   // seen once is enough; the gift itself was paid on the way in
   casView = CV_LOBBY;
   slShown = 3;
   // A hand in progress is forfeit -- the bet is already in the house's pocket,
@@ -1419,8 +1465,43 @@ void renderCasino() {
   gfx->flush();
 }
 
+// The dealer in the lobby, as drawn by renderCasLobby() (casDrawDealer at
+// CX - 32, top 82, 4x): tap him for the hourly gift. A little padding all round.
+bool casDealerAt(int16_t x, int16_t y) {
+  const int cx = CX - 32, top = 82, s = 4;
+  return x >= cx - AVATAR_PX * s / 2 - 8 && x <= cx + AVATAR_PX * s / 2 + 8 && y >= top - 8 && y <= top + AVATAR_PX * s + 8;
+}
+// CASINO_GIFT_COINS once every CASINO_GIFT_SECS. The time is written BEFORE the
+// coins (as the welcome is), so a power cut costs a gift, never pays two.
+void casDealerGift() {
+  uint32_t now = rtcEpoch();
+  bool ready = !casino.giftAt || now < casino.giftAt || now - casino.giftAt >= CASINO_GIFT_SECS;   // a clock set back never locks him
+  if (ready) {
+    uint32_t before = casino.giftAt;
+    casino.giftAt = now ? now : 1;
+    if (casinoSave()) {
+      casPay(CASINO_GIFT_COINS);
+      pet.saveNow();
+      snprintf(casSay, sizeof(casSay), T(S_CAS_GIFT_FMT), (unsigned)CASINO_GIFT_COINS);
+      casSetMood(DM_LAUGH);
+      sfxPlay(SFX_MEDAL);
+    } else {
+      casino.giftAt = before;
+      sfxPlay(SFX_DENY);
+      return;
+    }
+  } else {
+    uint32_t left = CASINO_GIFT_SECS - (now - casino.giftAt);
+    snprintf(casSay, sizeof(casSay), T(S_CAS_GIFT_WAIT_FMT), (unsigned)((left + 59) / 60));
+    sfxPlay(SFX_TAP);
+  }
+  casSayUntil = millis() + CAS_SAY_MS;
+}
+
 void casinoTap(int16_t x, int16_t y) {
   if (casinoDoorsShowing()) return;          // still coming through the door
+  if (casWelcome) { casWelcome = false; sfxPlay(SFX_TAP); return; }   // any tap: thanks, dealer
+  if (casView == CV_LOBBY && casDealerAt(x, y)) { casDealerGift(); return; }
   switch (casView) {
     case CV_ROULETTE: casRouletteTap(x, y); return;
     case CV_SLOTS: casSlotsTap(x, y); return;
@@ -1454,6 +1535,12 @@ void casinoSwipeDown() {
   casArmed = -1;
 }
 uint8_t casinoView() { return casView; }
+// At a table, where backing out settles the hand (stand, cash out, finish the
+// spin). The lobby, the coin counter and the shop are not games.
+bool casinoWelcomeShowing() { return casWelcome; }   // for casino_ui_test
+bool casinoInGame() {
+  return casView == CV_SLOTS || casView == CV_HL || casView == CV_BJ || casView == CV_ROULETTE;
+}
 // For casino_ui_test: what the screens hold, read-only.
 const uint8_t *casSlotStops() { return slStop; }
 const Blackjack &casBlackjack() { return casBj; }

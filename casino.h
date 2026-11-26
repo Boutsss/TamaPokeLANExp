@@ -143,7 +143,12 @@ struct CasinoState {
   uint32_t slotBest = 0;                 // biggest single slot payout
   uint8_t avatarsHi[(CASINO_AVATARS_MID - CASINO_AVATARS_LO) / 8] = { 0 };
   uint8_t avatarsX[(CASINO_AVATARS_MAX - CASINO_AVATARS_MID) / 8] = { 0 };
+  uint8_t welcomed = 0;                  // the dealer's one-time CASINO_WELCOME_COINS gift was given
+  uint32_t giftAt = 0;                   // epoch of his last hourly CASINO_GIFT_COINS (0 = never)
 };
+#define CASINO_GIFT_COINS 100
+#define CASINO_GIFT_SECS 3600UL      // tap the dealer: CASINO_GIFT_COINS once an hour
+#define CASINO_WELCOME_COINS 100
 extern CasinoState casino;
 
 void casinoBegin();

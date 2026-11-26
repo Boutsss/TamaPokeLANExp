@@ -105,6 +105,38 @@ static void msLine(int y, const char *s, uint16_t col) {
   gfx->print(s);
 }
 
+// The stat block, from the six rows down to the nature line (y0 .. y0 + 216).
+// It is the ONE drawing of a creature's stats: the card's battle page used to
+// keep its own copy, which still showed four stats with no SP.A/SP.D, training,
+// IV total, held item or nature effect long after this page had all of them.
+void drawMonStatsBody(const PartyMon &m, int y0) {
+  msTrait = m.persona;
+  msRow(y0,       T(S_STAT_VIT), party.vitOf(m), UI_BAR_OK,   m.ivHp,  -1, PS_NONE);   // HP: no personality touches it
+  msRow(y0 + 28,  T(S_STAT_ATK), party.atkOf(m), UI_BAR_BAD,  m.ivAtk, m.trAtk, PS_ATK);
+  msRow(y0 + 56,  T(S_STAT_DEF), party.defOf(m), 0x4C98,      m.ivDef, m.trDef, PS_DEF);
+  msRow(y0 + 84,  T(S_MS_SPA),   party.spaOf(m), 0xD31B,      m.ivAtk, m.trAtk, PS_SPA);
+  msRow(y0 + 112, T(S_MS_SPD),   party.spdOf(m), 0x2D7F,      m.ivDef, m.trDef, PS_SPD);
+  msRow(y0 + 140, T(S_STAT_SPE), party.speOf(m), UI_BAR_WARN, m.ivSpe, m.trSpe, PS_SPE);
+
+  char b[48];
+  unsigned ivt = (unsigned)m.ivHp + m.ivAtk + m.ivDef + m.ivSpe;
+  snprintf(b, sizeof(b), T(S_MS_IVTOT), ivt);
+  msLine(y0 + 172, b, ivt >= 100 ? UI_BAR_WARN : UI_INK);
+  snprintf(b, sizeof(b), T(S_MS_HELD), m.held ? itemEntry(m.held).name : "-");
+  msLine(y0 + 190, b, UI_INK);
+  // the personality, then what it does: +boon in blue, -bane in red
+  const char *pn = personaName(m.persona);
+  snprintf(b, sizeof(b), T(S_MS_NATURE), (pn && pn[0]) ? pn : "-");
+  char up[12] = "", dn[12] = "";
+  uint8_t bo = personaBoon(m.persona), ba = personaBane(m.persona);
+  if (bo != PS_NONE) { snprintf(up, sizeof(up), " +%s", msStatShort(bo)); snprintf(dn, sizeof(dn), " -%s", msStatShort(ba)); }
+  int w = (int)(strlen(b) + strlen(up) + strlen(dn)) * 6, x = CX - w / 2;
+  gfx->setTextSize(1);
+  gfx->setTextColor(UI_INK); gfx->setCursor(x, y0 + 208); gfx->print(b); x += (int)strlen(b) * 6;
+  gfx->setTextColor(MS_BOON_COL); gfx->setCursor(x, y0 + 208); gfx->print(up); x += (int)strlen(up) * 6;
+  gfx->setTextColor(MS_BANE_COL); gfx->setCursor(x, y0 + 208); gfx->print(dn);
+}
+
 void renderMonStats() {
   PartyMon m;
   if (!monStatsSubject(&m)) {   // gone: back to what is underneath, drawn THIS frame
@@ -130,33 +162,9 @@ void renderMonStats() {
     if (d.type2 != T_NONE) drawTypeChip(x, 56, d.type2);
   }
 
-  msTrait = m.persona;
-  msRow(86,  T(S_STAT_VIT), party.vitOf(m), UI_BAR_OK,   m.ivHp,  -1, PS_NONE);   // HP: no personality touches it
-  msRow(114, T(S_STAT_ATK), party.atkOf(m), UI_BAR_BAD,  m.ivAtk, m.trAtk, PS_ATK);
-  msRow(142, T(S_STAT_DEF), party.defOf(m), 0x4C98,      m.ivDef, m.trDef, PS_DEF);
-  msRow(170, T(S_MS_SPA),   party.spaOf(m), 0xD31B,      m.ivAtk, m.trAtk, PS_SPA);
-  msRow(198, T(S_MS_SPD),   party.spdOf(m), 0x2D7F,      m.ivDef, m.trDef, PS_SPD);
-  msRow(226, T(S_STAT_SPE), party.speOf(m), UI_BAR_WARN, m.ivSpe, m.trSpe, PS_SPE);
+  drawMonStatsBody(m, 86);
 
   char b[48];
-  unsigned ivt = (unsigned)m.ivHp + m.ivAtk + m.ivDef + m.ivSpe;
-  snprintf(b, sizeof(b), T(S_MS_IVTOT), ivt);
-  msLine(258, b, ivt >= 100 ? UI_BAR_WARN : UI_INK);
-  snprintf(b, sizeof(b), T(S_MS_HELD), m.held ? itemEntry(m.held).name : "-");
-  msLine(276, b, UI_INK);
-  // the personality, then what it does: +boon in blue, -bane in red
-  {
-    const char *pn = personaName(m.persona);
-    snprintf(b, sizeof(b), T(S_MS_NATURE), (pn && pn[0]) ? pn : "-");
-    char up[12] = "", dn[12] = "";
-    uint8_t bo = personaBoon(m.persona), ba = personaBane(m.persona);
-    if (bo != PS_NONE) { snprintf(up, sizeof(up), " +%s", msStatShort(bo)); snprintf(dn, sizeof(dn), " -%s", msStatShort(ba)); }
-    int w = (int)(strlen(b) + strlen(up) + strlen(dn)) * 6, x = CX - w / 2;
-    gfx->setTextSize(1);
-    gfx->setTextColor(UI_INK); gfx->setCursor(x, 294); gfx->print(b); x += (int)strlen(b) * 6;
-    gfx->setTextColor(MS_BOON_COL); gfx->setCursor(x, 294); gfx->print(up); x += (int)strlen(up) * 6;
-    gfx->setTextColor(MS_BANE_COL); gfx->setCursor(x, 294); gfx->print(dn);
-  }
   if (m.hasCareState() || monStats == MS_LIVE) {
     snprintf(b, sizeof(b), T(S_MS_BOND), (unsigned)m.bond, (unsigned)m.medals);
     msLine(312, b, UI_INK_SOFT);

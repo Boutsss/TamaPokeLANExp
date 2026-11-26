@@ -91,8 +91,8 @@ static void pick(uint32_t seed,bool weekly,uint8_t *out){
   uint32_t s=mix(seed*2+(weekly?1:0)+0x7A5C);
   for(uint8_t k=0;k<want;k++){uint8_t j=k+(uint8_t)(s%(n-k));uint8_t t=cand[k];cand[k]=cand[j];cand[j]=t;out[k]=cand[k];s=mix(s+0x9E3779B9U);}
 }
-static void rollTo(uint32_t day){
-  uint32_t week=tasksWeekOf(day);bool newDay=!have||day!=curDay,newWeek=!have||week!=curWeek;
+static void rollTo(uint32_t day,uint32_t calDay){
+  uint32_t week=tasksWeekOf(calDay);bool newDay=!have||day!=curDay,newWeek=!have||week!=curWeek;
   if(!newDay&&!newWeek)return;
   // Only ever roll FORWARD: a clock set back a day must not re-issue rewards.
   if(have&&day<curDay)return;
@@ -143,7 +143,10 @@ void tasksBegin(Pet &p){
   gameEventSubscribe(tasksOnEvent);
   if(pending)reconcilePending();
 }
-void tasksRefresh(){if(opened&&gPet)rollTo(gPet->lastSeenEpoch/86400UL);}
+// `day` is the 12-hour period the daily set belongs to; the week is still a
+// calendar week. A save from the once-a-day build stored a day number, which is
+// smaller than any period number, so it simply rolls forward once on upgrade.
+void tasksRefresh(){if(opened&&gPet)rollTo(gPet->lastSeenEpoch/TASK_PERIOD_S,gPet->lastSeenEpoch/86400UL);}
 void tasksForget(){have=false;opened=false;claimed=0;noticeSet=false;pending=false;pendingSlot=BONUS_SLOT;pendingItem=ITEM_NONE;pendingQty=pendingBefore=0;memset(prog,0,sizeof(prog));memset(rowIdx,0,sizeof(rowIdx));gameEventUnsubscribe(tasksOnEvent);}
 void tasksOnEvent(GameEv ev,int16_t arg){
   if(!opened)return;tasksRefresh();bool changed=false;

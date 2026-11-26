@@ -48,6 +48,8 @@
 #include "tower.h"
 #include "challenge.h"
 #include "rank.h"
+#include "stars.h"
+#include "wardrobe.h"
 #include "friends.h"
 #include "casino.h"
 #include "pinball.h"
@@ -81,6 +83,8 @@ Arduino_DataBus *bus = new Arduino_ESP32QSPI(
 Arduino_CO5300 *panel = new Arduino_CO5300(
   bus, LCD_RESET, 0 /*rotation*/, LCD_WIDTH, LCD_HEIGHT, 6, 0, 0, 0);
 // Framebuffer completo en PSRAM: dibujamos todo y hacemos flush() (sin parpadeo)
+void uiBeforeFlush();   // ui_back.ino: the held BACK button, drawn over every frame
+bool uiBackTouch(bool pressed, bool down, int16_t px, int16_t py);
 #ifdef ARDUINO_ARCH_ESP32
 // Samples the touch chip just before every panel push: see touchSampleMidFrame().
 // Ported from vunguyen2712/TamaPoke v3.19 ("catch quick taps").
@@ -89,6 +93,7 @@ class TouchCanvas : public Arduino_Canvas {
 public:
   using Arduino_Canvas::Arduino_Canvas;
   void flush(bool force_flush = false) override {
+    uiBeforeFlush();
     touchSampleMidFrame();
     Arduino_Canvas::flush(force_flush);
   }
@@ -280,11 +285,11 @@ uint8_t movePickPage = 0;
 // rows do not leave room for the sprites.
 bool battleOpen = false;
 
-enum : uint8_t {
+enum ScreenId : uint8_t {   // named so uiBackShownOn()'s switch is checked for completeness
   SCR_STARTER = 0, SCR_REGION, SCR_GALLERY, SCR_DEXPICK, SCR_MOVEPICK, SCR_BOX,
   SCR_PARTY, SCR_KEYBOARD, SCR_CARD, SCR_PLAYER, SCR_CLOCK, SCR_GYM, SCR_GYMPICK,
   SCR_EXPLORE, SCR_MART, SCR_LAN, SCR_PICK, SCR_BATTLE, SCR_WIN, SCR_LEARN, SCR_TRAIN, SCR_MENU,
-  SCR_BAGSCR, SCR_GAME, SCR_MAIN, SCR_TASKS, SCR_DAYCARE, SCR_DCPICK, SCR_TOWER, SCR_CHAL, SCR_ARCADE, SCR_TRADE, SCR_TRADEPICK, SCR_FRIENDS, SCR_CASINO, SCR_CASSHOP, SCR_CARDBOOK, SCR_BOXFILTER, SCR_MONSTATS, SCR_BOXLIST, SCR_AVPICK, SCR_HELP, SCR_COUNT
+  SCR_BAGSCR, SCR_GAME, SCR_MAIN, SCR_TASKS, SCR_DAYCARE, SCR_DCPICK, SCR_TOWER, SCR_CHAL, SCR_ARCADE, SCR_TRADE, SCR_TRADEPICK, SCR_FRIENDS, SCR_CASINO, SCR_CASSHOP, SCR_CARDBOOK, SCR_BOXFILTER, SCR_MONSTATS, SCR_BOXLIST, SCR_AVPICK, SCR_HELP, SCR_BADGES, SCR_WARDROBE, SCR_COUNT
 };
 extern const char *const SCREEN_NAME[SCR_COUNT];   // const is internal linkage in C++
 
@@ -370,7 +375,7 @@ const char *const SCREEN_NAME[SCR_COUNT] = {
   "starter", "region", "gallery", "dexpick", "movepick", "box",
   "party", "keyboard", "card", "player", "clock", "gym", "gympick",
   "explore", "mart", "lan", "pick", "battle", "win", "learn", "train", "menu",
-  "bag", "minigame", "main", "tasks", "daycare", "dcpick", "tower", "challenge", "arcade", "trade", "tradepick", "friends", "casino", "casshop", "cardbook", "boxfilter", "monstats", "boxlist", "avpick", "help"
+  "bag", "minigame", "main", "tasks", "daycare", "dcpick", "tower", "challenge", "arcade", "trade", "tradepick", "friends", "casino", "casshop", "cardbook", "boxfilter", "monstats", "boxlist", "avpick", "help", "badges", "wardrobe"
 };
 
 // Badge art for a region, or nullptr when that region has none yet.
@@ -627,21 +632,28 @@ uint8_t pickPage = 0;
 #define PICK_X(i) (78 + ((i) % 2) * (PICK_CELL_W + 10))
 #define PICK_Y(i) (86 + ((i) / 2) * (PICK_CELL_H + 6))
 #define PICK_GO_Y 350
-// BACK beside FIGHT on the team-select screen. There was no way out of it but a
-// swipe, which is invisible -- the same complaint as everywhere else.
+// FIGHT, centred. Its BACK pill went to the shared held BACK button
+// (ui_back.ino), which runs pickBack() -- the one rule the swipe uses too.
 #define PICK_BTN_W 155
 #define PICK_BTN_H UI_TAP_MIN
-#define PICK_BACK_X (233 - PICK_BTN_W - 7)
-#define PICK_GO_X (233 + 7)
+#define PICK_GO_X (233 - PICK_BTN_W / 2)
 bool playerOpen = false;
 // One badge page per gym region, then the medals. Three ladders will not fit on
 // one page, and the page you are on IS the region -- no extra control needed,
 // and horizontal paging already works everywhere else.
 uint8_t playerPage = 0;
-#define PLAYER_PAGES (GYM_REGIONS + 3)   // a badge page per ladder, medals, rank, then trainer cards
-#define PLAYER_RANK_PAGE (GYM_REGIONS + 1)
-#define PLAYER_CARDS_PAGE (GYM_REGIONS + 2)
-#define playerBadgeRegion (playerPage % GYM_REGIONS)
+// The card, medals, rank, then the trainer-card book. The badges used to take a
+// page per region here; they live behind the card's BADGES button now
+// (SCR_BADGES, one region a rim page), and the card shows the stars instead.
+#define PLAYER_PAGES 4
+#define PLAYER_MEDALS_PAGE 1
+#define PLAYER_RANK_PAGE 2
+#define PLAYER_CARDS_PAGE 3
+bool badgesOpen = false;    // the BADGES screen, a level below the card
+uint8_t badgesPage = 0;     // = the region shown
+int8_t starSel = -1;        // the star whose meaning is shown, -1 = the hint
+extern bool wardrobeOpen;   // ui_wardrobe.ino: dressing YOU, a level below the card
+extern uint8_t wardrobePage;
 uint8_t gymPage = 0;
 #define GYM_ROWS 5
 #define GYM_ROW_Y(i) (110 + (i) * 50)
@@ -651,10 +663,13 @@ uint8_t gymPage = 0;
 void gymRowRect(int i, int *x, int *y, int *w, int *h);
 // LAN remains attached to the trainer ladder; Explore is a peer destination on
 // the tile axis and no longer hides behind GYMS.
-#define GYMBTN_Y 380
+// Up from 380: the held BACK button (ui_back.ino) owns y 400.. on every screen.
+#define GYMBTN_Y 356
 #define GYMBTN_W 190
 #define GYMBTN_H UI_TAP_MIN
 #define GYMBTN_X (CX - GYMBTN_W / 2)
+static_assert(GYM_ROW_Y(GYM_ROWS - 1) + GYM_ROW_H <= GYMBTN_Y, "LAN BATTLE must sit below the last leader row");
+static_assert(GYMBTN_Y + GYMBTN_H <= 400, "LAN BATTLE must end where the held BACK button begins");
 int8_t btlTrainer = -1;      // index into TRAINERS, -1 = a one-off fight
 // THE BATTLE OWNS ITS FOE TEAM. A trainer fight used to re-read TRAINER_SETS for
 // every replacement, which is why it could only ever be a gym leader. It copies
@@ -776,6 +791,8 @@ bool monSheetMoveAt(int16_t x, int16_t y);
 void monSheetPill(uint8_t which, int *x, int *y, int *w, int *h);
 void renderBoxList(); void boxListTap(int16_t x, int16_t y); uint8_t boxListPages();
 void renderMonStats();
+void drawMonStatsBody(const PartyMon &m, int y0);   // the stat block both stats views draw
+int drawTypeChip(int x, int y, uint8_t type);
 extern uint8_t boxFilter, boxSort;
 uint8_t boxPages();
 int boxIndexAt(uint8_t pos);
@@ -805,6 +822,18 @@ static bool handoverMayDecline() {
 void arcadeTap(int16_t x, int16_t y);
 void arcadeSwipe(int dir);
 bool arcadeSwipeV(int dir);
+void pickBack();
+int8_t playerStarAt(int16_t x, int16_t y);
+bool playerBadgesBtnAt(int16_t px, int16_t py);
+void renderBadges();
+void renderWardrobe();
+bool wardrobeTap(int16_t px, int16_t py);
+uint8_t wardrobePages();
+bool playerWardrobeBtnAt(int16_t px, int16_t py);
+bool arcadeInRound();
+void arcadeLeaveRound();
+bool casinoInGame();
+void uiBack();
 void arcadeClose();
 uint8_t dcView = 0;               // 0 home, 1 picker
 uint16_t dcPage = 0;              // the picker's page (uiRimTarget); 16-bit, like tradePage
@@ -824,6 +853,15 @@ ItemKey martConfirmItem = ITEM_NONE;
 // of those is asked through btlWild, so there is no second opinion about what
 // kind of battle is on screen.
 bool btlWild = false;
+// THE rule for whether a battle-bag item may be used in this fight; the bag's
+// draw (greyed or not) and its tap both ask it, so a greyed cell can never still
+// work. A ball needs a wild target. Healing and cures are refused in the Battle
+// Tower and in LAN battles, where the fight is meant to be the teams alone.
+bool btlItemLive(uint8_t k) {
+  if (itemIsBall(k)) return btlWild;
+  if (btlKind == BK_TOWER || btlLink) return false;
+  return true;
+}
 // The wild creature's durable state, kept BESIDE the Combatant because a
 // Combatant carries no IVs and none of what a stored record needs. Without it a
 // capture would have to re-roll the individual it just caught, and the creature
@@ -1201,6 +1239,9 @@ void setup() {
   // QSPI a 80MHz (por defecto 40): el flush del framebuffer es el cuello de
   // botella del fps (~56ms a 40MHz). Si el panel mostrara basura, bajar a 40M.
   if (!gfx->begin(80000000)) Serial.println("gfx->begin() failed");
+#ifndef ARDUINO_ARCH_ESP32
+  gfx->beforeFlush = uiBeforeFlush;   // the board's TouchCanvas::flush() calls it itself
+#endif
   loadMaxBrightness();
   panel->setBrightness(brightnessTarget(false, true, 0, maxBrightness()));
 
@@ -1230,7 +1271,8 @@ void setup() {
   rtcBegin();
   batBegin();
   pwrSetup();
-  if (!pedoBegin()) Serial.println("pedometer: no QMI8658 -- the Mart earns nothing this session");
+  pet.eggBySteps = pedoBegin();   // walking hatches eggs -- only with a step counter to walk on
+  if (!pet.eggBySteps) Serial.println("pedometer: no QMI8658 -- the Mart earns nothing and eggs hatch by taps");
   uint32_t e = rtcEpoch();
   if (e == 0) {
     rtcSetEpoch(1767225600UL);  // RTC virgen: semilla (la hora absoluta da igual,
@@ -1248,6 +1290,8 @@ void setup() {
   challengeBegin();
   rankBindPet(&pet);
   rankBegin();   // after tower/challenge: the score reads both
+  starsBegin(&pet);   // after rank/tower/casino: its conditions read all three
+  wardrobeBegin();    // the customisable trainer's look and owned cosmetics
   friendsBegin();
   casinoBegin();
   ghostsBegin();
@@ -1497,7 +1541,7 @@ void handleSerial() {
   if (sdSerialCommand(line)) return;
 
   if (line == "HATCH") {
-    pet.eggTap(); pet.eggTap(); pet.eggTap();
+    pet.eggHatchNow();   // whichever rule hatches eggs on this board
     Serial.println("DONE");
   } else if (line.startsWith("SPEC ")) {
     int n = line.substring(5).toInt();
@@ -1625,6 +1669,33 @@ void handleSerial() {
     } else {
       Serial.println("bad item");
     }
+    Serial.println("DONE");
+  } else if (line.startsWith("COINS ")) {
+    // COINS <n>: set the Game Corner coins (capped like any other way in), so the
+    // prize shop and the black star can be checked without a casino grind.
+    long n = atol(line.c_str() + 6);
+    pet.coins = n < 0 ? 0 : (uint32_t)n > COIN_CAP ? COIN_CAP : (uint32_t)n;
+    pet.saveNow();
+    starsUpdate();
+    Serial.printf("coins=%lu\n", (unsigned long)pet.coins);
+    Serial.println("DONE");
+  } else if (line == "STARS") {
+    // STARS: which stars are earned, and the lifetime LAN wins behind the purple one.
+    Serial.printf("stars=0x%02X lanWins=%u\n", starsEarned(), (unsigned)starsLanWins());
+    Serial.println("DONE");
+  } else if (line == "STARS RECHECK") {
+    // Unlatches every star and re-earns only what the save still qualifies for
+    // right now -- the undo for a star a test command latched by mistake. Not a
+    // player action: a real star stays latched even after its condition lapses.
+    starsRecheck();
+    Serial.printf("stars=0x%02X\n", starsEarned());
+    Serial.println("DONE");
+  } else if (line.startsWith("CARDBG ")) {
+    // CARDBG <n>: wear trainer-card skin n (0 = plain), owned or not -- for
+    // checking every screen that draws on it, which owning would take a grind.
+    int n = atoi(line.c_str() + 7);
+    if (n >= 0 && n < CARD_BG_COUNT) { casino.bg = (uint8_t)n; Serial.printf("cardbg=%d\n", n); }
+    else Serial.printf("bad skin (0..%d)\n", CARD_BG_COUNT - 1);
     Serial.println("DONE");
   } else if (line == "WILD" || line == "WILD HARD") {
     bool hard = (line == "WILD HARD");
@@ -1812,6 +1883,29 @@ void handleSerial() {
     sscanf(line.c_str() + 5, "%d %d %d %d %d", &a, &b, &c, &d, &ms);
     fakeGesture(a, b, c, d, ms / 20);
     Serial.println("DONE");
+#ifdef ARDUINO_ARCH_ESP32
+  } else if (line == "SHOT") {
+    // The panel as it is right now: "SHOT <w> <h>\n", then w*h RGB565 pixels,
+    // little-endian, then "\nDONE". The emulator's --shot cannot see the board
+    // (and cannot be built everywhere); this is the board's own screenshot.
+    // The console normally never blocks (setTxTimeoutMs(0) drops what the host
+    // is too slow for) -- fine for logs, fatal for 434 KB of pixels.
+    const uint16_t *fb = gfx->getFramebuffer();
+    Serial.setTxTimeoutMs(2000);
+    Serial.printf("SHOT %d %d\n", (int)LCD_WIDTH, (int)LCD_HEIGHT);
+    const uint8_t *p = (const uint8_t *)fb;
+    size_t left = (size_t)LCD_WIDTH * LCD_HEIGHT * 2;
+    while (left) {
+      size_t n = left > 1024 ? 1024 : left;
+      size_t w = Serial.write(p, n);
+      if (!w) break;
+      p += w; left -= w;
+    }
+    Serial.flush();
+    Serial.setTxTimeoutMs(0);
+    Serial.println();
+    Serial.println("DONE");
+#endif
   } else if (line == "HEALTH") {
     Serial.printf("up=%lus heap=%u min=%u sd=%d mon=%d\n",
                   (unsigned long)(millis() / 1000), ESP.getFreeHeap(),
@@ -1876,12 +1970,15 @@ static uint32_t rtLast = 0;          // the last time anyone read it
 // The console's TAP / DRAG: a gesture played through handleTouch() as if a
 // finger made it, one sample per 20 ms poll. Timing and the real panel are
 // what the emulator cannot see, so the board needs a way to be driven.
-static int16_t fkX[96], fkY[96];
-static bool fkP[96];
-static uint8_t fkN = 0, fkI = 0;
+// 400 samples = 8 s: long enough for the longest hold in the game (the Game
+// Corner's 6.4 s door), which the old 96 could not reach.
+#define FAKE_SAMPLES 400
+static int16_t fkX[FAKE_SAMPLES], fkY[FAKE_SAMPLES];
+static bool fkP[FAKE_SAMPLES];
+static uint16_t fkN = 0, fkI = 0;
 void fakeGesture(int x0, int y0, int x1, int y1, int samples) {
   if (samples < 2) samples = 2;
-  if (samples > 94) samples = 94;
+  if (samples > FAKE_SAMPLES - 2) samples = FAKE_SAMPLES - 2;
   for (int i = 0; i < samples; i++) {
     fkX[i] = x0 + (x1 - x0) * i / (samples - 1);
     fkY[i] = y0 + (y1 - y0) * i / (samples - 1);
@@ -1935,6 +2032,9 @@ void handleTouch() {
 }
 
 static void touchStep(bool pressed, int16_t x, int16_t y) {
+  // The held BACK button asks first, before any screen or minigame sees the
+  // finger: a gesture that starts on it belongs to it until the finger lifts.
+  if (uiBackTouch(pressed, pressed && !wasPressed, x, y)) { wasPressed = pressed; return; }
   arcadeTouchPeek(pressed, x, y);   // only reads: steers BERRY CATCH while a finger is down
   // The hidden door: a finger HELD on the training menu's ARCADE row. A held
   // press is never a tap (taps need < 1.5 s), so the arcade itself does not open.
@@ -1946,8 +2046,7 @@ static void touchStep(bool pressed, int16_t x, int16_t y) {
   if (sackOpen) {
     if (pressed && !wasPressed) {
       lastInteract = millis();
-      if (y < 72) leaveSack();       // tocar arriba = salir, conservando lo ganado
-      else sackTap(x, y);   // timing and the weak spot: ui_train.ino
+      sackTap(x, y);   // leaving is the held BACK button only: a fast tap up top used to quit   // timing and the weak spot: ui_train.ino
     }
     wasPressed = pressed;
     return;
@@ -2027,7 +2126,17 @@ static void touchStep(bool pressed, int16_t x, int16_t y) {
 
 void openClock();  // prototipo
 
-void onSwipeV(int dir) {
+// The ONE rule for what "back" means on every screen. The swipe and the held
+// BACK button (uiBack) both come here, so the button can never take you
+// somewhere the gesture would not. `viaButton` differs in exactly one way: a
+// game in progress (the three minigames, an arcade round, a Game Corner hand)
+// is left ONLY by the button. A frantic flick mid-game used to end the round --
+// that is what players kept hitting -- and the button needs a deliberate hold.
+static void swipeV(int dir, bool viaButton);
+void onSwipeV(int dir) { swipeV(dir, false); }
+void uiBack() { swipeV(1, true); }
+
+static void swipeV(int dir, bool viaButton) {
   if (pet.awaitingStarter()) return;  // bloqueado durante la eleccion de inicial
   if (helpOpen) { if (dir > 0) helpClose(); return; }   // down closes the card
   if (menuOpen) { menuOpen = false; return; }   // any swipe closes the menu
@@ -2037,7 +2146,7 @@ void onSwipeV(int dir) {
   if (monStats) { if (back) monStats = 0; return; }   // the STATS page, wherever it sits
 
   // Modals and sheets: down backs out, up has nowhere deeper to go.
-  if (pickOpen)     { if (back) pickOpen = false; return; }
+  if (pickOpen)     { if (back) pickBack(); return; }
   if (lanOpen)      {
     if (!back) return;
     if (lanPractice) { lanPractice = false; return; }   // the rival list, then the LAN screen
@@ -2055,12 +2164,12 @@ void onSwipeV(int dir) {
     boxOpen = false; boxSel = 0;
     return;
   }
-  // Either minigame exits on a swipe, keeping what was earned. A swipe cannot
-  // be confused with a ball hit -- the gesture resolver separates them -- which
-  // the header tap no longer could once the ball became hittable up there.
-  if (gameOpen) { leaveGame(); return; }
-  if (sackOpen) { leaveSack(); return; }
-  if (spdOpen)  { leaveSpeed(); return; }
+  // The minigames are left by the held BACK button only, keeping what was
+  // earned. Any vertical swipe used to quit them, and mid-game that is exactly
+  // the gesture a player makes by accident.
+  if (gameOpen) { if (viaButton) leaveGame(); return; }
+  if (sackOpen) { if (viaButton) leaveSack(); return; }
+  if (spdOpen)  { if (viaButton) leaveSpeed(); return; }
   if (kbOpen || pet.ceremony) return;
   if (clockOpen) { if (back) clockOpen = false; return; }
 
@@ -2098,7 +2207,9 @@ void onSwipeV(int dir) {
     return;
   }
   if (casinoOpen) {
-    if (back) casinoSwipeDown();
+    // a swipe leaves the LOBBY; inside a game it would settle the hand you are
+    // playing (stand, cash out), so only the button does that
+    if (back && (viaButton || !casinoInGame())) casinoSwipeDown();
     return;
   }
   if (cardBookOpen) {
@@ -2107,6 +2218,7 @@ void onSwipeV(int dir) {
   }
   if (arcadeOpen) {
     if (!back) return;
+    if (arcadeInRound()) { if (viaButton) arcadeLeaveRound(); return; }   // mid-round: the button only
     if (!arcadeSwipeV(dir)) { arcadeClose(); trainOpen = true; }
     return;
   }
@@ -2145,6 +2257,8 @@ void onSwipeV(int dir) {
     return;
   }
   if (playerOpen && avPickOpen) { if (back) avPickOpen = false; return; }   // the picker, then the card
+  if (playerOpen && badgesOpen) { if (back) badgesOpen = false; return; }   // the badges, then the card
+  if (playerOpen && wardrobeOpen) { if (back) wardrobeOpen = false; return; }   // the wardrobe, then the card
   if (playerOpen) { if (back) uiTileGo(TILE_PET); return; }
   if (partyOpen) {
     if (partyDetail) { if (back) partyDetail = 0; return; }
@@ -2258,8 +2372,6 @@ void renderMonSheet(const PartyMon &m, bool fromBox) {
   }
   gfx->setTextColor(UI_INK_SOFT);
   gfx->setTextSize(2);
-  gfx->setCursor(CX - strlen(T(S_BACK)) * 6, 410);
-  gfx->print(T(S_BACK));
 
   // Asked before it happens, because nothing gets this creature back: it is not
   // a farewell, it does not join anything, and there is no undo.
@@ -2503,15 +2615,16 @@ void partyTap(int16_t x, int16_t y) {
     sfxPlay(SFX_TAP);
     return;
   }
-  // exit button, and the top band, both always work
-  if ((y >= PARTYCLOSE_Y && y <= PARTYCLOSE_Y + PARTYCLOSE_H &&
-       x >= PARTYCLOSE_X && x <= PARTYCLOSE_X + PARTYCLOSE_W) || y < 34) {
-    if (partyPick) {                 // declined the swap: the pet is let go
-      if (!handoverMayDecline()) { sfxPlay(SFX_DENY); return; }
-      heldReturn(pet.endedMon.held);
-      partyPick = false;
-      pet.clearEnded();
-    }
+  // LET GO: only while a newcomer waits for a slot. It is irreversible, so it
+  // keeps its own explicit red button and the held BACK is hidden then
+  // (uiBackShownOn). Otherwise leaving is the held BACK button: the old CLOSE
+  // and the instant top-band tap went with the rest of the instant exits.
+  if (partyPick && ((y >= PARTYCLOSE_Y && y <= PARTYCLOSE_Y + PARTYCLOSE_H &&
+                     x >= PARTYCLOSE_X && x <= PARTYCLOSE_X + PARTYCLOSE_W) || y < 34)) {
+    if (!handoverMayDecline()) { sfxPlay(SFX_DENY); return; }
+    heldReturn(pet.endedMon.held);
+    partyPick = false;
+    pet.clearEnded();
     partyOpen = false;
     sfxPlay(SFX_TAP);
     return;
@@ -2615,8 +2728,9 @@ void onSwipe(int dir) {
   }
   if (movePickOpen) { movePickOpen = false; return; }
   if (boxOpen) { if (boxListOpen) { boxListOpen = false; return; } if (boxMoveFrom) { boxMoveFrom = 0; return; } boxOpen = false; boxSel = 0; return; }
-  if (gameOpen) { leaveGame(); return; }   // swipe out, keeping what you earned
-  if (spdOpen) { leaveSpeed(); return; }
+  // A minigame in progress is left by the held BACK button only (ui_back.ino):
+  // a sideways flick mid-game is play or an accident, never a goodbye.
+  if (gameOpen || spdOpen) return;
   if (kbOpen || clockOpen) return;
   if (cardOpen) { cardOpen = false; return; }
 }
@@ -2708,13 +2822,21 @@ void onTap(int16_t x, int16_t y) {
     return;
   }
   if (playerOpen && avPickOpen) { avPickTap(x, y); return; }
+  if (playerOpen && badgesOpen) return;   // nothing to tap: paged on the rim, held BACK out
+  if (playerOpen && wardrobeOpen) { wardrobeTap(x, y); return; }
   if (playerOpen) {
+    if (playerPage == 0) {
+      int8_t s = playerStarAt(x, y);
+      if (s >= 0) { starSel = (starSel == s) ? -1 : s; sfxPlay(SFX_TAP); return; }
+      if (playerBadgesBtnAt(x, y)) { badgesOpen = true; badgesPage = 0; sfxPlay(SFX_TAP); return; }
+      if (playerWardrobeBtnAt(x, y)) { wardrobeOpen = true; wardrobePage = 0; sfxPlay(SFX_TAP); return; }
+    }
     if (playerPage == 0 && y >= 32 && y < 68) {   // the name: rename yourself
       openKeyboardFor(KB_TRAINER);
       sfxPlay(SFX_TAP);
       return;
     }
-    // the avatar is the only other live target; everything else backs out
+    // the avatar is the only other live target
     if (playerPage == 0 && x > CX - 40 && x < CX + 40 && y > 70 && y < 146) {
       // The picker: a grid of every unlocked avatar (ui_avpick.ino). The
       // rank page still shows what each locked one needs.
@@ -2723,7 +2845,9 @@ void onTap(int16_t x, int16_t y) {
       return;
     }
     if (playerPage == PLAYER_CARDS_PAGE && playerCardsTap(x, y)) return;
-    playerOpen = false;
+    // A miss does nothing. It used to close the card -- an instant exit on a
+    // screen of small stars, where a finger between two of them left the card.
+    // The card is a tile: you leave it by swiping, like every other.
     return;
   }
   if (pickOpen) {
@@ -2767,7 +2891,7 @@ void onTap(int16_t x, int16_t y) {
       sfxPlay(SFX_TAP);
       return;
     }
-    if (y > 380) { gymOpen = false; gymPick = false; }
+    // the held BACK button (ui_back.ino) does this now; a tap no longer does
     return;
   }
   if (gymOpen) {
@@ -2916,9 +3040,7 @@ void onTap(int16_t x, int16_t y) {
         galleryDirty = true;
         galleryPick = false;
         sfxPlay(SFX_TAP);
-      } else if (y > 380) {
-        galleryOpen = false;
-      }
+      }   // the held BACK button (ui_back.ino) does this now; a tap no longer does
       return;
     }
     galleryTap(x, y);
@@ -3223,7 +3345,7 @@ uint8_t uiCurrentScreen() {
   if (bagOpen) return SCR_BAGSCR;
   if (kbOpen) return SCR_KEYBOARD;
   if (cardOpen) return SCR_CARD;
-  if (playerOpen) return avPickOpen ? SCR_AVPICK : SCR_PLAYER;
+  if (playerOpen) return avPickOpen ? SCR_AVPICK : badgesOpen ? SCR_BADGES : wardrobeOpen ? SCR_WARDROBE : SCR_PLAYER;
   if (clockOpen) return SCR_CLOCK;
   if (btlWinUntil) return SCR_WIN;
   if (battleOpen) return SCR_BATTLE;
@@ -3322,7 +3444,7 @@ void uiTileGo(int i) {
       break;
     // Re-score on open: progress that arrived without an event (a restore, the
     // console) must not leave the card showing a stale rank. Never lowers it.
-    case SCR_PLAYER: playerOpen = true; avPickOpen = false; playerPage = 0; rankUpdate(); break;
+    case SCR_PLAYER: playerOpen = true; avPickOpen = false; badgesOpen = false; wardrobeOpen = false; starSel = -1; playerPage = 0; rankUpdate(); starsUpdate(); break;
     default: break;   // the pet tile is everything else being shut
   }
   sfxPlay(SFX_TAP);
@@ -3342,6 +3464,8 @@ static RimPage uiRimTarget(uint16_t *pages) {
     case SCR_GYM:     p = &gymPage;     n = (TRAINER_COUNT + GYM_ROWS - 1) / GYM_ROWS; break;
     case SCR_GALLERY: p = &galleryPage; n = (uint8_t)GAL_PAGES; break;
     case SCR_PLAYER:  p = &playerPage;  n = PLAYER_PAGES; break;
+    case SCR_BADGES:  p = &badgesPage;  n = GYM_REGIONS; break;
+    case SCR_WARDROBE: p = &wardrobePage; n = wardrobePages(); break;
     case SCR_BOX:     p = &boxPage;     n = boxPages(); break;
     case SCR_BOXLIST: p = &boxListPage; n = boxListPages(); break;
     case SCR_BAGSCR:  p = &bagPage;     n = bagPages(); break;
@@ -3842,6 +3966,8 @@ void render() {
   }
   if (playerOpen) {
     if (avPickOpen) renderAvPick();
+    else if (badgesOpen) renderBadges();
+    else if (wardrobeOpen) renderWardrobe();
     else renderPlayer();
     return;
   }
@@ -4379,29 +4505,21 @@ void renderCardStats() {
   gfx->setCursor(CX - strlen(T(S_BATTLE)) * 9, 44);
   gfx->print(T(S_BATTLE));
 
-  // typing, in the accent colour of the species (English in every language,
-  // same as the species names themselves)
+  // typing, as the same chips the STATS page uses
   const DexEntry &de = DEX_TBL[pet.speciesId];
-  char ty[24];
-  if (de.type2 == T_NONE) snprintf(ty, sizeof(ty), "%s", typeName(de.type1));
-  else snprintf(ty, sizeof(ty), "%s/%s", typeName(de.type1), typeName(de.type2));
-  gfx->setTextColor(de.accent);
-  gfx->setTextSize(2);
-  gfx->setCursor(CX - (int)strlen(ty) * 6, 76);
-  gfx->print(ty);
+  {
+    int w1 = (int)strlen(typeName(de.type1)) * 6 + 10;
+    int w2 = de.type2 == T_NONE ? 0 : (int)strlen(typeName(de.type2)) * 6 + 10 + 6;
+    int x = CX - (w1 + w2) / 2;
+    x += drawTypeChip(x, 76, de.type1) + 6;
+    if (de.type2 != T_NONE) drawTypeChip(x, 76, de.type2);
+  }
 
-  // 360 de tope de barra: a nivel 73 (fin de ciclo) el stat mas alto de toda
-  // la dex es la vitalidad de CHANSEY (355). El 260 anterior ya se desbordaba.
-  // boon in blue, bane in red (persona.h)
-  cardLabelCol = personaLabelCol(pet.persona, PS_ATK);
-  drawCardStat(104, T(S_STAT_ATK), pet.atkStat(), 360, UI_BAR_BAD, pet.ivAtk);
-  cardLabelCol = personaLabelCol(pet.persona, PS_DEF);
-  drawCardStat(144, T(S_STAT_DEF), pet.defStat(), 360, 0x4C98, pet.ivDef);
-  cardLabelCol = personaLabelCol(pet.persona, PS_SPE);
-  drawCardStat(184, T(S_STAT_SPE), pet.speStat(), 360, UI_BAR_WARN, pet.ivSpe);
-  drawCardStat(224, T(S_STAT_VIT), pet.vitStat(), 360, UI_BAR_OK, pet.ivHp);
-  drawCardStat(264, T(S_STAT_WGT), pet.weight, 100, 0xB3C8, IV_NONE);
-
+  // The stat block is the STATS page's own (ui_monstats.ino), so the two views
+  // can never disagree again: all six stats, training, IVs, held item, nature.
+  drawMonStatsBody(pet.toPartyMon(), 104);
+  // weight is care, not combat, so only the card shows it
+  drawCardStat(334, T(S_STAT_WGT), pet.weight, 100, 0xB3C8, IV_NONE);
 }
 
 // Draws one move as a row: name, its type in the type's own colour, and either
@@ -4543,8 +4661,6 @@ void renderMovePick() {
   }
   gfx->setTextColor(UI_INK_SOFT);
   gfx->setTextSize(2);
-  gfx->setCursor(CX - strlen(T(S_BACK)) * 6, 402);
-  gfx->print(T(S_BACK));
   gfx->flush();
 }
 
@@ -5798,7 +5914,7 @@ void renderBattle() {
       int cell = shown - btlBagPage * 4;
       if (cell >= 4) break;
       int x = BTL_CELL_X(cell), y = BTL_CELL_Y(cell);
-      bool live = !itemIsBall(k) || btlWild;   // a ball needs a wild target
+      bool live = btlItemLive(k);   // a ball needs a wild target; no healing in the tower or LAN
       gfx->fillRoundRect(x, y, BTL_CELL_W, BTL_CELL_H, 10, live ? UI_BG_DAY : UI_TRACK);
       gfx->drawRoundRect(x, y, BTL_CELL_W, BTL_CELL_H, 10, live ? UI_INK : 0x8410);
       gfx->setTextColor(live ? UI_INK : 0x8410);
@@ -6133,8 +6249,8 @@ void battleTap(int16_t x, int16_t y) {
       // ONE predicate decides whether a ball may be thrown, and the draw above
       // asks the same one -- a greyed cell that still worked is the exact fault
       // uiButtonDisabled() exists to prevent on the home row.
+      if (!btlItemLive(k)) { sfxPlay(SFX_DENY); return; }
       if (itemIsBall(k)) {
-        if (!btlWild) { sfxPlay(SFX_DENY); return; }
         btlThrowBall(k);
       } else {
         btlUseItem(k);
@@ -6214,7 +6330,125 @@ void battleTap(int16_t x, int16_t y) {
 // Page 1: who you are -- avatar, badges, totals. Tap the avatar to cycle it;
 // the four sprites are hand-drawn (see species.h) because SpriteCollab has no
 // trainer art and ripped sprites would be unlicensed.
-static void renderPlayerBadges() {
+// The badges of region `rg`, 2x4, centred on rows y0 and y0 + 62.
+static void drawBadgeGrid(uint8_t rg, int y0) {
+  // The real badges, 2x4. Unearned ones draw as a faint outline so the shape
+  // of what is missing is still visible.
+  for (int i = 0; i < TRAINER_GYMS; i++) {
+    int bx = 140 + (i % 4) * 62, by = 188 + (i / 4) * 62;
+    bool got = pet.hasBadge(rg, i, false);
+    bool hard = pet.hasBadge(rg, i, true);
+    if (hard) {
+      // Beaten on hard: a golden halo. Concentric rings, not a filled disc --
+      // a disc sat behind the art and read as a gold coin rather than a glow.
+      gfx->drawCircle(bx, by, 25, 0xFDE0);
+      gfx->drawCircle(bx, by, 24, 0xFEA0);
+      gfx->drawCircle(bx, by, 23, 0xFF60);
+      gfx->drawCircle(bx, by, 22, 0xFEA0);
+      gfx->drawCircle(bx, by, 21, 0xFDE0);
+    }
+    if (!got) {
+      gfx->drawCircle(bx, by, 20, UI_TRACK);
+      continue;
+    }
+    const BadgeArt *a = badgeArtFor(rg, i);
+    if (!a) {                 // no art for this region: a filled disc, won is won
+      gfx->fillCircle(bx, by, 14, typeColor(TRAINER_SETS[rg].list[i].type));
+      gfx->drawCircle(bx, by, 14, UI_INK);
+      continue;
+    }
+    for (int r = 0; r < BADGE_PX; r++)
+      for (int c = 0; c < BADGE_PX; c++) {
+        uint8_t v = a->idx[r * BADGE_PX + c];
+        if (v == 0xFF) continue;
+        gfx->fillRect(bx - BADGE_PX / 2 + c, by - BADGE_PX / 2 + r, 1, 1, a->pal[v]);
+      }
+  }
+}
+
+// ---- the trainer card's stars (stars.h) ----
+// Six discs in a row under the avatar. Each disc is a cream plate so a star
+// reads the same on every Game Corner card skin -- the skins pattern the rim
+// and wash the inner disc, and a star drawn straight on a pattern would not.
+#define STAR_ROW_Y 198
+#define STAR_PITCH 56
+#define STAR_R 22
+static const uint16_t STAR_COL[STAR_COUNT] = {
+  0xD8A3,   // red: the tower
+  0x2B7F,   // blue: the Pokedex
+  0xBDF7,   // silver: every ladder, easy
+  0xFEA0,   // gold: every ladder, hard
+  0x895F,   // purple: LAN wins
+  0x10A2,   // black: the coins
+};
+void playerStarCentre(uint8_t i, int *x, int *y) {
+  *x = CX + (int)(i * 2 + 1 - STAR_COUNT) * STAR_PITCH / 2;
+  *y = STAR_ROW_Y;
+}
+int8_t playerStarAt(int16_t x, int16_t y) {
+  for (uint8_t i = 0; i < STAR_COUNT; i++) {
+    int cx, cy; playerStarCentre(i, &cx, &cy);
+    int dx = x - cx, dy = y - cy;
+    if (dx * dx + dy * dy <= (STAR_R + 5) * (STAR_R + 5)) return (int8_t)i;
+  }
+  return -1;
+}
+// A five-pointed star, filled from its centre, outlined in ink.
+static void drawStarShape(int cx, int cy, int r, uint16_t fill, uint16_t ink, bool filled) {
+  int px[10], py[10];
+  for (int k = 0; k < 10; k++) {
+    float a = -1.5707963f + k * 0.62831853f;
+    float rr = (k & 1) ? r * 0.42f : (float)r;
+    px[k] = cx + (int)lroundf(rr * cosf(a));
+    py[k] = cy + (int)lroundf(rr * sinf(a));
+  }
+  if (filled)
+    for (int k = 0; k < 10; k++) gfx->fillTriangle(cx, cy, px[k], py[k], px[(k + 1) % 10], py[(k + 1) % 10], fill);
+  for (int k = 0; k < 10; k++) gfx->drawLine(px[k], py[k], px[(k + 1) % 10], py[(k + 1) % 10], ink);
+}
+static void drawPlayerStars() {
+  for (uint8_t i = 0; i < STAR_COUNT; i++) {
+    int cx, cy; playerStarCentre(i, &cx, &cy);
+    bool got = starHas(i);
+    gfx->fillCircle(cx, cy, STAR_R, UI_BG_DAY);
+    gfx->drawCircle(cx, cy, STAR_R, (int8_t)i == starSel ? UI_INK : UI_TRACK);
+    // an earned black star gets a white edge, or it vanishes into its own ink
+    drawStarShape(cx, cy, STAR_R - 4, STAR_COL[i], got ? (i == STAR_COINS ? UI_WHITE : UI_INK) : UI_TRACK, got);
+  }
+  static const StrId DESC[STAR_COUNT] = { S_STAR_D0, S_STAR_D1, S_STAR_D2, S_STAR_D3, S_STAR_D4, S_STAR_D5 };
+  const char *d = starSel >= 0 ? T(DESC[starSel]) : T(S_STAR_HINT);
+  gfx->setTextColor(starSel >= 0 && starHas((uint8_t)starSel) ? UI_INK : UI_INK_SOFT);
+  gfx->setTextSize(1);
+  gfx->setCursor(CX - (int)strlen(d) * 3, STAR_ROW_Y + STAR_R + 12);
+  gfx->print(d);
+}
+
+// The BADGES button: opens the badge screen. Geometry asked, never restated.
+// With the customisable trainer (YOU) worn, WARDROBE joins it, side by side.
+#define PBADGE_W 200
+#define PBADGE_HALF 140
+#define PBADGE_Y 318
+static bool playerWearsYou() { return pet.avatar == AVATAR_YOU; }
+void playerBadgesBtnRect(int *x, int *y, int *w, int *h) {
+  *y = PBADGE_Y; *h = UI_TAP_MIN;
+  if (playerWearsYou()) { *x = CX - 6 - PBADGE_HALF; *w = PBADGE_HALF; }
+  else { *x = CX - PBADGE_W / 2; *w = PBADGE_W; }
+}
+void playerWardrobeBtnRect(int *x, int *y, int *w, int *h) {
+  *x = CX + 6; *y = PBADGE_Y; *w = PBADGE_HALF; *h = UI_TAP_MIN;
+}
+bool playerBadgesBtnAt(int16_t px, int16_t py) {
+  int x, y, w, h; playerBadgesBtnRect(&x, &y, &w, &h);
+  return px >= x && px <= x + w && py >= y && py <= y + h;
+}
+bool playerWardrobeBtnAt(int16_t px, int16_t py) {
+  if (!playerWearsYou()) return false;
+  int x, y, w, h; playerWardrobeBtnRect(&x, &y, &w, &h);
+  return px >= x && px <= x + w && py >= y && py <= y + h;
+}
+
+// Page 0: who you are -- name, rank, avatar, the stars, the totals, BADGES.
+static void renderPlayerCard() {
   // the player's name if they have set one, the generic title if not; either
   // way tapping it opens the keyboard
   const char *tn = pet.trainerName[0] ? pet.trainerName : T(S_TRAINER);
@@ -6223,15 +6457,7 @@ static void renderPlayerBadges() {
   gfx->setCursor(CX - (int)strlen(tn) * 9, 40);
   gfx->print(tn);
 
-  // Pages 1 and 2 are the other regions' ladders: name them, and drop the
-  // avatar so the badges have the room. Only page 0 is "you".
-  if (playerBadgeRegion != 0) {
-    const char *rn = TRAINER_SETS[playerBadgeRegion].region;
-    gfx->setTextColor(UI_INK);
-    gfx->setTextSize(2);
-    gfx->setCursor(CX - (int)strlen(rn) * 6, 120);
-    gfx->print(rn);
-  } else if (gShowAllAvatars) {          // emulator only: the free set at once
+  if (gShowAllAvatars) {          // emulator only: the free set at once
     for (uint8_t i = 0; i < AVATAR_BASE_COUNT; i++)
       drawAvatar(i, 60 + (i % 4) * 88, 60 + (i / 4) * 60, 3);
   } else {
@@ -6252,51 +6478,54 @@ static void renderPlayerBadges() {
     gfx->setCursor(CX - (int)strlen(T(S_AVATAR_HINT)) * 3, 154);
     gfx->print(T(S_AVATAR_HINT));
   }
-
-  // The real badges, 2x4. Unearned ones draw as a faint outline so the shape
-  // of what is missing is still visible.
-  for (int i = 0; i < TRAINER_GYMS; i++) {
-    int bx = 140 + (i % 4) * 62, by = 188 + (i / 4) * 62;
-    bool got = pet.hasBadge(playerBadgeRegion, i, false);
-    bool hard = pet.hasBadge(playerBadgeRegion, i, true);
-    if (hard) {
-      // Beaten on hard: a golden halo. Concentric rings, not a filled disc --
-      // a disc sat behind the art and read as a gold coin rather than a glow.
-      gfx->drawCircle(bx, by, 25, 0xFDE0);
-      gfx->drawCircle(bx, by, 24, 0xFEA0);
-      gfx->drawCircle(bx, by, 23, 0xFF60);
-      gfx->drawCircle(bx, by, 22, 0xFEA0);
-      gfx->drawCircle(bx, by, 21, 0xFDE0);
-    }
-    if (!got) {
-      gfx->drawCircle(bx, by, 20, UI_TRACK);
-      continue;
-    }
-    const BadgeArt *a = badgeArtFor(playerBadgeRegion, i);
-    if (!a) {                 // no art for this region: a filled disc, won is won
-      gfx->fillCircle(bx, by, 14, typeColor(TRAINER_SETS[playerBadgeRegion % GYM_REGIONS].list[i].type));
-      gfx->drawCircle(bx, by, 14, UI_INK);
-      continue;
-    }
-    for (int r = 0; r < BADGE_PX; r++)
-      for (int c = 0; c < BADGE_PX; c++) {
-        uint8_t v = a->idx[r * BADGE_PX + c];
-        if (v == 0xFF) continue;
-        gfx->fillRect(bx - BADGE_PX / 2 + c, by - BADGE_PX / 2 + r, 1, 1, a->pal[v]);
-      }
-  }
+  drawPlayerStars();
   char l[32];
   gfx->setTextColor(UI_INK);
   gfx->setTextSize(2);
-  snprintf(l, sizeof(l), T(S_STREAK_FMT), pet.streak, pet.bestStreak);
-  gfx->setCursor(CX - (int)strlen(l) * 6, 286);
-  gfx->print(l);
   snprintf(l, sizeof(l), T(S_POKEDEX_FMT), pet.registeredCount(), DEX_COUNT);
-  gfx->setCursor(CX - (int)strlen(l) * 6, 312);
+  gfx->setCursor(CX - (int)strlen(l) * 6, 256);
   gfx->print(l);
   snprintf(l, sizeof(l), T(S_PARTY_FMT), party.count());
-  gfx->setCursor(CX - (int)strlen(l) * 6, 338);
+  gfx->setCursor(CX - (int)strlen(l) * 6, 282);
   gfx->print(l);
+  int bx, by, bw, bh; playerBadgesBtnRect(&bx, &by, &bw, &bh);
+  gfx->fillRoundRect(bx, by, bw, bh, 14, 0xFF98);   // pale gold, like the badges
+  gfx->drawRoundRect(bx, by, bw, bh, 14, UI_INK);
+  snprintf(l, sizeof(l), T(S_PC_BADGES_FMT), (unsigned)(pet.badgeCount(false)));
+  int ts = (int)strlen(l) * 12 <= bw - 12 ? 2 : 1;
+  gfx->setTextSize(ts);
+  gfx->setCursor(bx + bw / 2 - (int)strlen(l) * 3 * ts, by + bh / 2 - 4 * ts);
+  gfx->print(l);
+  if (playerWearsYou()) {
+    playerWardrobeBtnRect(&bx, &by, &bw, &bh);
+    gfx->fillRoundRect(bx, by, bw, bh, 14, 0xD7FF);   // pale blue
+    gfx->drawRoundRect(bx, by, bw, bh, 14, UI_INK);
+    const char *wl = T(S_WARDROBE);
+    ts = (int)strlen(wl) * 12 <= bw - 12 ? 2 : 1;
+    gfx->setTextSize(ts);
+    gfx->setCursor(bx + bw / 2 - (int)strlen(wl) * 3 * ts, by + bh / 2 - 4 * ts);
+    gfx->print(wl);
+  }
+}
+
+// SCR_BADGES: one region a rim page, on the player's own card skin.
+void renderBadges() {
+  gfx->fillScreen(RGB565_BLACK);
+  drawCardBackground(casino.bg, millis());
+  uint8_t rg = badgesPage % GYM_REGIONS;
+  const char *rn = TRAINER_SETS[rg].region;
+  gfx->setTextColor(UI_INK);
+  gfx->setTextSize(3);
+  gfx->setCursor(CX - (int)strlen(rn) * 9, 70);
+  gfx->print(rn);
+  char l[32];
+  snprintf(l, sizeof(l), T(S_BADGES_FMT), (unsigned)pet.badgeCountIn(rg, false));
+  gfx->setTextSize(2);
+  gfx->setCursor(CX - (int)strlen(l) * 6, 112);
+  gfx->print(l);
+  drawBadgeGrid(rg, 196);
+  uiChrome();
+  gfx->flush();
 }
 
 // Page 2: the medals. They used to sit on the creature's card; they belong with
@@ -6375,15 +6604,13 @@ static void renderPlayerMedals() {
 void renderPlayer() {
   gfx->fillScreen(RGB565_BLACK);
   drawCardBackground(casino.bg, millis());   // the bought trainer-card background, or plain cream
-  if (playerPage < GYM_REGIONS) renderPlayerBadges();
+  if (playerPage == 0) renderPlayerCard();
   else if (playerPage == PLAYER_RANK_PAGE) renderPlayerRank();
   else if (playerPage == PLAYER_CARDS_PAGE) renderPlayerCards();
-  else renderPlayerMedals();
+  else renderPlayerMedals();   // PLAYER_MEDALS_PAGE
 
   gfx->setTextColor(UI_INK_SOFT);
   gfx->setTextSize(2);
-  gfx->setCursor(CX - strlen(T(S_BACK)) * 6, 392);
-  gfx->print(T(S_BACK));
   uiChrome();
   gfx->flush();
 }
@@ -6559,13 +6786,6 @@ void renderPick() {
   }
 
   bool ok = pickGoLegal();
-  gfx->fillRoundRect(PICK_BACK_X, PICK_GO_Y, PICK_BTN_W, PICK_BTN_H, 12, UI_TRACK);
-  gfx->drawRoundRect(PICK_BACK_X, PICK_GO_Y, PICK_BTN_W, PICK_BTN_H, 12, UI_INK);
-  gfx->setTextColor(UI_INK);
-  gfx->setTextSize(2);
-  gfx->setCursor(PICK_BACK_X + (PICK_BTN_W - (int)strlen(T(S_BACK)) * 12) / 2,
-                 PICK_GO_Y + 14);
-  gfx->print(T(S_BACK));
   gfx->fillRoundRect(PICK_GO_X, PICK_GO_Y, PICK_BTN_W, PICK_BTN_H, 12,
                      ok ? UI_BAR_OK : UI_TRACK);
   gfx->drawRoundRect(PICK_GO_X, PICK_GO_Y, PICK_BTN_W, PICK_BTN_H, 12, UI_INK);
@@ -6577,17 +6797,18 @@ void renderPick() {
   gfx->flush();
 }
 
+// Back out of team select to the screen it was opened from. The ONE rule: the
+// swipe used to just clear pickOpen and land wherever the other flags pointed,
+// while the BACK pill reopened the right screen -- two answers to one question.
+void pickBack() {
+  pickOpen = false;
+  if (pickTrainer == PICK_LAN) { lanOpen = true; }
+  else if (pickTrainer == PICK_TOWER) { towerOpen = true; }
+  else if (pickTrainer == PICK_CHAL) { chalOpen = true; }
+  else { gymOpen = true; }
+}
+
 void pickTap(int16_t x, int16_t y) {
-  if (y >= PICK_GO_Y && y <= PICK_GO_Y + PICK_BTN_H &&
-      x >= PICK_BACK_X && x <= PICK_BACK_X + PICK_BTN_W) {   // BACK
-    sfxPlay(SFX_TAP);
-    pickOpen = false;
-    if (pickTrainer == PICK_LAN) { lanOpen = true; }
-    else if (pickTrainer == PICK_TOWER) { towerOpen = true; }
-    else if (pickTrainer == PICK_CHAL) { chalOpen = true; }
-    else { gymOpen = true; }
-    return;
-  }
   if (y >= PICK_GO_Y && y <= PICK_GO_Y + PICK_BTN_H &&
       x >= PICK_GO_X && x <= PICK_GO_X + PICK_BTN_W) {
     if (!pickGoLegal()) { sfxPlay(SFX_DENY); return; }   // GO stays inert
@@ -6683,8 +6904,6 @@ void renderLan() {
     renderLanPractice();
     gfx->setTextColor(UI_INK_SOFT);
     gfx->setTextSize(2);
-    gfx->setCursor(CX - strlen(T(S_BACK)) * 6, 392);
-    gfx->print(T(S_BACK));
     gfx->flush();
     return;
   }
@@ -6769,8 +6988,6 @@ void renderLan() {
   }
   gfx->setTextColor(UI_INK_SOFT);
   gfx->setTextSize(2);
-  gfx->setCursor(CX - strlen(T(S_BACK)) * 6, 392);
-  gfx->print(T(S_BACK));
   gfx->flush();
 }
 
@@ -6815,7 +7032,7 @@ void lanTap(int16_t x, int16_t y) {
       startGhostBattle((uint8_t)r);
       return;
     }
-    if (y > 370) { sfxPlay(SFX_TAP); lanPractice = false; }   // back to the LAN screen
+    // the held BACK button (ui_back.ino) does this now; a tap no longer does
     return;
   }
   if (lan.state == LINK_OFF || lan.state == LINK_REFUSED ||
@@ -6865,7 +7082,7 @@ void lanTap(int16_t x, int16_t y) {
       return;
     }
   }
-  if (y > 370) { lanLeave(); lanOpen = false; }   // back
+  // the held BACK button (ui_back.ino) does this now; a tap no longer does
 }
 
 // ---------- gym list ----------
@@ -7145,8 +7362,6 @@ static void renderRegionPick(uint8_t mode) {
   if (mode != RPICK_FOR_START) {          // first boot has nowhere to go back to
     gfx->setTextColor(UI_INK_SOFT);
     gfx->setTextSize(2);
-    gfx->setCursor(CX - strlen(T(S_BACK)) * 6, 392);
-    gfx->print(T(S_BACK));
   }
   uiChrome();
   gfx->flush();
@@ -7326,8 +7541,6 @@ void renderCard() {
   }
   gfx->setTextColor(UI_INK_SOFT);
   gfx->setTextSize(2);
-  gfx->setCursor(CX - strlen(T(S_BACK)) * 6, 398);
-  gfx->print(T(S_BACK));
   uiChrome();
   gfx->flush();
 }
@@ -7550,7 +7763,6 @@ void renderBag() {
       gfx->setCursor(CX - (int)strlen(pg) * 6, 386); gfx->print(pg);
     }
     gfx->setTextColor(UI_INK_SOFT); gfx->setTextSize(2);
-    gfx->setCursor(CX - (int)strlen(T(S_BACK)) * 6, 414); gfx->print(T(S_BACK));
     uiChrome(); gfx->flush(); return;
   }
   if (bagHeldPick) {
@@ -7579,7 +7791,6 @@ void renderBag() {
       gfx->setCursor(CX - (int)strlen(pg) * 6, 386); gfx->print(pg);
     }
     gfx->setTextColor(UI_INK_SOFT); gfx->setTextSize(2);
-    gfx->setCursor(CX - (int)strlen(T(S_BACK)) * 6, 414); gfx->print(T(S_BACK));
     uiChrome(); gfx->flush(); return;
   }
   gfx->setCursor(CX - (int)strlen(T(S_BAG)) * 6, 40);
@@ -7634,8 +7845,6 @@ void renderBag() {
   }
   gfx->setTextColor(UI_INK_SOFT);
   gfx->setTextSize(2);
-  gfx->setCursor(CX - (int)strlen(T(S_BACK)) * 6, 414);
-  gfx->print(T(S_BACK));
   uiChrome();
   gfx->flush();
 }
@@ -7774,8 +7983,6 @@ void renderMart() {
   }
   gfx->setTextColor(ink);
   gfx->setTextSize(2);
-  gfx->setCursor(CX - (int)strlen(T(S_BACK)) * 6, 414);
-  gfx->print(T(S_BACK));
 
   // Asked before it happens -- what the choice costs is on screen before the
   // tap, same rule as the release/retire dialogs.
@@ -7843,9 +8050,19 @@ void martTap(int16_t x, int16_t y) {
 // keeps its own copy of a layout proves the transcription).
 #define DC_NONE 0xFFFF
 #define DC_PER_PAGE 4
-#define DC_CARD_Y 96
-#define DC_CARD_H 100
-#define DC_BTN_Y 236
+// The home screen is a PEN (y 72..190) where the two parents wander, with the
+// keepers at its sides; the A/B name plates sit under it, then the message,
+// then the two finger-sized buttons, then the queued egg.
+#define GAL_CELL 80   // drawThumb()'s cell, defined again (identically) further down
+#define DC_PEN_X0 120
+#define DC_PEN_X1 346
+#define DC_PEN_Y0 72
+#define DC_PEN_Y1 190
+#define DC_CARD_Y 196
+#define DC_CARD_H UI_TAP_MIN
+#define DC_MSG_Y 244
+#define DC_BTN_Y 262
+#define DC_EGG_Y 364
 #define DC_BTN_H UI_TAP_FINGER
 #define DC_ROW_Y(i) (96 + (i) * 64)
 #define DC_ROW_H 56
@@ -7965,28 +8182,104 @@ static void dcTitle(const char *t) {
   dcCenter(t, sz == 3 ? 50 : 54, sz);
 }
 
+// Parent i's name plate under the pen: tap it to choose that parent.
 static void dcCard(uint8_t i, uint16_t idx) {
   int x0, x1;
   dcCardRect(i, &x0, &x1);
   const PartyMon *m = idx == DC_NONE ? nullptr : breedBanked(idx);
   bool has = m && !m->empty();
-  gfx->fillRoundRect(x0, DC_CARD_Y, x1 - x0, DC_CARD_H, 14, has ? UI_WHITE : UI_TRACK);
-  gfx->drawRoundRect(x0, DC_CARD_Y, x1 - x0, DC_CARD_H, 14, UI_INK);
+  gfx->fillRoundRect(x0, DC_CARD_Y, x1 - x0, DC_CARD_H, 12, has ? UI_WHITE : UI_TRACK);
+  gfx->drawRoundRect(x0, DC_CARD_Y, x1 - x0, DC_CARD_H, 12, UI_INK);
   gfx->setTextColor(UI_INK);
   int cx = (x0 + x1) / 2;
   char l[24];
-  gfx->setTextSize(2);
-  l[0] = (char)('A' + i); l[1] = 0;
-  gfx->setCursor(cx - 6, DC_CARD_Y + 10);
+  snprintf(l, sizeof(l), "%c %s", (char)('A' + i), has ? dcName(*m) : T(S_DC_PICK));
+  gfx->setTextSize((int)strlen(l) * 12 <= x1 - x0 - 10 ? 2 : 1);
+  int sz = (int)strlen(l) * 12 <= x1 - x0 - 10 ? 2 : 1;
+  gfx->setCursor(cx - (int)strlen(l) * 3 * sz, DC_CARD_Y + (has ? 6 : 15));
   gfx->print(l);
-  const char *name = has ? dcName(*m) : T(S_DC_PICK);
-  gfx->setCursor(cx - (int)strlen(name) * 6, DC_CARD_Y + 40);
-  gfx->print(name);
   if (has) {
     snprintf(l, sizeof(l), "Lv%u%s", (unsigned)m->level, m->shiny ? " *" : "");
-    gfx->setCursor(cx - (int)strlen(l) * 6, DC_CARD_Y + 68);
+    gfx->setTextSize(1);
+    gfx->setCursor(cx - (int)strlen(l) * 3, DC_CARD_Y + 28);
     gfx->print(l);
   }
+}
+
+// ---- the pen ----
+// An avatar by its name, for the two keepers -- GRAMPS and GRANNY are already in
+// the avatar set (pret's Gen 1 sprites), the daycare couple's own look.
+static int16_t dcAvatarNamed(const char *nm) {
+  for (uint16_t i = 0; i < AVATAR_COUNT; i++) if (!strcmp(AVATARS[i].name, nm)) return (int16_t)i;
+  return -1;
+}
+// Where parent i is at time t: a slow, uneven wander (two sine waves per axis at
+// unrelated rates) that eases to a stop now and then, so it reads as an animal
+// pottering about rather than a screensaver. Pure function of the clock, so the
+// two never collide with a stored path and nothing needs saving.
+static void dcParentAt(uint8_t i, uint32_t t, int *x, int *y, bool *moving) {
+  float s = t / 1000.0f, ph = i ? 2.4f : 0.0f;
+  // a "walk" factor that idles near 0 for a stretch every ~9 s
+  float walk = 0.5f + 0.5f * sinf(s * 0.7f + ph * 1.7f);
+  walk = walk * walk;
+  float u = s * (0.35f + 0.25f * walk);
+  float fx = 0.5f + 0.34f * sinf(u * 1.0f + ph) + 0.12f * sinf(u * 2.3f + ph * 3.1f);
+  float fy = 0.5f + 0.30f * sinf(u * 0.8f + ph * 1.9f + 1.0f) + 0.10f * sinf(u * 1.9f + ph);
+  if (i) fx = 1.0f - fx;   // keep the two on opposite sides most of the time
+  const int padX = 34, top = DC_PEN_Y0 + 20, bot = DC_PEN_Y1 - 34;
+  *x = DC_PEN_X0 + padX + (int)(fx * (DC_PEN_X1 - DC_PEN_X0 - 2 * padX));
+  *y = top + (int)(fy * (bot - top));
+  *moving = walk > 0.25f;
+}
+static void dcDrawParent(uint8_t i, uint16_t idx, uint32_t now) {
+  const PartyMon *m = idx == DC_NONE ? nullptr : breedBanked(idx);
+  if (!m || m->empty()) return;
+  int x, y; bool moving;
+  dcParentAt(i, now, &x, &y, &moving);
+  if (moving && (now / 180 + i) % 2) y -= 2;        // a hop in the step
+  gfx->fillEllipse(x, y + 17, 18, 5, C565(0x6f, 0xa0, 0x4e));   // its shadow, under its feet
+  const uint8_t *th = thumbs.get(m->dex);
+  if (th) drawThumb(th, x - GAL_CELL / 2, y - GAL_CELL / 2 - 4, 2, false);   // 2x: a thumbnail is small
+  else {                                             // no art: a token, never nothing
+    gfx->fillCircle(x, y, 14, DEX_TBL[m->dex].accent);
+    gfx->drawCircle(x, y, 14, UI_INK);
+  }
+}
+static void dcDrawPen(uint32_t now) {
+  const uint16_t GRASS = C565(0x9c, 0xd0, 0x6c), DIRT = C565(0xc9, 0xb0, 0x7a), WOOD = C565(0x9a, 0x66, 0x3c);
+  const int x0 = DC_PEN_X0, x1 = DC_PEN_X1, y0 = DC_PEN_Y0, y1 = DC_PEN_Y1;
+  gfx->fillRoundRect(x0, y0, x1 - x0, y1 - y0, 10, GRASS);
+  // a few worn patches and tufts, fixed so the ground does not shimmer
+  gfx->fillEllipse(x0 + 60, y1 - 26, 22, 7, DIRT);
+  gfx->fillEllipse(x1 - 54, y0 + 34, 18, 6, DIRT);
+  for (int k = 0; k < 9; k++) {
+    int tx = x0 + 18 + (k * 53) % (x1 - x0 - 36), ty = y0 + 20 + (k * 37) % (y1 - y0 - 34);
+    gfx->drawLine(tx, ty, tx - 2, ty - 5, C565(0x5f, 0x9a, 0x3c));
+    gfx->drawLine(tx, ty, tx + 2, ty - 6, C565(0x5f, 0x9a, 0x3c));
+  }
+  // the fence: rails all round, a post every 28 px, a gap for the gate
+  for (int r = 0; r < 2; r++) {
+    int ry = r ? y1 - 4 : y0;
+    gfx->fillRect(x0, ry, x1 - x0, 4, WOOD);
+  }
+  gfx->fillRect(x0, y0, 4, y1 - y0, WOOD);
+  gfx->fillRect(x1 - 4, y0, 4, y1 - y0, WOOD);
+  for (int px = x0; px <= x1 - 6; px += 28) {
+    gfx->fillRect(px, y0 - 6, 6, 14, WOOD);
+    if (px < CX - 24 || px > CX + 18) gfx->fillRect(px, y1 - 10, 6, 14, WOOD);
+  }
+  gfx->fillRect(CX - 20, y1 - 4, 40, 4, GRASS);     // the gate is open
+  // the parents, the lower one drawn last so it stands in front
+  int ya, yb, xa, xb; bool ma, mb;
+  dcParentAt(0, now, &xa, &ya, &ma); dcParentAt(1, now, &xb, &yb, &mb);
+  if (ya <= yb) { dcDrawParent(0, dcA, now); dcDrawParent(1, dcB, now); }
+  else { dcDrawParent(1, dcB, now); dcDrawParent(0, dcA, now); }
+  // the keepers, either side of the pen, like the Game Corner's dealer
+  static int16_t granny = -2, gramps = -2;
+  if (granny == -2) { granny = dcAvatarNamed("GRANNY"); gramps = dcAvatarNamed("GRAMPS"); }
+  int bob = (now / 700) % 2;
+  if (granny >= 0) drawAvatar((uint16_t)granny, 60, 98 + bob, 3);
+  if (gramps >= 0) drawAvatar((uint16_t)gramps, 358, 98 + (1 - bob), 3);
 }
 
 static void dcButton(uint8_t i, const char *label, bool live) {
@@ -8003,6 +8296,7 @@ static void dcButton(uint8_t i, const char *label, bool live) {
 static void renderDcHome() {
   dcValidate();
   dcTitle(T(S_DC_TITLE));
+  dcDrawPen(millis());
   dcCard(0, dcA);
   dcCard(1, dcB);
 
@@ -8010,7 +8304,7 @@ static void renderDcHome() {
   uint8_t v = dcVerdict();
   bool msg = dcMsg != STR_COUNT && millis() < dcMsgUntil;
   gfx->setTextColor(msg || v == BV_OK ? UI_INK : UI_BAR_WARN);
-  dcCenter(T(msg ? dcMsg : dcVerdictText(v)), 210, 2);
+  dcCenter(T(msg ? dcMsg : dcVerdictText(v)), DC_MSG_Y, 2);
 
   dcButton(0, T(S_DC_BREED), dcBreedLive());
   bool armed = millis() < dcSwapArmUntil;
@@ -8022,10 +8316,10 @@ static void renderDcHome() {
   if (breedHasQueued()) {
     const BredEgg &e = breedQueued();
     snprintf(l, sizeof(l), T(S_DC_NEXT_FMT), DEX_TBL[e.dex].name);
-    dcCenter(l, 342, 2);
+    dcCenter(l, DC_EGG_Y, 2);
     if (!breedQueuedHatchable()) {
       gfx->setTextColor(UI_BAR_WARN);
-      dcCenter(T(S_DC_V_NOEGG), 366, 2);
+      dcCenter(T(S_DC_V_NOEGG), DC_EGG_Y + 24, 2);
     } else {
       char iv[4][4];
       for (int i = 0; i < 4; i++) {
@@ -8033,16 +8327,15 @@ static void renderDcHome() {
         else snprintf(iv[i], sizeof(iv[i]), "%u", (unsigned)e.iv[i]);
       }
       snprintf(l, sizeof(l), "IV %s %s %s %s", iv[0], iv[1], iv[2], iv[3]);
-      dcCenter(l, 366, 2);
+      dcCenter(l, DC_EGG_Y + 24, 2);
     }
   } else {
     bool wait = breedOnCooldown(pet.currentDay());
     gfx->setTextColor(wait ? UI_BAR_WARN : UI_INK);
-    dcCenter(T(wait ? S_DC_WAIT : S_DC_TODAY), 342, 2);
-    if (bag.has(IT_OVAL_CHARM)) { gfx->setTextColor(UI_INK); dcCenter(itemEntry(IT_OVAL_CHARM).name, 366, 2); }
+    dcCenter(T(wait ? S_DC_WAIT : S_DC_TODAY), DC_EGG_Y, 2);
+    if (bag.has(IT_OVAL_CHARM)) { gfx->setTextColor(UI_INK); dcCenter(itemEntry(IT_OVAL_CHARM).name, DC_EGG_Y + 24, 2); }
   }
   gfx->setTextColor(UI_INK);
-  dcCenter(T(S_BACK), 402, 2);
   uiChrome();
   gfx->flush();
 }
@@ -8078,7 +8371,6 @@ static void renderDcPick() {
     gfx->print(l);
   }
   gfx->setTextColor(UI_INK);
-  dcCenter(T(S_BACK), 402, 2);
   uiChrome();
   gfx->flush();
 }
@@ -8119,11 +8411,11 @@ static void dcTapHome(int16_t x, int16_t y) {
     else { sfxPlay(SFX_DENY); dcSay(S_DC_SAVEFAIL); }
     return;
   }
-  if (y >= 392) uiTileGo(TILE_PET);   // the BACK label, same as the Mart's
+  // the held BACK button (ui_back.ino) does this now; a tap no longer does
 }
 
 static void dcTapPick(int16_t x, int16_t y) {
-  if (y >= 392) { sfxPlay(SFX_TAP); dcView = 0; return; }
+  // the held BACK button (ui_back.ino) does this now; a tap no longer does
   int r = dcRowAt(x, y);
   if (r < 0) return;
   static uint16_t list[BREED_BANK];
@@ -8255,7 +8547,6 @@ static void renderTradePick() {
     char l[12]; snprintf(l, sizeof(l), "Lv%u%s", (unsigned)m.level, m.shiny ? "*" : "");
     gfx->setCursor(374 - (int)strlen(l) * 12, y + DC_ROW_H / 2 - 8); gfx->print(l);
   }
-  gfx->setTextColor(UI_INK); dcCenter(T(S_BACK), 402, 2);
   uiChrome();
   gfx->flush();
 }
@@ -8276,12 +8567,11 @@ void renderTrade() {
   gfx->drawRoundRect(CX - TRD_BTN_W / 2, TRD_BTN_Y, TRD_BTN_W, TRD_BTN_H, 18, UI_INK);
   gfx->setTextColor(live ? UI_WHITE : 0x8410);
   dcCenter(T(S_TRD_ACCEPT), TRD_BTN_Y + TRD_BTN_H / 2 - 12, 3);
-  gfx->setTextColor(UI_INK); dcCenter(T(S_BACK), 402, 2);
   gfx->flush();
 }
 
 void tradeTap(int16_t x, int16_t y) {
-  if (y >= 392) { sfxPlay(SFX_TAP); if (tradeView) tradeView = 0; else tradeLeave(); return; }
+  // the held BACK button (ui_back.ino) does this now; a tap no longer does
   if (tradeView) {                       // choosing what to offer
     int r = dcRowAt(x, y); if (r < 0) return;
     static uint16_t list[PARTY_SLOTS + BOX_SLOTS]; uint16_t n = trdList(list);
@@ -8327,7 +8617,6 @@ void renderTower() {
   char l[48];
   if (!towerUnlocked()) {
     twCenter(T(S_TW_WHY), 200, 2, UI_INK_SOFT);
-    twCenter(T(S_BACK), 400, 2, UI_INK_SOFT);
     gfx->flush();
     return;
   }
@@ -8351,12 +8640,11 @@ void renderTower() {
   gfx->fillRoundRect(CX - TW_BTN_W / 2, TW_BTN_Y, TW_BTN_W, TW_BTN_H, 18, UI_BAR_OK);
   gfx->drawRoundRect(CX - TW_BTN_W / 2, TW_BTN_Y, TW_BTN_W, TW_BTN_H, 18, UI_INK);
   twCenter(T(towerRunActive() ? S_TW_CONT : S_TW_START), TW_BTN_Y + TW_BTN_H / 2 - 12, 3, UI_WHITE);
-  twCenter(T(S_BACK), 414, 2, UI_INK_SOFT);
   gfx->flush();
 }
 
 void towerTap(int16_t x, int16_t y) {
-  if (y >= 404) { sfxPlay(SFX_TAP); towerOpen = false; gymOpen = true; gymPick = true; return; }
+  // the held BACK button (ui_back.ino) does this now; a tap no longer does
   if (!towerUnlocked()) { sfxPlay(SFX_DENY); return; }
   if (y >= TW_BTN_Y && y <= TW_BTN_Y + TW_BTN_H &&
       x >= CX - TW_BTN_W / 2 && x <= CX + TW_BTN_W / 2) {
@@ -8398,7 +8686,6 @@ void renderChallenge() {
   twCenter(T(S_CH_TITLE), 46, 2, UI_INK);
   if (!challengeUnlockedFor(pet) || !challengeRefreshFor(pet, party, pet.currentDay())) {
     twCenter(T(challengeUnlockedFor(pet) ? S_CH_NONE : S_CH_WHY), 200, 2, UI_INK_SOFT);
-    twCenter(T(S_BACK), 414, 2, UI_INK_SOFT);
     gfx->flush();
     return;
   }
@@ -8423,12 +8710,11 @@ void renderChallenge() {
   gfx->drawRoundRect(CX - TW_BTN_W / 2, TW_BTN_Y, TW_BTN_W, TW_BTN_H, 18, UI_INK);
   twCenter(T(done ? S_CH_DONE : S_CH_START), TW_BTN_Y + TW_BTN_H / 2 - 12, 3, done ? UI_INK_SOFT : UI_WHITE);
   if (done) twCenter(T(S_CH_RESET), TW_BTN_Y + TW_BTN_H - 14, 1, UI_INK_SOFT);
-  twCenter(T(S_BACK), 414, 2, UI_INK_SOFT);
   gfx->flush();
 }
 
 void challengeTap(int16_t x, int16_t y) {
-  if (y >= 404) { sfxPlay(SFX_TAP); chalOpen = false; gymOpen = true; gymPick = true; return; }
+  // the held BACK button (ui_back.ino) does this now; a tap no longer does
   if (!challengeUnlockedFor(pet) || !challengeRefreshFor(pet, party, pet.currentDay())) { sfxPlay(SFX_DENY); return; }
   if (y < TW_BTN_Y || y > TW_BTN_Y + TW_BTN_H || x < CX - TW_BTN_W / 2 || x > CX + TW_BTN_W / 2) return;
   // A cleared week can still be fought; it simply pays nothing more.
@@ -8627,11 +8913,16 @@ void renderTrain() {
 // tests all ask them.
 #define BOX_COLS 6
 #define BOX_ROWS 5
-#define BOX_CELL 56          // pitch; each cell is drawn 54 across
+// The pitch went 56 -> 55 to make room for the held BACK button (ui_back.ino,
+// y 400..): the grid now ends at 355 and FILTER fits under it at the full
+// UI_TAP_MIN, finishing exactly where BACK's hit area begins.
+#define BOX_CELL 55          // pitch; each cell is drawn 54 across
 #define BOX_GRID_X (CX - BOX_COLS * BOX_CELL / 2)
 #define BOX_GRID_Y 80
-#define BOX_PILL_Y 370
-#define BOX_PILL_H 46
+#define BOX_PILL_Y 356
+#define BOX_PILL_H UI_TAP_MIN
+static_assert(BOX_GRID_Y + BOX_ROWS * BOX_CELL <= BOX_PILL_Y, "FILTER must sit below the grid");
+static_assert(BOX_PILL_Y + BOX_PILL_H <= 400, "FILTER must end where the held BACK button begins");
 #define BOX_PILL_W 200
 static_assert(BOX_COLS * BOX_ROWS == BOX_PER_PAGE, "the grid IS a page");
 void boxCellPos(uint8_t i, int *cx, int *cy) {
@@ -8996,15 +9287,17 @@ void renderParty() {
   drawPartyLive();
   for (int i = 0; i < PARTY_BANKED; i++) drawPartySlot(i, party.slots[i]);
 
-  // exit: an explicit button, always in the same place
-  const char *ex = partyPick ? T(S_PARTY_LETGO) : T(S_CLOSE);
-  gfx->fillRoundRect(PARTYCLOSE_X, PARTYCLOSE_Y, PARTYCLOSE_W, PARTYCLOSE_H, 12,
-                     partyPick ? UI_BAR_BAD : UI_TRACK);
-  gfx->drawRoundRect(PARTYCLOSE_X, PARTYCLOSE_Y, PARTYCLOSE_W, PARTYCLOSE_H, 12, UI_INK);
-  gfx->setTextColor(partyPick ? UI_WHITE : UI_INK);
-  gfx->setTextSize(2);
-  gfx->setCursor(CX - (int)strlen(ex) * 6, PARTYCLOSE_Y + 14);
-  gfx->print(ex);
+  // LET GO, while a newcomer waits: explicit and red, because it is final.
+  // Otherwise the held BACK button (ui_back.ino) is the way out.
+  if (partyPick) {
+    const char *ex = T(S_PARTY_LETGO);
+    gfx->fillRoundRect(PARTYCLOSE_X, PARTYCLOSE_Y, PARTYCLOSE_W, PARTYCLOSE_H, 12, UI_BAR_BAD);
+    gfx->drawRoundRect(PARTYCLOSE_X, PARTYCLOSE_Y, PARTYCLOSE_W, PARTYCLOSE_H, 12, UI_INK);
+    gfx->setTextColor(UI_WHITE);
+    gfx->setTextSize(2);
+    gfx->setCursor(CX - (int)strlen(ex) * 6, PARTYCLOSE_Y + 14);
+    gfx->print(ex);
+  }
   uiChrome();
   gfx->flush();
 }
@@ -9298,11 +9591,7 @@ void galleryTap(int16_t x, int16_t y) {
     galleryDirty = true;
     return;
   }
-  if (y < 72) {  // tocar la cabecera = salir
-    galleryOpen = false;
-    galleryPmd.unload();
-    return;
-  }
+  if (y < 72) return;   // the header no longer closes on a tap: the held BACK button does
   int c = (x - GAL_X) / GAL_CELL, r = (y - GAL_Y) / GAL_CELL;
   if (c < 0 || c > 3 || r < 0 || r > 3) return;
   int16_t dex = GAL_LO + galleryPage * GAL_PER_PAGE + r * 4 + c;
@@ -9942,6 +10231,11 @@ void drawButtons() {
 }
 
 const char *eggMsg() {
+  if (pet.eggBySteps) {   // it hatches by walking: say how far there is to go
+    static char b[40];
+    snprintf(b, sizeof(b), T(S_EGG_WALK_FMT), (unsigned)pet.eggProgress(), (unsigned)EGG_HATCH_STEPS);
+    return b;
+  }
   switch (pet.eggCracks()) {
     case 0: return T(S_EGG_TOUCH);
     case 1: return T(S_EGG_MOVES);
@@ -10002,6 +10296,17 @@ static void drawAvatarAura(const AvatarArt &a, int x, int y, int s) {
 }
 
 void drawAvatar(uint16_t which, int x, int y, int s) {
+  if (which == AVATAR_YOU) {   // the customisable trainer: composed from the wardrobe
+    static uint8_t idx[256];
+    static uint16_t pal[WARDROBE_PAL];
+    wardrobeCompose(idx, pal);
+    for (int r = 0; r < AVATAR_PX; r++)
+      for (int c = 0; c < AVATAR_PX; c++) {
+        uint8_t v = idx[r * AVATAR_PX + c];
+        if (v != 0xFF) gfx->fillRect(x + c * s, y + r * s, s, s, pal[v]);
+      }
+    return;
+  }
   const AvatarArt &a = AVATARS[which % AVATAR_COUNT];
   if (a.fx & AVFX_AURA) drawAvatarAura(a, x, y, s);
   for (int r = 0; r < AVATAR_PX; r++)

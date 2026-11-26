@@ -52,8 +52,8 @@ same gating every region has always used.
 - **LAN battles are fully working now** — scan for and battle another player
   head-to-head over WiFi Direct (no router or home WiFi needed!), with
   win/loss records kept per rival.
-- **The Poké Mart** — spend real steps, turned into Pokédollars, on balls,
-  potions and vitamins between EXPLORE and the gyms.
+- **The Poké Mart** — spend real steps, turned into Pokédollars, on balls and
+  vitamins between EXPLORE and the gyms.
 - **A pedometer** drives it, with no extra battery draw — the QMI8658's own
   onboard step-counting engine never worked reliably on this board, so
   steps are detected from the same accelerometer readings instead.
@@ -157,7 +157,7 @@ Pokédollars at 1:1 — see § Game manual below for the wallet cap and price li
 |---|---|---|
 | <img src="docs/screens/dexpick.png" width="240"> | <img src="docs/screens/gallery.png" width="240"> | <img src="docs/screens/gallery2.png" width="240"> |
 
-| Trainer card | Johto badges | The box |
+| Trainer card | Johto badges (BADGES) | The box |
 |---|---|---|
 | <img src="docs/screens/player.png" width="240"> | <img src="docs/screens/player2.png" width="240"> | <img src="docs/screens/box.png" width="240"> |
 
@@ -167,8 +167,9 @@ A quick reference to how the game really works (values straight from the code).
 
 ### Controls
 
-The round panel has no corners to anchor a back button, so touch gestures carry
-the navigation — three axes, one meaning each, everywhere:
+Touch gestures carry the navigation — three axes, one meaning each,
+everywhere — and every screen below the pet also has a **BACK** button at the
+bottom of the panel:
 
 | Gesture | Means |
 |---|---|
@@ -176,6 +177,12 @@ the navigation — three axes, one meaning each, everywhere:
 | **Swipe up** | go **deeper** — from the pet, its stat card |
 | **Swipe down** | go **back**, one level, from anywhere |
 | **Drag the rim** | **page** whatever is in front of you (the arc scrollbar at 2–5 o'clock) |
+| **Hold BACK** | go **back**, one level — the same step as swiping down. It works only when **held** (about ⅔ s; the pill fills as you hold): a quick tap just reminds you to hold, and never reaches the screen underneath. |
+
+**Games are left with BACK only.** In the training minigames and the arcade, a
+swipe or a tap on the top strip used to end the game, and that is exactly what
+a fast finger did by accident. Now nothing but a held BACK leaves a game in
+progress, and it still banks what you earned.
 
 - **Tap the name** at the top opens the **menu** (Pokédex / Bag / Settings).
   Its last row, **HOW TO PLAY**, is a four-page card covering the basics. It
@@ -336,10 +343,8 @@ Open them from the **dumbbell** icon (the training menu): **STRENGTH** → the b
   rallies — and the **record is still that raw count**, so records set before
   this version mean the same thing. Only the stat gain reads the points.
 - **Leaving early banks what you earned**, by the same formula as finishing.
-  The bag leaves by tapping the top strip (y < 72); the reaction test and the
-  ball game by any swipe; the ball game also by tapping the empty top strip (a
-  ball up there is hit, not a quit). Leaving during the countdown is leaving
-  with nothing.
+  All three are left by **holding BACK**; no swipe or tap ends them any more.
+  Leaving during the countdown is leaving with nothing.
 
 | | Bag (STRENGTH) | Reaction test (SPEED) | Ball game (DEFENSE) |
 |---|---|---|---|
@@ -415,13 +420,13 @@ during it), the **COMBO** and its multiplier (**x1 below 5, x2 from 5, x3 from
 ends on a **results card** (grade, stars, points, best, best combo, what the
 pet got); it goes back to the list by itself after 7 s, or on a tap after 0.7 s.
 
-**Leaving.** A tap on the top strip (y < 60) or a vertical swipe leaves a game
-and **banks it exactly as finishing would**; a horizontal swipe does too, except
-in BERRY CATCH, where dragging sideways is the control. **SURF** ignores
+**Leaving.** **Hold BACK** to leave a game; it **banks it exactly as finishing
+would**. Swipes and taps on the top strip no longer leave a game in progress —
+they were the accidental exits. On the game list or a results card a swipe
+still steps back. **SURF** ignores
 vertical swipes (dragging up and down is how you steer). **PINBALL** ignores
 taps altogether (the flippers are held, anywhere on each half, top included)
-and every swipe while a ball is rolling, so a flipper press that slides never
-ends your game; between balls a swipe leaves. Leaving the arcade from
+and every swipe, so a flipper press that slides never ends your game. Leaving the arcade from
 anywhere mid-game banks it as well. A session is paid once, however it ends.
 
 | game | length | rules |
@@ -556,11 +561,19 @@ settlement can never list the same item twice.
 | Poké Ball | 30 | catch ×100 |
 | Potion | 20 | +20 HP |
 | Great Ball | 15 | catch ×150 |
+| Oran Berry | 12 | held: +10 HP once, when low |
 | Super Potion / Full Heal | 10 each | +50 HP · clears an ailment |
 | Protein / Iron / Carbos | 8 each | +5 STRENGTH / DEFENCE / SPEED |
 | Ultra Ball | 6 | catch ×200 |
+| Sitrus Berry | 5 | held: +25 HP once, when low |
 | Hyper Potion | 4 | +120 HP |
+| Lum Berry | 4 | held: cures an ailment once |
 | **Master Ball** | **1** | catches without fail |
+
+Potions and Full Heal come **only** from these drops (and task rewards): the
+Mart no longer sells them. And they cannot be used in the **Battle Tower** or a
+**LAN battle**, where the fight is meant to be the teams alone — the bag shows
+them greyed there.
 
 A new save starts with **5 Poké Balls and 3 Potions**. Stacks cap at 99.
 
@@ -929,26 +942,25 @@ it. A favourite shows a gold star on its slot, and until you unstar it:
 On the tile axis between EXPLORE and the gyms, it turns real steps (the
 board's onboard QMI8658 pedometer) into stock. **1 step = $1**, wallet capped at
 **$999,999** — the real games' own money ceiling, not an invented number —
-and a lifetime step count is tracked separately and never spent. Prices are
-the real Poké Mart's (stable since Gen 1); Master Ball is never sold, same as
-every game:
+and a lifetime step count is tracked separately and never spent. Balls are
+priced well below the real games' (one step is $1, and $1,200 an Ultra Ball was
+a long walk per ball). It sells **no healing items** — potions and Full Heal are
+wild drops only — and Master Ball is never sold, same as every game:
 
 | Item | Price |
 |---|---|
-| Poké Ball | $200 |
-| Great Ball | $600 |
-| Ultra Ball | $1,200 |
-| Potion | $300 |
-| Super Potion | $700 |
-| Hyper Potion | $1,200 |
-| Full Heal | $600 |
+| Poké Ball | $50 |
+| Great Ball | $100 |
+| Ultra Ball | $200 |
 | Protein / Iron / Carbos | $9,800 each |
 
 ### The Daycare
 
-Two swipes right of the pet, past PARTY. Pick two of your **banked** creatures
-(party or box) as parents A and B and tap **BREED**; the egg is queued and
-becomes your **next egg**. The parents are not used up or changed.
+Two swipes right of the pet, past PARTY. The daycare is a **pen** kept by an old
+couple, and the two parents you choose wander about inside it. Tap the **A** and
+**B** plates under the pen to pick two of your **banked** creatures (party or
+box) as parents, and tap **BREED**; the egg is queued and becomes your **next
+egg**. The parents are not used up or changed.
 
 | | Rule |
 |---|---|
@@ -1041,10 +1053,10 @@ passed on its first boot.
 
 ### Daily and weekly tasks
 
-From the menu. **3 daily** tasks and **2 weekly** ones (weeks start Monday) are
-drawn from fixed pools; finishing one makes its reward claimable, and claiming
+From the menu. **3 daily** tasks, drawn fresh **every 12 hours**, and **2 weekly**
+ones (weeks start Monday) come from fixed pools; finishing one makes its reward claimable, and claiming
 all three dailies unlocks a **daily bonus** (Great Ball ×2, Hyper Potion,
-Protein or Poké Ball, rotating by day). Rolls only move **forward**: setting the
+Protein or Poké Ball, rotating with each set). Rolls only move **forward**: setting the
 clock back does not hand out a fresh set. A reward is written down before it is
 paid, so a power cut mid-claim pays it exactly once on the next boot.
 
@@ -1104,12 +1116,30 @@ training rather than rolling their own — special attack runs off the ATK IV an
 training, special defence off the DEF IV and training. So the physical/special
 split lives on the species, not the individual — no extra IVs to roll.
 
+### The trainer card
+
+The **PLAYER** tile is your card: name, rank title, avatar, your Pokédex and
+party counts — and a row of **stars** for the hardest things in the game. Tap
+a star to see what it is for. Each one, once earned, **stays**:
+
+| Star | Earned by |
+|---|---|
+| **Red** | **100** Battle Tower floors in a row |
+| **Blue** | every region's Pokédex complete (everything that can hatch, or evolve from something that can) |
+| **Silver** | every region's whole ladder — the 8 gyms, the Elite 4 and the champion — on **easy** |
+| **Gold** | the same on **hard** |
+| **Purple** | **100** LAN battle wins (counted for life, not just the last 10 rivals) |
+
+Your badges are behind the card's **BADGES** button: one region a page (drag
+the rim), hold **BACK** to return. The card's other pages are your medals, your
+rank, and the trainer cards you have swapped.
+
 ### Trainer rank, titles and avatars
 
 A **score** built from progress you already have, turned into one of **ten
 ranks**. The highest rank you reach is kept: it never goes down. Your title is
-under your name on the player card, the **last page** of the card shows the
-score and every avatar with the rank that unlocks it, and a banner says when
+under your name on the player card, the card's **rank page** (the third)
+shows the score and every avatar with the rank that unlocks it, and a banner says when
 you rank up.
 
 | Progress | Points |
@@ -1124,7 +1154,7 @@ you rank up.
 
 | Rank | Points | Title | Unlocks |
 |---|---|---|---|
-| 1 | 0 | Rookie | Red, Blue, Girl |
+| 1 | 0 | Rookie | Red, Blue, Girl, NY Cap, Curls, Glasses, Fohawk, Ponytail, Braids, Bob, Hijab, Specs |
 | 2 | 30 | Trainer | Youngster |
 | 3 | 100 | Ace Trainer | |
 | 4 | 200 | Gym Challenger | the two Ace trainers |

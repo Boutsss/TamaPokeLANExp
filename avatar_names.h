@@ -4,7 +4,7 @@
 // Code that only needs to COUNT or NAME avatars includes this, not avatars.h
 // (which carries ~25 KB of pixels into every translation unit that includes it).
 #define AVATAR_BASE_COUNT 8   // the free set; index order FROZEN (stored raw in NVS)
-#define AVATAR_COUNT 255
+#define AVATAR_COUNT 265
 #define SHOP_AVATAR_FIRST AVATAR_BASE_COUNT
 #define SHOP_AVATAR_COUNT 247
 static const char *const SHOP_AVATAR_NAMES[SHOP_AVATAR_COUNT] = {
@@ -66,3 +66,8 @@ static const uint16_t TOWER_AVATARS[TOWER_AVATAR_COUNT] = {   // shop indices
   225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236,
   237, 238, 239, 240, 241, 242, 243, 244, 245, 246,
 };
+// The extra starters: free from rank 1 (rank.cpp), never sold, after every shop index.
+#define STARTER_AVATAR_FIRST 255
+#define STARTER_AVATAR_COUNT 9
+// The customisable trainer: drawn from the wardrobe (wardrobe.cpp), free, never sold.
+#define AVATAR_YOU 264

@@ -554,6 +554,34 @@ enum StrId : uint16_t {
   S_HELP_DONE,      // ... and on the last page: "GOT IT"
   S_HELP_T1, S_HELP_T2, S_HELP_T3, S_HELP_T4,   // page titles, in order
   S_HELP_B1, S_HELP_B2, S_HELP_B3, S_HELP_B4,   // page bodies: lines split on '\n'
+  S_BACK_BTN,      // the held back button's label
+  S_BACK_HOLD,     // shown after a short tap on it
+  S_CAS_WELCOME_FMT, // the dealer's one-time gift: lines on \n, %u coins
+  S_CAS_WELCOME_TAP, // under it
+  S_STAR_HINT,     // trainer card: under the stars, until one is tapped
+  S_STAR_D0,       // red star (stars.h order)
+  S_STAR_D1,       // blue star
+  S_STAR_D2,       // silver star
+  S_STAR_D3,       // gold star
+  S_STAR_D4,       // purple star
+  S_STAR_D5,       // black star
+  S_WARDROBE,      // the trainer card's button and the screen's title
+  S_WD_SKIN,       // wardrobe row
+  S_WD_EYES,       // wardrobe row
+  S_WD_HAIR,       // wardrobe row
+  S_WD_HAIRCOL,    // wardrobe row
+  S_WD_HAT,        // wardrobe row
+  S_WD_TOP,        // wardrobe row
+  S_WD_LEGS,       // wardrobe row
+  S_WD_SHOES,      // wardrobe row
+  S_WD_FACE,       // wardrobe row
+  S_WD_BACK,       // wardrobe row
+  S_WD_OWNED_FMT,  // unlocked cosmetics / all
+  S_ARC_COS_FMT,   // arcade results: a cosmetic won for an S
+  S_ARC_COS_WAIT_FMT, // arcade results: S, but the cosmetic is on cooldown
+  S_EGG_WALK_FMT,  // the egg's line while it hatches by walking: steps, of
+  S_CAS_GIFT_FMT,  // the dealer's hourly gift, in his bubble
+  S_CAS_GIFT_WAIT_FMT, // ... and when he will give again
   STR_COUNT
 };
 

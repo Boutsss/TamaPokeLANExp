@@ -214,6 +214,7 @@ uint8_t squadCap(uint8_t, bool);
 extern Link lan;
 void startLinkBattle();
 extern uint8_t playerPage;
+extern bool badgesOpen; extern uint8_t badgesPage;
 extern bool gymHard, pickOpen;
 extern uint8_t partyDetail;
 extern uint8_t monStats;
@@ -488,7 +489,7 @@ static int shotMode(const char *screen, const char *out, int lvl, int iv, int de
   else if (!strcmp(screen, "player2")) {
     pet.renameTrainer("DYLAN");
     pet.badgesX[0] = 0x3F; pet.badgesHardX[0] = 0x05;   // Johto
-    playerOpen = true; playerPage = 1;
+    playerOpen = true; badgesOpen = true; badgesPage = 1;   // the BADGES screen, Johto's page
   }
   else if (!strcmp(screen, "medals2")) { pet.medals = 0x5B; pet.totalMedals = 12; playerOpen = true; playerPage = 1; }
   else if (!strcmp(screen, "gymfight")) { startTrainerBattle(0, false); }

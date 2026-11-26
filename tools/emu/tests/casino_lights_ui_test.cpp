@@ -85,7 +85,7 @@ int main(){
   ck(!casLightsFlashing(), "a refused bet (no coins) does not light the marquee");
 
   // ---- a win: buy a prize, which the dealer grumbles at
-  extern void onSwipeV(int); onSwipeV(1); pump(2);   // back to the lobby
+  extern void uiBack(); uiBack(); pump(2);   // back to the lobby: from a table, only the held BACK button
   tapGeo(casLobbyBtn, 5); tapGeo(casTab, PK_MON);
   pet.coins = 1500000;
   tapGeo(casTile, 0); tapGeo(casTile, 0);

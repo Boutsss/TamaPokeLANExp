@@ -190,7 +190,7 @@ void breedBegin(const Pet *p) {
   load();
   // Finish a hand-over a power cut interrupted between newEgg()'s checkpoint
   // and breedCommitTaken(): the queued egg is already the live, uncracked egg.
-  if (p && breedHasQueued() && p->isEgg() && p->eggCracks() == 0 &&
+  if (p && breedHasQueued() && p->isEgg() && p->eggProgress() == 0 &&
       p->eggPeek() == gQueued.dex)
     breedCommitTaken();
 }
@@ -265,7 +265,7 @@ BreedResult breedMake(uint16_t ia, uint16_t ib, uint32_t day) {
 }
 
 bool breedCanSwapIn(const Pet &p) {
-  return gOpened && breedQueuedHatchable() && p.isEgg() && p.eggCracks() == 0 &&
+  return gOpened && breedQueuedHatchable() && p.isEgg() && p.eggProgress() == 0 &&
          p.ceremony == CER_NONE && !p.awaitingStarter();
 }
 

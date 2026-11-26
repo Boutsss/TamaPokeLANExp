@@ -27,7 +27,7 @@ volatile int g_touchX = 0, g_touchY = 0; volatile bool g_touchDown = false;
 void FakeESP::restart() { exit(0); }
 int FakeSerial::available() { return 0; }
 String FakeSerial::readStringUntil(char) { return String(""); }
-void setup(); void loop(); void render(); void onTap(int16_t, int16_t); void onSwipe(int); void onSwipeV(int);
+void setup(); void loop(); void render(); void onTap(int16_t, int16_t); void onSwipe(int); void onSwipeV(int); void uiBack();
 extern Pet pet;
 extern Arduino_Canvas *gfx;
 extern const char *const SCREEN_NAME[];
@@ -151,8 +151,10 @@ int main() {
   onSwipeV(1);
   ck(!arcadeOpen && trainOpen, "a vertical swipe on the picker goes back to the training menu");
   onTap(233, uiTrainRowCenterY(3));
-  onTap(233, 394);                       // FEAT_BACK pill
-  ck(!arcadeOpen && trainOpen, "the picker's BACK pill goes back to the training menu");
+  onTap(233, 394);                       // where the old instant FEAT_BACK pill was
+  ck(arcadeOpen, "a TAP where the old BACK pill was no longer leaves: back is held now");
+  uiBack();
+  ck(!arcadeOpen && trainOpen, "the held BACK button goes back to the training menu");
   trainOpen = false;
   // guards: no game while asleep / an egg / a ceremony -- the row AND the start
   pet.sleeping = true;
@@ -305,10 +307,13 @@ int main() {
   { bool down = true; for (int i = 0; i < 16; i++) if (memState[i]) down = false;
     ck(memDealAt == 0 && down, "a fresh face-down board is dealt"); }
   (void)before;
-  // leave by a vertical swipe: banks
+  // a swipe mid-round is play or an accident, never a request to quit
   s0 = arcSessions; uint16_t pts = arcPts; uint8_t joy0 = pet.joy;
   onSwipeV(1);
-  ck(arcGame == NONE && arcSessions == s0 + 1 && arcBest[G_MEMORY] == pts, "a vertical swipe leaves, banking the score as the best");
+  ck(arcGame == G_MEMORY && arcSessions == s0, "a vertical swipe mid-round does NOT leave the game");
+  // leave by the held BACK button: banks
+  uiBack();
+  ck(arcGame == NONE && arcSessions == s0 + 1 && arcBest[G_MEMORY] == pts, "the held BACK button leaves, banking the score as the best");
   ck(pet.joy > joy0 && arcadeOpen && onScreen("arcade"), "it paid joy and went back to the picker (not the hub)");
   onSwipeV(1);
   ck(arcGame == NONE && arcSessions == s0 + 1, "a second swipe pays nothing more");
@@ -398,11 +403,15 @@ int main() {
   }
   skipIntro();
   for (int f = 0; f < 6; f++) { allFlush &= flushes(); slp(20); }
-  // the header strip leaves, banking
+  // the header strip no longer leaves (a fast tap landed there); the held BACK button does, banking
   popSpawnAt(1, POP_K_MOLE); popTap(popHoleX(1), popHoleY(1) - 30);
   s0 = arcSessions;
   arcadeTap(233, 30);
-  ck(arcGame == NONE && arcSessions == s0 + 1, "a tap on the header strip leaves, banking");
+  ck(arcGame == G_POP && arcSessions == s0, "a tap on the header strip does NOT leave");
+  onSwipe(1);
+  ck(arcGame == G_POP && arcSessions == s0, "nor does a sideways swipe mid-round");
+  uiBack();
+  ck(arcGame == NONE && arcSessions == s0 + 1, "the held BACK button leaves, banking");
 
   // the clock ends a session and shows the card
   arcStart(G_POP); skipIntro(); arcPts = 7; arcUntil = millis() - 1;

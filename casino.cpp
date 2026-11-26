@@ -387,11 +387,11 @@ void casinoEquip(uint8_t kind, uint16_t i) {
 #define CASINO_KEY "casino"
 
 static constexpr size_t CASINO_PACKED = 2 + 4 + sizeof(CasinoState::bgs) + sizeof(CasinoState::avatars) + 2 +
-    2 + 2 + 4 + sizeof(CasinoState::avatarsHi) + sizeof(CasinoState::avatarsX);
+    2 + 2 + 4 + sizeof(CasinoState::avatarsHi) + sizeof(CasinoState::avatarsX) + 1 + 4;
 static_assert(CASINO_PACKED <= CASINO_BLOB_MAX && CASINO_PACKED <= 255,
               "the casino record outgrew its buffer or its one-byte length");
 
-static size_t pack(uint8_t *b) {   // 2+4+8+16+2+2+2+4+16+96 = 152 bytes (len is one byte: < 256)
+static size_t pack(uint8_t *b) {   // 2+4+8+16+2+2+2+4+16+96+1+4 = 157 bytes (len is one byte: < 256)
   size_t n = 2;
   memcpy(b + n, &casino.backs, 4); n += 4;
   memcpy(b + n, casino.bgs, sizeof(casino.bgs)); n += sizeof(casino.bgs);
@@ -403,6 +403,8 @@ static size_t pack(uint8_t *b) {   // 2+4+8+16+2+2+2+4+16+96 = 152 bytes (len is
   memcpy(b + n, &casino.slotBest, 4); n += 4;
   memcpy(b + n, casino.avatarsHi, sizeof(casino.avatarsHi)); n += sizeof(casino.avatarsHi);
   memcpy(b + n, casino.avatarsX, sizeof(casino.avatarsX)); n += sizeof(casino.avatarsX);
+  b[n++] = casino.welcomed;   // APPENDED: an older record is shorter and reads it as 0
+  memcpy(b + n, &casino.giftAt, 4); n += 4;   // APPENDED likewise
   b[0] = CASINO_VER;
   b[1] = (uint8_t)n;
   return n;
@@ -432,6 +434,8 @@ void casinoBegin() {
     memcpy(&casino.slotBest, cur + at, 4); at += 4;
     memcpy(casino.avatarsHi, cur + at, sizeof(casino.avatarsHi)); at += sizeof(casino.avatarsHi);
     memcpy(casino.avatarsX, cur + at, sizeof(casino.avatarsX)); at += sizeof(casino.avatarsX);
+    casino.welcomed = cur[at++];
+    memcpy(&casino.giftAt, cur + at, 4); at += 4;
   }
   casino.backs |= 1;                          // the defaults are always owned
   casino.bgs[0] |= 1;

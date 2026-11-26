@@ -39,7 +39,11 @@ public:
       : _w(w), _h(h), _panel(p), fb(w * h, 0) {}
 
   bool begin(uint32_t = 0) { return true; }
-  void flush() { frameReady = true; }
+  // The sketch draws its last-moment overlay (the held BACK button) through
+  // this, the same moment the board's TouchCanvas::flush() does, so --shot
+  // photographs what the panel shows. Null in tests that never set it.
+  void (*beforeFlush)() = nullptr;
+  void flush() { if (beforeFlush) beforeFlush(); frameReady = true; }
   const uint16_t *buffer() const { return fb.data(); }
 
   inline void px(int x, int y, uint16_t c) {
@@ -67,6 +71,13 @@ public:
     for (int y = -r; y <= r; y++)
       for (int x = -r; x <= r; x++)
         if (x * x + y * y <= r * r) px(x0 + x, y0 + y, c);
+  }
+  // As Arduino_GFX's: rx/ry are the radii, centred on (x0, y0).
+  void fillEllipse(int x0, int y0, int rx, int ry, uint16_t c) {
+    if (rx <= 0 || ry <= 0) return;
+    for (int y = -ry; y <= ry; y++)
+      for (int x = -rx; x <= rx; x++)
+        if ((long)x * x * ry * ry + (long)y * y * rx * rx <= (long)rx * rx * ry * ry) px(x0 + x, y0 + y, c);
   }
   void drawCircle(int x0, int y0, int r, uint16_t c) {
     if (r <= 0) return;

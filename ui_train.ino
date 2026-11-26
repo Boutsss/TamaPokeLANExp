@@ -1097,10 +1097,8 @@ void gameTap(int16_t x, int16_t y) {
       return;
     }
   }
-  if (y < 72) {  // tocar la cabecera = salir, conservando lo ganado
-    leaveGame();
-    return;
-  }
+  // The top strip no longer quits: a fast tap at a high ball landed there.
+  // Leaving is the held BACK button (ui_back.ino), still banking what was earned.
 }
 
 static void gameEnd(uint32_t now) {
