@@ -121,8 +121,9 @@ int main(){
     other.load(25, false, SKIN_ARMORED);
     otherPlain.load(25, false);
     ck(plain.loaded && armored.loaded && armored.acts[PMD_IDLE].w != plain.acts[PMD_IDLE].w &&
-       armored.has(PMD_WALKL) && armored.has(PMD_WALKR) && !armored.has(PMD_SLEEP),
-       "the armored MEWTWO loads pa150.bin: its own idle and walks, nothing else");
+       armored.has(PMD_WALKL) && armored.has(PMD_WALKR) && armored.has(PMD_SLEEP) && armored.has(PMD_EAT) &&
+       armored.has(PMD_HURT) && armored.has(PMD_ATTACK),
+       "the armored MEWTWO loads pa150.bin: its own idle, walks, sleep, eat, hurt and attack");
     ck(other.loaded && other.acts[PMD_IDLE].w == otherPlain.acts[PMD_IDLE].w &&
        other.palCount == otherPlain.palCount && !memcmp(other.pal, otherPlain.pal, 2 * other.palCount),
        "the skin asked of another species loads that species' ordinary sprite");

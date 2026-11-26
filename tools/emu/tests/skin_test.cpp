@@ -9,6 +9,7 @@
 #include "pet.h"
 #include "party.h"
 #include "battle.h"
+#include "link.h"
 #include "casino.h"
 #include "box_store.h"
 #include "persona.h"
@@ -138,6 +139,18 @@ int main(){
     Combatant e; combatantFromParty(e, plain);
     ck(c.skin == SKIN_ARMORED && d.skin == SKIN_ARMORED && e.skin == SKIN_NONE,
        "a battle draws it armored, and an ordinary MEWTWO plain");
+    // over LAN: the record a rival receives carries it (in old padding, so the
+    // wire record is the same size an older board expects)
+    LinkMon w; linkMonFrom(w, d);
+    Combatant f; linkMonTo(f, w);
+    LinkMon wp; linkMonFrom(wp, e);
+    Combatant g; linkMonTo(g, wp);
+    ck(f.skin == SKIN_ARMORED && g.skin == SKIN_NONE, "a LAN rival sees it armored, and an ordinary one plain");
+    LinkMon forged = w; forged.dex = 25;
+    Combatant h; linkMonTo(h, forged);
+    LinkMon junk = wp; junk.skinTag = 0x01;   // an older build's stale padding, say
+    Combatant k; linkMonTo(k, junk);
+    ck(h.skin == SKIN_NONE && k.skin == SKIN_NONE, "a tag on another species, or stray padding, draws nothing");
 
     ck(pet.saveNow(), "saved");
     nvs()["skin"] = { 0 };                 // the legacy key says otherwise

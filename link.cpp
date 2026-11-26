@@ -45,6 +45,8 @@ void linkMonFrom(LinkMon &out, const Combatant &c) {
   for (int i = 0; i < SI_COUNT; i++) out.base[i] = c.base[i];
   for (int i = 0; i < MOVE_SLOTS; i++) out.setMove(i, c.moves[i]);
   out.shiny = c.shiny ? 1 : 0;
+  uint8_t sk = skinFor(c.dex, c.skin);
+  out.skinTag = sk ? (uint8_t)(PM_SKIN_TAG | sk) : 0;
   snprintf(out.name, sizeof(out.name), "%s", c.name);
 }
 
@@ -61,6 +63,8 @@ void linkMonTo(Combatant &out, const LinkMon &m) {
   for (int i = 0; i < SI_COUNT; i++) out.base[i] = m.base[i] ? m.base[i] : 1;
   for (int i = 0; i < MOVE_SLOTS; i++) out.moves[i] = linkSafeMove(m.move(i));
   out.shiny = m.shiny != 0;
+  // the skin, only as the magic tag AND only on the species it was made for
+  out.skin = (m.skinTag & 0xF0) == PM_SKIN_TAG ? skinFor(out.dex, m.skinTag & 0x0F) : SKIN_NONE;
   // NOT snprintf("%s"): a name off the wire need not be terminated, and reading
   // it as a C string would run off the end of the struct.
   uint8_t n = sizeof(out.name) - 1;

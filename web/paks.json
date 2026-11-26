@@ -3,8 +3,8 @@
   "regions": {
     "kanto": {
       "index": 0,
-      "bytes": 43544777,
-      "crc32": "758fad48",
+      "bytes": 43567353,
+      "crc32": "e5e559cb",
       "sprites": 305
     },
     "johto": {

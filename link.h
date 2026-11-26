@@ -1,4 +1,5 @@
 #pragma once
+#include <stddef.h>
 #include <stdint.h>
 #include "battle.h"
 #include "trainers.h"   // TRAINER_TEAM_MAX: a link team is the same size
@@ -137,6 +138,11 @@ enum LinkWhy : uint8_t {
 struct LinkMon {
   int16_t dex;
   uint8_t level;
+  // A cosmetic skin (skins.h) as PM_SKIN_TAG | skin, in what was padding before
+  // maxHp -- so the record's size, the wire format, the build tag and every
+  // saved ghost are unchanged, and an older board simply does not read it.
+  // A magic value because an older build's padding is whatever was on its stack.
+  uint8_t skinTag;
   uint16_t maxHp;
   uint16_t base[SI_COUNT];
   uint8_t movesLo[MOVE_SLOTS];   // low byte of each move ID; movesHi below (v3.37)
@@ -148,6 +154,8 @@ struct LinkMon {
   uint16_t move(uint8_t i) const { return (uint16_t)(movesLo[i] | ((uint16_t)movesHi[i] << 8)); }
   void setMove(uint8_t i, uint16_t m) { movesLo[i] = (uint8_t)m; movesHi[i] = (uint8_t)(m >> 8); }
 };
+static_assert(offsetof(LinkMon, skinTag) == 3 && offsetof(LinkMon, maxHp) == 4,
+              "skinTag must sit in the old padding: the wire record may not change shape");
 
 // What the host tells the guest happened. Everything the guest needs to render
 // a turn, and nothing it could use to resolve one -- it has no say in the

@@ -74,7 +74,7 @@ struct RimPage {
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
-#define FW_VERSION "3.51"
+#define FW_VERSION "3.52"
 
 Arduino_DataBus *bus = new Arduino_ESP32QSPI(
   LCD_CS, LCD_SCLK, LCD_SDIO0, LCD_SDIO1, LCD_SDIO2, LCD_SDIO3);
@@ -470,6 +470,8 @@ uint8_t btlMyAct = 0;        // host: our own action, latched until theirs lands
 // 9 mm -- what watchOS and Wear OS both land on -- in this panel's pixels.
 // Every control laid out from here on is held to THIS by hit_test.
 #define UI_TAP_FINGER 94
+// The rim/tag colour that marks a creature wearing a skin (skins.h), in every list.
+#define SKIN_MARK 0x895F
 
 // The LAN battle button on the gym region chooser.
 // LAN, TOWER and WEEKLY share the row under the region chooser, as thirds. The
@@ -2436,6 +2438,7 @@ bool partyHubAt(int16_t x, int16_t y) {
 // Exposed so hit_test can hold every control to the finger floor without
 // keeping its own copy of the number it is enforcing.
 int uiTapFinger() { return UI_TAP_FINGER; }
+uint16_t uiSkinMark() { return SKIN_MARK; }   // asked by the tests, never retyped
 
 // The home icons' TAP radius, which is larger than the graphic they draw.
 int uiButtonHitR() { return BTN_HIT; }
@@ -8647,6 +8650,8 @@ static void drawBoxCell(uint8_t i, const PartyMon *m) {
   // A shiny keeps its gold rim.
   if (m->shiny) gfx->drawRoundRect(x, y, 54, 54, 8, UI_BAR_WARN);
   else gfx->drawRoundRect(x, y, 54, 54, 8, C565(0xd9, 0xcf, 0xbf));
+  // A skin (skins.h) gets its own rim, purple, just inside a shiny's gold one.
+  if (m->skin()) { gfx->drawRoundRect(x + 1, y + 1, 52, 52, 7, SKIN_MARK); gfx->drawRoundRect(x + 2, y + 2, 50, 50, 6, SKIN_MARK); }
   const uint8_t *th = thumbs.get(m->dex);
   // drawThumb() centres the sprite in a GAL_CELL square from (x, y), so give
   // it the square centred on the cell.
@@ -8878,6 +8883,7 @@ static void drawPartyMonAt(int cx, int cy, const PartyMon &m) {
   gfx->fillCircle(cx, cy, PSLOT_R, m.empty() ? UI_TRACK : UI_WHITE);
   gfx->drawCircle(cx, cy, PSLOT_R, UI_INK);
   gfx->drawCircle(cx, cy, PSLOT_R - 1, UI_INK);
+  if (m.skin()) { gfx->drawCircle(cx, cy, PSLOT_R - 2, SKIN_MARK); gfx->drawCircle(cx, cy, PSLOT_R - 3, SKIN_MARK); }
   if (m.empty()) {
     gfx->setTextColor(0x8410);
     gfx->setTextSize(2);

@@ -35,6 +35,7 @@ uint8_t casinoView();
 void startTrainerBattle(uint8_t idx, bool hard);
 extern Arduino_Canvas *gfx;
 static uint16_t px(int x, int y) { return gfx->buffer()[y * 466 + x]; }
+uint16_t uiSkinMark();   // asked of the firmware, never retyped
 static int bad=0;
 static void ck(bool ok,const char*w){printf("%s  %s\n",ok?"PASS":"FAIL",w); if(!ok)bad++;}
 static bool onScreen(const char *n){ return !strcmp(SCREEN_NAME[uiCurrentScreen()], n); }
@@ -86,6 +87,16 @@ int main(){
   render();
   ck(px(233 - 124, 242) == inkBanner, "and the banner says so");
   { Pet q; q.begin(); ck(q.coins == 234567, "the coins spent are on flash"); }
+
+  // the box marks it: a purple rim inside its cell, read off the panel
+  { extern bool partyOpen, boxOpen; extern uint8_t boxPage; void boxCellPos(uint8_t, int*, int*);
+    casinoOpen = false; partyOpen = true; boxOpen = true; boxPage = (uint8_t)(at / 30); render();
+    int cx, cy; boxCellPos((uint8_t)(at % 30), &cx, &cy);
+    ck(px(cx - 27 + 1, cy) == uiSkinMark(), "the PC box marks it with a purple rim");
+    party.box[at].skinTag = 0; render();
+    ck(px(cx - 27 + 1, cy) != uiSkinMark(), "and an ordinary MEWTWO without one");
+    party.box[at].setSkin(SKIN_ARMORED);
+    partyOpen = boxOpen = false; }
 
   // as the live pet: its own sprite on the main screen. An ORDINARY MEWTWO
   // first, so the sprite cache already holds species 150 -- the armored one

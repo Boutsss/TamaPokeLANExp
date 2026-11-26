@@ -19,9 +19,12 @@ a 16-colour palette.
 
 Layout of the sheet, four rows of three frames on white:
   row 1 front, row 2 facing LEFT, row 3 the owner's chosen pose, row 4 facing RIGHT.
-Actions written: IDLE (row 3), WALKL (row 2), WALKR (row 4). Everything else is
-absent on purpose: the firmware falls back to IDLE for any action a sprite
-does not carry (PmdMon::has()).
+Actions written: IDLE (row 3), WALKL (row 2), WALKR (row 4), and four DERIVED
+from row 3 by moving and recolouring it -- the sheet has no such frames, and
+standing still asleep or mid-attack read as a frozen sprite: SLEEP (a slow
+breathing dip, aura dimmed), EAT (a bob), HURT (a red tint and a shake),
+ATTACK (a rise and a lunge, aura at full). Anything else falls back to IDLE
+(PmdMon::has()).
 
 The purple aura is BAKED into the frames -- an inner ring that breathes and a
 sparse outer sparkle -- so it shows wherever the sprite is drawn without any
@@ -138,6 +141,18 @@ def with_aura(f, level, drift, aura_idx):
     return c
 
 
+def shifted(f, dx, dy, m=3):
+    """f placed in a canvas m px bigger on every side, moved by (dx, dy):
+    every frame of one action shares the canvas, so the motion is real."""
+    h, w = len(f), len(f[0])
+    c = [[0xFF] * (w + 2 * m) for _ in range(h + 2 * m)]
+    for y in range(h):
+        for x in range(w):
+            if f[y][x] != 0xFF:
+                c[y + m + dy][x + m + dx] = f[y][x]
+    return c
+
+
 def main():
     pal, rows = frames_from_sheet()
     # the aura's colours: four breathing levels for the inner ring, then mid, then outer
@@ -154,6 +169,24 @@ def main():
         fr = trim(rows[row])
         canv = [with_aura(fr[seq[k]], breath[k], k, aura_idx) for k in range(len(seq))]
         acts.append((aid, canv, ms))
+
+    # Derived from row 3's first frame (pack_pmd.py's action ids).
+    still = trim(rows[3])[0]
+    # HURT's red: every sheet colour pulled halfway to red, as extra palette entries
+    red_base = len(pal)
+    pal = pal + [((c[0] + 255) // 2, c[1] // 2, c[2] // 2) for c in pal[:COLOURS]]
+    reddened = [[v if v == 0xFF or v >= COLOURS else red_base + v for v in row] for row in still]
+    def act(frames, levels, ms):
+        return [with_aura(f, levels[k % len(levels)], k, aura_idx) for k, f in enumerate(frames)], ms
+    derived = {
+        3: act([shifted(still, 0, 0), shifted(still, 0, 1)], [0, 0], 700),                  # SLEEP
+        4: act([shifted(still, 0, d) for d in (0, 1, 2, 1)], [1, 1, 2, 1], 150),             # EAT
+        5: act([shifted(reddened, d, 0) for d in (-2, 2, -1, 1)], [3, 3, 2, 2], 90),         # HURT
+        6: act([shifted(still, 0, d) for d in (0, -2, -3, 1, 2, 0)], [1, 2, 3, 3, 2, 1], 90),  # ATTACK
+    }
+    for aid, (canv, ms) in sorted(derived.items()):
+        acts.append((aid, canv, ms))
+    assert len(pal) <= 256
 
     os.makedirs(os.path.dirname(OUT_BIN), exist_ok=True)
     with open(OUT_BIN, 'wb') as o:

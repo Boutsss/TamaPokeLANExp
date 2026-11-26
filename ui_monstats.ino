@@ -164,6 +164,12 @@ void renderMonStats() {
   // the sprite, small, so the page says who it is at a glance
   const uint8_t *th = thumbs.get(m.dex);
   if (th) drawThumb(th, CX - GAL_CELL / 2, 316, 1, false);
+  if (m.skin()) {   // a skin, named beside the sprite (the sprite fills 316..396)
+    gfx->setTextColor(SKIN_MARK);
+    gfx->setTextSize(1);
+    gfx->setCursor(CX + 30, 352);
+    gfx->print(T(S_CAS_ARMORED));
+  }
   // There are no separate special IVs or training: SP.A grows with ATK's, SP.D
   // with DEF's (the species' own base stats are what make them differ).
   msLine(394, T(S_MS_SPNOTE), UI_INK_SOFT);
