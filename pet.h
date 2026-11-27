@@ -638,6 +638,12 @@ public:
   bool isRegistered(int16_t dex) const {
     return dex >= 1 && dex <= DEX_COUNT && (dexReg[(dex - 1) >> 3] & (1 << ((dex - 1) & 7)));
   }
+  // A SHINY of `dex` came into the player's hands without being raised -- a
+  // catch or a trade (v3.57). Marks its shiny in the Pokedex (dexShinyReg),
+  // so its shiny sprite shows there, WITHOUT registering the species: that
+  // still means "raised" and still drives every count. True if it is new.
+  // The caller saves (it is in the player checkpoint).
+  bool noteShiny(int16_t dex);
   bool isShinyRegistered(int16_t dex) const {
     return dex >= 1 && dex <= DEX_COUNT && (dexShinyReg[(dex - 1) >> 3] & (1 << ((dex - 1) & 7)));
   }

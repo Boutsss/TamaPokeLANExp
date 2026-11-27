@@ -114,8 +114,8 @@ int main(){
   {
     TrainerCard c; c.setAvatar(300); snprintf(c.name, sizeof(c.name), "ALI");
     uint8_t w[CARD_WIRE_LEN];
-    ck(cardToWire(c, w) == 32 && w[12] == 0 && rd16(w + 30) == 300,
-       "a card sends 32 bytes: 0 at byte 12 for an old reader, the full index at 30");
+    ck(cardToWire(c, w) == CARD_WIRE_LEN && CARD_WIRE_LEN >= 32 && w[12] == 0 && rd16(w + 30) == 300,
+       "a card sends 0 at byte 12 for an old reader and the full index at 30 (33 bytes since v3.57: stars at 32)");
     c.setAvatar(A); cardToWire(c, w); w[12] = LOW;
     TrainerCard got;
     ck(cardFromWire(w, 32, got) && got.avatar() == A, "a new card's avatar comes from bytes 30-31");

@@ -8,20 +8,23 @@
 #include <Preferences.h>
 
 // ONE blob under "stars", append-only like every other record here:
-// [u8 version][u8 earned bits][u16 lifetime LAN wins]. A shorter (older) blob
-// leaves the newer fields at their defaults.
+// [u8 version][u8 earned bits][u16 lifetime LAN wins][u16 lifetime shiny
+// catches (v3.57)]. A shorter (older) blob leaves the newer fields at their
+// defaults -- so shiny catches count from the first build that counts them.
 #define STARS_KEY "stars"
-#define STARS_VER 1
+#define STARS_VER 2
 
 static Preferences s_prefs;
 static bool s_opened = false;
 static const Pet *s_pet = nullptr;
 static uint8_t s_earned = 0;
 static uint16_t s_lanWins = 0;
+static uint16_t s_shiny = 0;
 
 static void starsSave() {
   if (!s_opened) return;
-  uint8_t b[4] = { STARS_VER, s_earned, (uint8_t)(s_lanWins & 0xFF), (uint8_t)(s_lanWins >> 8) };
+  uint8_t b[6] = { STARS_VER, s_earned, (uint8_t)(s_lanWins & 0xFF), (uint8_t)(s_lanWins >> 8),
+                   (uint8_t)(s_shiny & 0xFF), (uint8_t)(s_shiny >> 8) };
   if (s_prefs.putBytes(STARS_KEY, b, sizeof(b)) != sizeof(b)) logKeyFailure("stars", STARS_KEY);
 }
 
@@ -55,12 +58,19 @@ void starsUpdate() {
   if (towerBest() >= STAR_TOWER_FLOORS) latch(STAR_TOWER);
   if (s_lanWins >= STAR_LAN_WINS) latch(STAR_LAN);
   if (s_pet->coins >= STAR_COINS_HELD) latch(STAR_COINS);
+  if (s_shiny >= STAR_SHINY_CATCHES) latch(STAR_SHINY);
   if (everyLadder(false)) latch(STAR_LADDER_EASY);
   if (everyLadder(true)) latch(STAR_LADDER_HARD);
   if (everyDex()) latch(STAR_DEX);
 }
 
 static void starsOnEvent(GameEv ev, int16_t) {
+  if (ev == EV_SHINY_CATCH) {
+    if (s_shiny < 0xFFFF) s_shiny++;
+    starsSave();
+    if (s_shiny >= STAR_SHINY_CATCHES) latch(STAR_SHINY);
+    return;
+  }
   if (ev != EV_LAN_WIN) return;
   if (s_lanWins < 0xFFFF) s_lanWins++;
   starsSave();
@@ -72,12 +82,13 @@ void starsBegin(const Pet *p) {
   if (!s_opened) s_opened = s_prefs.begin("tamapoke", false);
   if (!s_opened) { Serial.println("stars: NVS would not open"); return; }
   gameEventSubscribe(starsOnEvent);
-  s_earned = 0; s_lanWins = 0;
+  s_earned = 0; s_lanWins = 0; s_shiny = 0;
   uint8_t b[8] = { 0 };
   size_t n = s_prefs.getBytesLength(STARS_KEY);
   if (n >= 2 && n <= sizeof(b) && s_prefs.getBytes(STARS_KEY, b, n) == n) {
     s_earned = b[1] & (uint8_t)((1u << STAR_COUNT) - 1);
     if (n >= 4) s_lanWins = (uint16_t)(b[2] | (b[3] << 8));
+    if (n >= 6) s_shiny = (uint16_t)(b[4] | (b[5] << 8));
   } else if (p) {
     // First boot with stars: the LAN wins already on record count. rivals[]
     // keeps only the last RIVAL_CAP opponents, so this is a floor, not a total.
@@ -92,6 +103,7 @@ void starsBegin(const Pet *p) {
 uint8_t starsEarned() { return s_earned; }
 bool starHas(uint8_t i) { return i < STAR_COUNT && ((s_earned >> i) & 1); }
 uint16_t starsLanWins() { return s_lanWins; }
+uint16_t starsShinyCatches() { return s_shiny; }
 
 void starsRecheck() {
   s_earned = 0;
@@ -100,6 +112,6 @@ void starsRecheck() {
 }
 
 void starsClearAll() {
-  s_earned = 0; s_lanWins = 0;
+  s_earned = 0; s_lanWins = 0; s_shiny = 0;
   if (s_opened) s_prefs.remove(STARS_KEY);
 }

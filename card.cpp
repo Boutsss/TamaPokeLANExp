@@ -1,4 +1,5 @@
 #include "card.h"
+#include "stars.h"   // STARS_MASK only: the header, no state
 #include "pet.h"
 #include "dex.h"
 #include "avatar_names.h"
@@ -46,6 +47,7 @@ uint8_t cardToWire(const TrainerCard &c, uint8_t *o) {
   w16(o + 25, (uint16_t)c.fid); w16(o + 27, (uint16_t)(c.fid >> 16));
   o[29] = 1;   // layout version
   w16(o + 30, c.avatar());
+  o[32] = c.stars & STARS_MASK;
   return CARD_WIRE_LEN;
 }
 
@@ -70,6 +72,7 @@ bool cardFromWire(const uint8_t *i, uint8_t n, TrainerCard &c) {
   c.petShiny = c.petDex && i[22] ? 1 : 0;
   c.bestStreak = r16(i + 23);
   c.fid = (uint32_t)r16(i + 25) | ((uint32_t)r16(i + 27) << 16);
+  c.stars = n >= 33 ? (uint8_t)(i[32] & STARS_MASK) : 0;   // an older board sends none
   return true;
 }
 
@@ -107,10 +110,13 @@ void cardBookBegin() {
     if (stride && cnt <= CARD_BOOK_CAP && BOOK_HDR + (size_t)cnt * stride <= n) {
       for (uint8_t i = 0; i < cnt; i++) {
         memcpy(&book[i], buf + BOOK_HDR + i * stride, stride < sizeof(TrainerCard) ? stride : sizeof(TrainerCard));
-        // re-check what was stored, exactly as if it had just arrived
+        // re-check what was stored, exactly as if it had just arrived -- all
+        // but starsNew, which is this board's own note and never on the wire
+        uint8_t keepNew = book[i].starsNew;
         uint8_t w[CARD_WIRE_LEN];
         cardToWire(book[i], w);
         cardFromWire(w, CARD_WIRE_LEN, book[i]);
+        book[i].starsNew = keepNew & book[i].stars;
       }
       bookN = cnt;
     }
@@ -119,6 +125,11 @@ void cardBookBegin() {
 }
 
 uint8_t cardBookCount() { return bookN; }
+bool cardBookAck(uint8_t i) {
+  if (i >= bookN || !book[i].starsNew) return false;
+  book[i].starsNew = 0;
+  return bookSave();
+}
 const TrainerCard &cardBookAt(uint8_t i) { return i < bookN ? book[i] : none; }
 
 bool cardBookAdd(const TrainerCard &c, uint32_t myFid) {
@@ -128,9 +139,14 @@ bool cardBookAdd(const TrainerCard &c, uint32_t myFid) {
     bool same = c.fid ? book[i].fid == c.fid : (!book[i].fid && !strcmp(book[i].name, c.name));
     if (same) { at = i; break; }
   }
+  // Stars they have earned since their last card here are NEW to this player,
+  // and any still unacknowledged from before stay new. A first card has no
+  // "since last time", so nothing on it flashes.
+  TrainerCard in = c;
+  in.starsNew = at >= 0 ? (uint8_t)(((c.stars & ~book[at].stars) | book[at].starsNew) & c.stars) : 0;
   int from = at >= 0 ? at : (bookN < CARD_BOOK_CAP ? bookN : CARD_BOOK_CAP - 1);
   for (int i = from; i > 0; i--) book[i] = book[i - 1];
-  book[0] = c;
+  book[0] = in;
   if (at < 0 && bookN < CARD_BOOK_CAP) bookN++;
   return bookSave();
 }

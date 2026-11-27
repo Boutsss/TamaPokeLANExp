@@ -34,6 +34,7 @@ enum GameEv : uint8_t {
   EV_GIFT_RECEIVED,
   EV_VISIT,
   EV_LAN_WIN,         // a LAN battle won (stars.cpp counts them for good)
+  EV_SHINY_CATCH,     // a SHINY wild creature caught, beside EV_WILD_CATCH (stars.cpp)
   EV_COUNT
 };
 

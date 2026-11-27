@@ -1262,6 +1262,14 @@ void Pet::registerSpecies(int16_t dex) {
   if (shiny) dexShinyReg[(dex - 1) >> 3] |= (1 << ((dex - 1) & 7));
 }
 
+bool Pet::noteShiny(int16_t dex) {
+  if (dex < 1 || dex > DEX_COUNT) return false;
+  const uint8_t bit = (uint8_t)(1 << ((dex - 1) & 7));
+  if (dexShinyReg[(dex - 1) >> 3] & bit) return false;
+  dexShinyReg[(dex - 1) >> 3] |= bit;
+  return true;
+}
+
 // la racha y el vinculo mejoran el sorteo del huevo (0..~14)
 int Pet::careBonus() const {
   int s = streak > 30 ? 30 : streak;

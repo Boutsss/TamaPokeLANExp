@@ -15,18 +15,23 @@ enum : uint8_t {
   STAR_LADDER_HARD, // gold: the same on hard
   STAR_LAN,         // purple: 100 LAN battle victories
   STAR_COINS,       // black: a million Game Corner coins held at once
+  STAR_SHINY,       // rainbow (v3.57): 10 shiny creatures caught in the wild
   STAR_COUNT
 };
+static_assert(STAR_COUNT <= 8, "stars are one byte: on flash and on a trainer card");
+#define STARS_MASK ((uint8_t)((1u << STAR_COUNT) - 1))
 
 #define STAR_TOWER_FLOORS 100
 #define STAR_LAN_WINS 100
 #define STAR_COINS_HELD 1000000UL
+#define STAR_SHINY_CATCHES 10
 
 class Pet;
 void starsBegin(const Pet *p);          // after rank/tower/casino begin
 uint8_t starsEarned();                  // bit i = star i
 bool starHas(uint8_t i);
 uint16_t starsLanWins();                // lifetime LAN wins (rivals[] only keeps 10)
+uint16_t starsShinyCatches();           // lifetime shiny wild catches, from v3.57 on
 // Re-checks every condition and latches any newly met. Not free (the Pokedex
 // check walks every species), so callers throttle it -- the card asks on open.
 void starsUpdate();

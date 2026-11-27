@@ -1679,7 +1679,15 @@ void handleSerial() {
     Serial.println("DONE");
   } else if (line == "STARS") {
     // STARS: which stars are earned, and the lifetime LAN wins behind the purple one.
-    Serial.printf("stars=0x%02X lanWins=%u\n", starsEarned(), (unsigned)starsLanWins());
+    Serial.printf("stars=0x%02X lanWins=%u shinyCatches=%u\n", starsEarned(), (unsigned)starsLanWins(),
+                  (unsigned)starsShinyCatches());
+    Serial.println("DONE");
+  } else if (line.startsWith("SHINYCATCH ")) {
+    // SHINYCATCH <n>: count n shiny wild catches through the real event, so the
+    // rainbow star can be checked without finding ten shinies first.
+    int n = atoi(line.c_str() + 11);
+    for (int i = 0; i < n && i < 100; i++) gameEvent(EV_SHINY_CATCH, 0);
+    Serial.printf("shinyCatches=%u stars=0x%02X\n", (unsigned)starsShinyCatches(), starsEarned());
     Serial.println("DONE");
   } else if (line == "STARS RECHECK") {
     // Unlatches every star and re-earns only what the save still qualifies for
@@ -2239,7 +2247,7 @@ static void swipeV(int dir, bool viaButton) {
   if (galleryOpen) {
     if (galleryDetail) {
       // up = deeper (the entry), down = back one level: the gesture map
-      if (!back) { if (pet.isRegistered(galleryDetail)) galleryEntry = true; return; }
+      if (!back) { if (pet.isRegistered(galleryDetail) || pet.isShinyRegistered(galleryDetail)) galleryEntry = true; return; }
       if (galleryEntry) { galleryEntry = false; return; }
       galleryDetail = 0; galleryPmd.unload(); galleryDirty = true;
       return;
@@ -2885,7 +2893,7 @@ void onTap(int16_t x, int16_t y) {
     arcHubTap(x, y);
     return;
   }
-  if (cardBookOpen) return;   // paged on the rim, left by swiping down
+  if (cardBookOpen) { cardBookTap(x, y); return; }   // paged on the rim, left by swiping down; a tap acknowledges new stars
   if (bagOpen) {
     bagTap(x, y);
     return;
@@ -5368,6 +5376,10 @@ static void btlThrowBall(ItemKey k) {
     btlWon = true;
     wildStoreCaught();
     gameEvent(EV_WILD_CATCH, btlFoe.dex);
+    if (btlFoe.shiny) {
+      gameEvent(EV_SHINY_CATCH, btlFoe.dex);   // the rainbow star counts these
+      pet.noteShiny(btlFoe.dex);   // and the Pokedex shows its shiny (saved just below)
+    }
     // wildStoreCaught() saves the PARTY (or the pet checkpoint, via
     // setEnded(), only in the both-full fallback) -- but the common case
     // never re-saves the live pet's OWN checkpoint here. That left it
@@ -6498,6 +6510,7 @@ static const uint16_t STAR_COL[STAR_COUNT] = {
   0xFEA0,   // gold: every ladder, hard
   0x895F,   // purple: LAN wins
   0x10A2,   // black: the coins
+  0xF81F,   // rainbow: 10 shinies (drawn as a rainbow, this is only its fallback)
 };
 void playerStarCentre(uint8_t i, int *x, int *y) {
   *x = CX + (int)(i * 2 + 1 - STAR_COUNT) * STAR_PITCH / 2;
@@ -6524,16 +6537,49 @@ static void drawStarShape(int cx, int cy, int r, uint16_t fill, uint16_t ink, bo
     for (int k = 0; k < 10; k++) gfx->fillTriangle(cx, cy, px[k], py[k], px[(k + 1) % 10], py[(k + 1) % 10], fill);
   for (int k = 0; k < 10; k++) gfx->drawLine(px[k], py[k], px[(k + 1) % 10], py[(k + 1) % 10], ink);
 }
+// A hue on the colour wheel, 0..255 -> RGB565, for the rainbow star.
+static uint16_t starHue(uint8_t h) {
+  uint8_t r, g, b, s = (uint8_t)(h % 43) * 6;
+  switch (h / 43) {
+    case 0: r = 255; g = s; b = 0; break;
+    case 1: r = 255 - s; g = 255; b = 0; break;
+    case 2: r = 0; g = 255; b = s; break;
+    case 3: r = 0; g = 255 - s; b = 255; break;
+    case 4: r = s; g = 0; b = 255; break;
+    default: r = 255; g = 0; b = 255 - s; break;
+  }
+  return C565(r, g, b);
+}
+// THE way a star is drawn, on our card and on a friend's in the card book.
+// The rainbow star gives each of its ten wedges its own hue, turning slowly,
+// and a white edge so it shines; the black one gets a white edge too, or it
+// vanishes into its own ink.
+void drawStarIcon(uint8_t i, int cx, int cy, int r, bool got) {
+  if (i == STAR_SHINY && got) {
+    int px[10], py[10];
+    for (int k = 0; k < 10; k++) {
+      float a = -1.5707963f + k * 0.62831853f;
+      float rr = (k & 1) ? r * 0.42f : (float)r;
+      px[k] = cx + (int)lroundf(rr * cosf(a));
+      py[k] = cy + (int)lroundf(rr * sinf(a));
+    }
+    uint8_t spin = (uint8_t)(millis() / 12);
+    for (int k = 0; k < 10; k++)
+      gfx->fillTriangle(cx, cy, px[k], py[k], px[(k + 1) % 10], py[(k + 1) % 10], starHue((uint8_t)(spin + k * 25)));
+    for (int k = 0; k < 10; k++) gfx->drawLine(px[k], py[k], px[(k + 1) % 10], py[(k + 1) % 10], UI_WHITE);
+    return;
+  }
+  drawStarShape(cx, cy, r, STAR_COL[i], got ? (i == STAR_COINS ? UI_WHITE : UI_INK) : UI_TRACK, got);
+}
 static void drawPlayerStars() {
   for (uint8_t i = 0; i < STAR_COUNT; i++) {
     int cx, cy; playerStarCentre(i, &cx, &cy);
     bool got = starHas(i);
     gfx->fillCircle(cx, cy, STAR_R, UI_BG_DAY);
     gfx->drawCircle(cx, cy, STAR_R, (int8_t)i == starSel ? UI_INK : UI_TRACK);
-    // an earned black star gets a white edge, or it vanishes into its own ink
-    drawStarShape(cx, cy, STAR_R - 4, STAR_COL[i], got ? (i == STAR_COINS ? UI_WHITE : UI_INK) : UI_TRACK, got);
+    drawStarIcon(i, cx, cy, STAR_R - 4, got);
   }
-  static const StrId DESC[STAR_COUNT] = { S_STAR_D0, S_STAR_D1, S_STAR_D2, S_STAR_D3, S_STAR_D4, S_STAR_D5 };
+  static const StrId DESC[STAR_COUNT] = { S_STAR_D0, S_STAR_D1, S_STAR_D2, S_STAR_D3, S_STAR_D4, S_STAR_D5, S_STAR_D6 };
   const char *d = starSel >= 0 ? T(DESC[starSel]) : T(S_STAR_HINT);
   gfx->setTextColor(starSel >= 0 && starHas((uint8_t)starSel) ? UI_INK : UI_INK_SOFT);
   gfx->setTextSize(1);
@@ -8854,6 +8900,7 @@ void tradePoll() {
     bool full = party.firstFree() < 0 && party.boxFirstFree() < 0;
     if (full) { if (trdMsg != S_TRD_NOROOM) trdSay(S_TRD_NOROOM); return; }   // no DONE: they keep theirs
     if (!party.storeDurably(m, &at)) { trdSay(S_TRD_FAIL); return; }        // retried next poll
+    if (m.shiny && pet.noteShiny(m.dex)) pet.saveNow();   // a traded shiny shows in the Pokedex
     lan.tradeStored();
     if (evo) trdSay(S_TRD_EVOLVED, DEX_TBL[evo].name);
   }
@@ -9817,7 +9864,8 @@ void renderGallery() {
   if (galleryDetail) {  // vista detalle: se redibuja siempre (animada)
     dexShell(true);
     const DexEntry &d = DEX_TBL[galleryDetail];
-    bool reg = pet.isRegistered(galleryDetail);
+    // shown in full when raised, or when a caught/traded shiny is in hand (noteShiny)
+    bool reg = pet.isRegistered(galleryDetail) || pet.isShinyRegistered(galleryDetail);
     char head[24];
     snprintf(head, sizeof(head), "N.%03d %s%s", galleryDetail,
              pet.isShinyRegistered(galleryDetail) ? "*" : "", reg ? d.name : "???");
@@ -9870,7 +9918,7 @@ void renderGallery() {
       int x = GAL_X + c * GAL_CELL, y = GAL_Y + r * GAL_CELL;
       const uint8_t *t = thumbs.get(dex);
       if (t) {
-        drawThumb(t, x, y, 2, !pet.isRegistered(dex));
+        drawThumb(t, x, y, 2, !pet.isRegistered(dex) && !pet.isShinyRegistered(dex));
         if (pet.isShinyRegistered(dex)) {
           gfx->setTextColor(UI_BAR_WARN);
           gfx->setTextSize(2);

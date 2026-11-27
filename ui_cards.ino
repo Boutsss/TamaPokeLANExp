@@ -102,8 +102,26 @@ void renderCardBook() {
   gfx->setCursor(CX - (int)strlen(b) * 6, y0 + 24); gfx->print(b);
   snprintf(b, sizeof(b), T(S_PC_MEDALS_FMT), (unsigned)c.medals);
   gfx->setCursor(CX - (int)strlen(b) * 6, y0 + 48); gfx->print(b);
-  snprintf(b, sizeof(b), T(S_PC_STREAK_FMT), (unsigned)c.bestStreak);
-  gfx->setCursor(CX - (int)strlen(b) * 6, y0 + 72); gfx->print(b);
+  // their stars (v3.57), where their best streak used to be. Any earned since
+  // their previous card flash until a tap acknowledges them (cardBookTap).
+  {
+    const int r = 11, pitch = 30, sy = y0 + 84;
+    bool flashOn = (millis() / 300) % 2 == 0;
+    for (uint8_t i = 0; i < STAR_COUNT; i++) {
+      int sx = CX + (int)(i * 2 + 1 - STAR_COUNT) * pitch / 2;
+      bool got = (c.stars >> i) & 1, fresh = (c.starsNew >> i) & 1;
+      gfx->fillCircle(sx, sy, r + 3, fresh && flashOn ? UI_BAR_WARN : UI_BG_DAY);
+      gfx->drawCircle(sx, sy, r + 3, fresh ? UI_BAR_WARN : UI_TRACK);
+      if (!fresh || flashOn) drawStarIcon(i, sx, sy, r, got);
+    }
+    if (c.starsNew) {
+      const char *h = T(S_PC_NEWSTARS);
+      int hw = (int)strlen(h) * 6 + 14;
+      gfx->fillRoundRect(CX - hw / 2, sy + 18, hw, 16, 6, flashOn ? UI_BAR_WARN : UI_INK);
+      gfx->setTextColor(UI_WHITE); gfx->setTextSize(1);
+      gfx->setCursor(CX - (int)strlen(h) * 3, sy + 22); gfx->print(h);
+    }
+  }
   // their creature at the time: its thumbnail when the pack is here, else its number
   if (c.petDex >= 1 && c.petDex <= DEX_COUNT) {
     const uint8_t *th = (speciesHasArt(c.petDex) && regionAvailable(regionOfDex(c.petDex))) ? thumbs.get(c.petDex) : nullptr;
@@ -119,6 +137,16 @@ void renderCardBook() {
   }
   uiChrome();
   gfx->flush();
+}
+
+// A tap on a card with new stars acknowledges them: they stop flashing, and
+// the book remembers (cardBookAck saves). Any other tap does nothing here.
+void cardBookTap(int16_t x, int16_t y) {
+  (void)x; (void)y;
+  if (cardBookPage < cardBookCount() && cardBookAt(cardBookPage).starsNew) {
+    cardBookAck(cardBookPage);
+    sfxPlay(SFX_MEDAL);
+  }
 }
 
 // Down = back: to the player card's TRAINER CARDS page.
@@ -138,6 +166,7 @@ void cardsFriendsPoll(uint32_t now) {
     pcSentAt = now;
     uint8_t w[CARD_WIRE_LEN];
     TrainerCard me = cardMine(pet, pet.avatar, casino.bg, rankShown(), friends.fid);
+    me.stars = starsEarned();   // they flash on THEIR board if new since our last card
     lan.sendCard(w, cardToWire(me, w));
   }
   // Theirs, filed once per session (the same card keeps arriving).

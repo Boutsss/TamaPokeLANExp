@@ -95,7 +95,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "LUEGO", "ACABAR", "SEGURO?", "Guardado en el piso %u", "EQUIPO", "La torre te espera aqui",
     "TOCA Y JUEGA",
     "Tu mascota duerme", "Primero, el huevo",
-    "manten 2 s para quitar" },
+    "manten 2 s para quitar",
+    "10 shinys atrapados", "ESTRELLAS NUEVAS! toca" },
   // ---------------- EN ----------------
   {
     "Evolving!", "Yum yum!", "It likes it!", "It's hungry!", "Needs a bath!",
@@ -182,7 +183,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "LATER", "END RUN", "SURE?", "Climb saved at floor %u", "TEAM", "The climb waits here",
     "TAP TO PLAY",
     "Your pet is asleep", "Hatch your egg first",
-    "hold 2 s to unstar" },
+    "hold 2 s to unstar",
+    "10 shiny Pokemon caught", "NEW STARS! tap to see" },
   // ---------------- FR ----------------
   {
     "Il evolue!", "Miam miam!", "Il aime ca!", "Il a faim!", "Besoin d'un bain!",
@@ -268,7 +270,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "PLUS TARD", "ABANDON", "SUR?", "Sauvegarde etage %u", "EQUIPE", "La tour vous attend",
     "TOUCHE ET JOUE",
     "Il dort", "Fais eclore l'oeuf",
-    "maintenir 2 s: retirer" },
+    "maintenir 2 s: retirer",
+    "10 chromatiques captures", "NOUVELLES ETOILES! touche" },
   // ---------------- DE ----------------
   {
     "Entwickelt sich!", "Mampf mampf!", "Gefaellt ihm!", "Hat Hunger!", "Braucht ein Bad!",
@@ -354,7 +357,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "SPAETER", "AUFGEBEN", "SICHER?", "Gespeichert: Etage %u", "TEAM", "Der Turm wartet",
     "TIPPEN!",
     "Es schlaeft", "Erst schluepfen",
-    "2 s halten: entfernen" },
+    "2 s halten: entfernen",
+    "10 schillernde gefangen", "NEUE STERNE! tippen" },
   // ---------------- IT ----------------
   {
     "Si evolve!", "Gnam gnam!", "Gli piace!", "Ha fame!", "Vuole un bagno!",
@@ -440,7 +444,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "DOPO", "ABBANDONA", "SICURO?", "Salvato al piano %u", "SQUADRA", "La torre ti aspetta",
     "TOCCA E GIOCA",
     "Sta dormendo", "Prima la schiusa",
-    "tieni 2 s per togliere" },
+    "tieni 2 s per togliere",
+    "10 cromatici catturati", "NUOVE STELLE! tocca" },
   // ---------------- PT ----------------
   {
     "Evoluindo!", "Nham nham!", "Ele gosta!", "Esta com fome!", "Precisa de banho!",
@@ -526,7 +531,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "DEPOIS", "DESISTIR", "CERTEZA?", "Salvo no andar %u", "EQUIPE", "A torre espera aqui",
     "TOQUE E JOGUE",
     "Esta dormindo", "Choque o ovo antes",
-    "segure 2 s p/ tirar" },
+    "segure 2 s p/ tirar",
+    "10 brilhantes capturados", "ESTRELAS NOVAS! toque" },
 };
 
 // Nombres de medalla en sus tres longitudes [idioma][medalla].

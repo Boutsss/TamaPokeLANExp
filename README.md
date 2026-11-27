@@ -504,7 +504,9 @@ In the Pokédex, open a species you have registered and **swipe up** for its
 entry: its category ("Seed Pokémon"), typing, height and weight, and its
 description, in the language the game is set to (Portuguese uses the English
 text -- the games were never translated). Swipe down or tap to go back. A
-species you have not registered stays "???". The entries live on the SD card
+species you have not registered stays "???" -- unless you have caught or been
+traded a **shiny** of it: that shows its animated shiny sprite (and a sparkle on
+the grid) without counting it as raised. The entries live on the SD card
 (`/mons/dexinfo.bin`, 850 KB), which every region's sprite pack now carries, so
 any one pack gives you the whole Pokédex.
 
@@ -795,8 +797,9 @@ Once paired, each side sees the friend's trainer name and creature, and can:
 
 **Trainer cards** are swapped automatically while two boards are paired on
 FRIENDS (the screen says **CARDS SWAPPED!**). Each card shows the trainer's
-name, rank title, avatar, card background, badges, Pokedex count, medals, best
-streak and the creature they were raising. Your collection is on the player
+name, rank title, avatar, card background, badges, Pokedex count, medals, their
+**stars** and the creature they were raising. Stars they have earned since their
+previous card **flash** on it until you tap the card. Your collection is on the player
 card's last page, **TRAINER CARDS**: **EXCHANGE** goes straight to FRIENDS
 (and back), **CARD BOOK** pages through the cards you hold with a rim drag, each
 on its owner's own background. The book keeps 12, one per friend; meeting a
@@ -1210,6 +1213,7 @@ a star to see what it is for. Each one, once earned, **stays**:
 | **Silver** | every region's whole ladder — the 8 gyms, the Elite 4 and the champion — on **easy** |
 | **Gold** | the same on **hard** |
 | **Purple** | **100** LAN battle wins (counted for life, not just the last 10 rivals) |
+| **Rainbow** | **10** shiny Pokémon caught in the wild (counted from v3.57) |
 
 Your badges are behind the card's **BADGES** button: one region a page (drag
 the rim), hold **BACK** to return. The card's other pages are your medals, your

@@ -19,7 +19,10 @@
 // 32 since v3.45: bytes 30-31 carry the full 16-bit avatar. A 30-byte card
 // from an older build is still accepted (CARD_WIRE_MIN); its byte 12 is then
 // the whole avatar. We still put a downgrade-safe low byte at 12 for them.
-#define CARD_WIRE_LEN 32
+// 33 since v3.57: byte 32 is the sender's stars (stars.h). Anything shorter is
+// read as "no stars" -- an older board -- and an older board reading ours just
+// stops at 32, as it always has.
+#define CARD_WIRE_LEN 33
 #define CARD_WIRE_MIN 30
 #define CARD_BOOK_HDR 4
 
@@ -39,7 +42,12 @@ struct TrainerCard {
   // high byte goes at the end, never beside avatarLo. An older record reads
   // back with it 0, which is exactly what its avatar was.
   uint8_t avatarHi = 0;
-
+  // APPENDED (v3.57). `stars` travels on the wire (byte 32). `starsNew` never
+  // does: it is THIS board's note of which of their stars it has not shown
+  // the player yet -- earned since the previous card from the same friend --
+  // and they flash in the card book until a tap acknowledges them.
+  uint8_t stars = 0;
+  uint8_t starsNew = 0;
   uint16_t avatar() const { return (uint16_t)(avatarLo | (avatarHi << 8)); }
   void setAvatar(uint16_t a) { avatarLo = (uint8_t)a; avatarHi = (uint8_t)(a >> 8); }
 };
@@ -59,3 +67,5 @@ const TrainerCard &cardBookAt(uint8_t i);   // 0 = most recent
 // File a received card: replaces that friend's older card and moves it to the
 // front. Ignores our own card (same fid). True if it was stored.
 bool cardBookAdd(const TrainerCard &c, uint32_t myFid);
+// The player has seen card i's new stars: clear them, and save. True if any.
+bool cardBookAck(uint8_t i);
