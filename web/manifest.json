@@ -19,7 +19,7 @@
           "offset": 57344
         },
         {
-          "path": "firmware/app.bin.enc?v=31eb2b44b76f8eb0",
+          "path": "firmware/app.bin.enc?v=9a994d393bb65259",
           "offset": 65536
         }
       ]
@@ -29,9 +29,9 @@
     "v": 1,
     "kdf": "PBKDF2-SHA256",
     "iterations": 600000,
-    "salt": "Z1A8HwwMtXybnzzUqHHtAQ==",
-    "check": "VFBMS6lg0zQjRqgwpy70SZMCLrC0seaq4CPWkWAGqPTcDWVXKRMM5eTyGUu7oJ9U",
-    "size": 2883568,
-    "sha256": "81fa25a3f1df4cc3913a6570b4b4fbc06fd2e63abc19d6c34c2651918216df27"
+    "salt": "UUqUD2X3UTe+8zU2IA71rw==",
+    "check": "VFBMS6eaeL4LsctH/I85m4zo1wl/glU9abypELDSo64lkHcPCTS5J/CWueWu8Nth",
+    "size": 2888512,
+    "sha256": "50205c7cd30a5872d8bd4915fee90efbdf124f679d769ac955e331fb30d1580e"
   }
 }
