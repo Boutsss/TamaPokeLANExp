@@ -1348,6 +1348,23 @@ There's a headless `--shot` mode for screenshots too. See
 [`tools/emu/README.md`](tools/emu/README.md). It won't tell you anything about
 timing, DMA tearing, PSRAM or audio — those still need the board.
 
+### Install on Windows without a browser: the desktop installer
+
+`tools/desktop_installer/` builds **TamaPokeInstaller.exe**, which does what the
+web installer does with no website: installs the (password-locked) game, loads
+the sprite packs onto the SD card, and backs up and restores the save. Every
+install backs the save up first, to `Documents\TamaPoke backups`, and never
+erases it. It reads the same release files as the web installer, so one release
+build updates both.
+
+```bat
+tools\desktop_installer\build_exe.bat    rem -> dist\TamaPokeInstaller.exe
+tools\desktop_installer\package.bat      rem -> dist\TamaPoke Installer\ (the .exe + the release + READ ME.txt)
+```
+
+Share the packaged folder privately. Windows warns about an unsigned program the
+first time; "More info" then "Run anyway".
+
 ### Easiest install: the web installer
 
 `web/index.html` flashes the firmware (ESP Web Tools) and pushes the sprites to

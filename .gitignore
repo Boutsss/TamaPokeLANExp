@@ -90,3 +90,10 @@ web/firmware/tamapoke.bin
 
 # gen_pokemmo_wardrobe.py's fetch cache (PokeMMO art, not ours to redistribute)
 /tools/pokemmo_cache/
+
+# the desktop installer: its venv and PyInstaller output (build with build_exe.bat)
+/tools/desktop_installer/.venv/
+/tools/desktop_installer/build/
+/tools/desktop_installer/dist/
+/tools/desktop_installer/*.spec
+/tools/desktop_installer/__pycache__/

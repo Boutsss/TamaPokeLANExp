@@ -1,0 +1,27 @@
+TamaPoke Installer
+==================
+
+Installs TamaPoke onto a Waveshare ESP32-S3-Touch-AMOLED-1.75 board, loads the
+sprite packs onto its microSD card, and backs up / restores your save.
+
+1. Keep this whole folder together: the program reads the files next to it.
+2. Plug the board in with a USB data cable and open TamaPokeInstaller.exe.
+   Windows may say "Windows protected your PC" because the program is not
+   signed by a company: click "More info", then "Run anyway".
+3. Pick the board in the list (it says "ESP32-S3 board"). If it is not there,
+   hold BOOT, tap RESET, let go of BOOT, then press Refresh.
+4. Type the install password you were given and press
+   "Back up save, then install". Your save is backed up first, to
+   Documents\TamaPoke backups, and the save area is never erased.
+5. Tick the regions you want and press "Load selected packs". Kanto is the
+   one to start with; each region takes a few minutes.
+
+Unofficial fan project
+----------------------
+TamaPoke is a free, non-commercial fan project. It is not affiliated with,
+endorsed, sponsored or approved by Nintendo, Game Freak, Creatures Inc.,
+The Pokemon Company, PokeMMO or anyone else. Pokemon and all related names,
+characters and images are trademarks and (c) of their respective owners and
+are used here for personal, non-commercial fan use only. Do not sell this
+program, the game, or devices with it installed. Provided as is, with no
+warranty: you install it at your own risk.

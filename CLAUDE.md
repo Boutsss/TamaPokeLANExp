@@ -150,6 +150,35 @@ Things that have already bitten, or nearly:
   costs nothing to host and creates no custody of anyone else's data. IndexedDB
   is a convenience layer and the page labels it as one.
 
+## The desktop installer (v3.57)
+
+`tools/desktop_installer/` is the web installer as a Windows program, kept as a
+TWIN of it rather than a second design: `installer_core.py` re-implements
+`lock.js`, `parsePak()`, `savefile.js` and `loadRegion()` against the SAME
+release files and board commands, and `tamapoke_installer.py` is only the
+window. Both installers stay; the .exe exists so the game can be shared without
+a findable website. `python tools/check_desktop_installer.py` tests the core
+against independent references (the published CRC check value, the firmware's
+own golden.tpsave, `lock_firmware.py`'s output, the committed packs).
+
+- **It ships the PROGRAM; the release travels beside it.** `package.bat` copies
+  `web/` next to the .exe, so `bash tools/build_web.sh` (with the password)
+  must run first or the folder carries a stale firmware.
+- **Hold DTR/RTS low before opening the port** (`Board.__init__`), or opening
+  it restarts the game -- the same reason `tools/debugger` exists.
+- **Read whatever has arrived, never a fixed 4096.** With a 0.1 s timeout,
+  `read(4096)` waited out the timeout for each one-byte `#` PUT ack, 80 a file:
+  a region took 15 minutes instead of 4. And set a `write_timeout`, or a board
+  that restarts mid-send hangs the installer forever.
+- **Never kill it mid-PUT and carry on**: the board keeps waiting for the rest
+  of the file and ignores commands until reset.
+- esptool runs in-process with stdout redirected into the log; the redirect is
+  re-entrancy guarded because a logger that prints would recurse. PyInstaller
+  needs `--collect-data esptool` or the .exe has no flasher stubs.
+- Verified on the board 2026-11-27: pack query, a 23 MB pack (262 s, crc
+  confirmed by PACKS), backup, restore, a wrong password refused, and a full
+  install from the .exe with the save surviving.
+
 ## The installer is password locked
 
 `web/firmware/app.bin.enc` is the game, AES-256-GCM under a key from
