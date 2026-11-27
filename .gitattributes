@@ -13,3 +13,6 @@ web/*.css text eol=lf
 
 web/firmware/*.bin binary
 web/*.pak binary
+
+# Windows batch files need CRLF: cmd misreads LF-only ones
+*.bat text eol=crlf

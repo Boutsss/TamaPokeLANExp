@@ -6,7 +6,9 @@ rem Run tools\build_web.sh first if the firmware changed: the .exe installs
 rem exactly what web\ holds, the same release the web installer serves.
 setlocal
 cd /d "%~dp0"
-if not exist dist\TamaPokeInstaller.exe call build_exe.bat || exit /b 1
+rem By full path: with NoDefaultCurrentDirectoryInExePath set, cmd will not
+rem run a bare "build_exe.bat" from the current folder.
+if not exist dist\TamaPokeInstaller.exe call "%~dp0build_exe.bat" || exit /b 1
 set OUT=dist\TamaPoke Installer
 if exist "%OUT%" rmdir /s /q "%OUT%"
 mkdir "%OUT%\firmware" || exit /b 1
