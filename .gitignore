@@ -87,3 +87,6 @@ tools/debugger/serial_logs/
 web/firmware/app.bin
 web/firmware/tamapoke.bin
 .install-password
+
+# gen_pokemmo_wardrobe.py's fetch cache (PokeMMO art, not ours to redistribute)
+/tools/pokemmo_cache/

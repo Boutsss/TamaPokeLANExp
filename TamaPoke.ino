@@ -827,6 +827,7 @@ int8_t playerStarAt(int16_t x, int16_t y);
 bool playerBadgesBtnAt(int16_t px, int16_t py);
 void renderBadges();
 void renderWardrobe();
+void drawWardrobeTrainer(int bx, int by, int box);
 bool wardrobeTap(int16_t px, int16_t py);
 uint8_t wardrobePages();
 bool playerWardrobeBtnAt(int16_t px, int16_t py);
@@ -10296,15 +10297,8 @@ static void drawAvatarAura(const AvatarArt &a, int x, int y, int s) {
 }
 
 void drawAvatar(uint16_t which, int x, int y, int s) {
-  if (which == AVATAR_YOU) {   // the customisable trainer: composed from the wardrobe
-    static uint8_t idx[256];
-    static uint16_t pal[WARDROBE_PAL];
-    wardrobeCompose(idx, pal);
-    for (int r = 0; r < AVATAR_PX; r++)
-      for (int c = 0; c < AVATAR_PX; c++) {
-        uint8_t v = idx[r * AVATAR_PX + c];
-        if (v != 0xFF) gfx->fillRect(x + c * s, y + r * s, s, s, pal[v]);
-      }
+  if (which == AVATAR_YOU) {   // CUSTOM: PokeMMO's trainer, composed from the wardrobe,
+    drawWardrobeTrainer(x, y, AVATAR_PX * s);   // in the same square every avatar fills
     return;
   }
   const AvatarArt &a = AVATARS[which % AVATAR_COUNT];

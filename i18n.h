@@ -582,6 +582,7 @@ enum StrId : uint16_t {
   S_EGG_WALK_FMT,  // the egg's line while it hatches by walking: steps, of
   S_CAS_GIFT_FMT,  // the dealer's hourly gift, in his bubble
   S_CAS_GIFT_WAIT_FMT, // ... and when he will give again
+  S_WD_GLOVES,     // wardrobe row
   STR_COUNT
 };
 

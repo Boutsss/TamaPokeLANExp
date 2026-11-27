@@ -5686,5 +5686,5 @@ static const AvatarArt AVATARS[AVATAR_COUNT] = {
   { AV_ST06_IDX, AV_ST06_PAL, "HIJAB", 0 },   // original art, starter
   { AV_ST07_IDX, AV_ST07_PAL, "SPECS", 0 },   // original art, starter
   { AV_ST08_IDX, AV_ST08_PAL, "FOHAWK", 0 },   // original art, starter
-  { AV_YOU_IDX, AV_YOU_PAL, "YOU", 0 },   // original art, the wardrobe trainer (composed at draw time)
+  { AV_YOU_IDX, AV_YOU_PAL, "CUSTOM", 0 },   // original art, the wardrobe trainer (composed at draw time)
 };

@@ -138,9 +138,9 @@ uint8_t arcGrade = 0;            // 0 C, 1 B, 2 A, 3 S
 bool arcNewHi = false;
 uint8_t arcJoyGot = 0, arcBondGot = 0, arcPrizeGot = 0;   // what the session paid
 // An S also wins a random wardrobe cosmetic (wardrobe.cpp), at most once every
-// WARDROBE_PRIZE_SECS per game. 0xFF = none this time; arcCosWait = seconds
+// WARDROBE_PRIZE_SECS per game. WARDROBE_NONE = none this time; arcCosWait = seconds
 // left on that game's cooldown, shown instead.
-uint8_t arcCosGot = 0xFF;
+uint16_t arcCosGot = WARDROBE_NONE;
 uint32_t arcCosWait = 0;
 static_assert(ARC_GAMES == WARDROBE_GAMES, "a cosmetic cooldown per arcade game");
 uint8_t arcFirstGot = 0;         // the first-S held item this session paid, or 0
@@ -220,7 +220,7 @@ void arcFinish() {
   if (arcNewHi) arcBest[arcGame] = arcPts;
   arcJoyGot = arcBondGot = arcPrizeGot = arcFirstGot = 0;
   arcAllSGot = false;
-  arcCosGot = 0xFF; arcCosWait = 0;
+  arcCosGot = WARDROBE_NONE; arcCosWait = 0;
   if (arcPts > 0) {
     pet.energy = pet.energy > ARC_ENERGY ? pet.energy - ARC_ENERGY : 0;
     arcJoyGot = arcJoyFor(arcGrade);
@@ -243,7 +243,7 @@ void arcFinish() {
     if (arcGrade == 3) {   // an S: a cosmetic, if this game is off its 4-hour cooldown
       uint32_t nowSecs = rtcEpoch();
       arcCosGot = wardrobeArcadePrize(arcGame, nowSecs);
-      if (arcCosGot == 0xFF) {
+      if (arcCosGot == WARDROBE_NONE) {
         uint32_t ready = wardrobePrizeReadyAt(arcGame);
         arcCosWait = ready > nowSecs ? ready - nowSecs : 0;
       }
@@ -1084,7 +1084,7 @@ void arcStart(uint8_t g) {
   arcGrade = 0;
   arcNewHi = false;
   arcJoyGot = arcBondGot = arcPrizeGot = 0;
-  arcCosGot = 0xFF; arcCosWait = 0;
+  arcCosGot = WARDROBE_NONE; arcCosWait = 0;
   trnGoAt = now + ARC_INTRO_MS;
   arcLastFrame = now;
   switch (g) {
@@ -1238,7 +1238,7 @@ static void renderArcResults(uint32_t now) {
     snprintf(b, sizeof(b), T(S_ARC_PRIZE), ITEM_TBL[arcPrizeGot].name);
     trnText(b, CX, py + 248, 2, ((now / 200) & 1) ? UI_BAR_OK : C565(0x1a, 0x8a, 0x3a));
   }
-  if (arcCosGot != 0xFF) {
+  if (arcCosGot != WARDROBE_NONE) {
     snprintf(b, sizeof(b), T(S_ARC_COS_FMT), cosName(arcCosGot));
     trnText(b, CX, py + 266, 1, ((now / 200) & 1) ? 0x895F : 0xD31B);
   } else if (arcCosWait) {

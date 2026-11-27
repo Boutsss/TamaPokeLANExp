@@ -319,7 +319,7 @@ STARTERS = [
 # wardrobe (wardrobe.cpp, wardrobe_art.h); this grid is only the stored stand-in
 # -- the look a new save starts with -- for anything that reads the table raw.
 # Emitted after STARTERS with its own #define, AVATAR_YOU. Never sold.
-YOU = ('YOU', {'s': 0xCCAD, 'h': 0x7A23, 'e': 0x6A25, 'c': 0x2B7F, 'd': 0x3B35, 'f': 0xD8A3}, [
+YOU = ('CUSTOM', {'s': 0xCCAD, 'h': 0x7A23, 'e': 0x6A25, 'c': 0x2B7F, 'd': 0x3B35, 'f': 0xD8A3}, [
     '................',
     '................',
     '.....######.....',

@@ -90,7 +90,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "toca una estrella", "ROJA: 100 pisos seguidos en la torre", "AZUL: la Pokedex entera", "PLATA: todos los gimnasios y la liga, facil", "ORO: todos los gimnasios y la liga, dificil", "MORADA: 100 victorias LAN", "NEGRA: 1.000.000 de fichas a la vez",
     "ARMARIO", "PIEL", "OJOS", "PELO", "COLOR DE PELO", "GORRO", "PARTE DE ARRIBA", "PIERNAS", "ZAPATOS", "CARA", "ESPALDA", "LOOKS %u/%u", "NUEVO LOOK: %s!", "proximo look en %uh %um",
     "camina: %u/%u pasos",
-    "INVITA LA CASA: +%u!", "VUELVE EN %u MIN" },
+    "INVITA LA CASA: +%u!", "VUELVE EN %u MIN",
+    "GUANTES" },
   // ---------------- EN ----------------
   {
     "Evolving!", "Yum yum!", "It likes it!", "It's hungry!", "Needs a bath!",
@@ -172,7 +173,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "tap a star", "RED: 100 tower floors in a row", "BLUE: the whole Pokedex", "SILVER: every gym and league, easy", "GOLD: every gym and league, hard", "PURPLE: 100 LAN battle wins", "BLACK: 1,000,000 coins at once",
     "WARDROBE", "SKIN", "EYES", "HAIR", "HAIR COLOUR", "HAT", "TOP", "LEGS", "SHOES", "FACE", "BACK", "LOOKS %u/%u", "NEW LOOK: %s!", "next look in %uh %um",
     "walk to hatch %u/%u",
-    "ON THE HOUSE: +%u!", "COME BACK IN %u MIN" },
+    "ON THE HOUSE: +%u!", "COME BACK IN %u MIN",
+    "GLOVES" },
   // ---------------- FR ----------------
   {
     "Il evolue!", "Miam miam!", "Il aime ca!", "Il a faim!", "Besoin d'un bain!",
@@ -253,7 +255,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "touche une etoile", "ROUGE: 100 etages de la tour d'affilee", "BLEUE: tout le Pokedex", "ARGENT: arenes et ligue, facile", "OR: arenes et ligue, difficile", "VIOLETTE: 100 victoires LAN", "NOIRE: 1 000 000 de jetons d'un coup",
     "GARDE-ROBE", "PEAU", "YEUX", "CHEVEUX", "COULEUR CHEVEUX", "CHAPEAU", "HAUT", "JAMBES", "CHAUSSURES", "VISAGE", "DOS", "LOOKS %u/%u", "NOUVEAU LOOK: %s!", "prochain look dans %uh %um",
     "marche: %u/%u pas",
-    "OFFERT: +%u!", "REVIENS DANS %u MIN" },
+    "OFFERT: +%u!", "REVIENS DANS %u MIN",
+    "GANTS" },
   // ---------------- DE ----------------
   {
     "Entwickelt sich!", "Mampf mampf!", "Gefaellt ihm!", "Hat Hunger!", "Braucht ein Bad!",
@@ -334,7 +337,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "tippe auf einen Stern", "ROT: 100 Turmebenen am Stueck", "BLAU: der ganze Pokedex", "SILBER: alle Arenen und Liga, leicht", "GOLD: alle Arenen und Liga, schwer", "LILA: 100 LAN-Siege", "SCHWARZ: 1.000.000 Muenzen auf einmal",
     "KLEIDUNG", "HAUT", "AUGEN", "HAARE", "HAARFARBE", "HUT", "OBERTEIL", "BEINE", "SCHUHE", "GESICHT", "RUECKEN", "LOOKS %u/%u", "NEUER LOOK: %s!", "naechster Look in %uh %um",
     "laufen: %u/%u Schritte",
-    "GESCHENKT: +%u!", "KOMM IN %u MIN WIEDER" },
+    "GESCHENKT: +%u!", "KOMM IN %u MIN WIEDER",
+    "HANDSCHUHE" },
   // ---------------- IT ----------------
   {
     "Si evolve!", "Gnam gnam!", "Gli piace!", "Ha fame!", "Vuole un bagno!",
@@ -415,7 +419,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "tocca una stella", "ROSSA: 100 piani della torre di fila", "BLU: tutto il Pokedex", "ARGENTO: palestre e lega, facile", "ORO: palestre e lega, difficile", "VIOLA: 100 vittorie LAN", "NERA: 1.000.000 di gettoni insieme",
     "ARMADIO", "PELLE", "OCCHI", "CAPELLI", "COLORE CAPELLI", "CAPPELLO", "SOPRA", "GAMBE", "SCARPE", "VISO", "SCHIENA", "LOOKS %u/%u", "NUOVO LOOK: %s!", "prossimo look tra %uh %um",
     "cammina: %u/%u passi",
-    "OFFRE LA CASA: +%u!", "TORNA TRA %u MIN" },
+    "OFFRE LA CASA: +%u!", "TORNA TRA %u MIN",
+    "GUANTI" },
   // ---------------- PT ----------------
   {
     "Evoluindo!", "Nham nham!", "Ele gosta!", "Esta com fome!", "Precisa de banho!",
@@ -496,7 +501,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "toque numa estrela", "VERMELHA: 100 andares da torre seguidos", "AZUL: a Pokedex inteira", "PRATA: ginasios e liga, facil", "OURO: ginasios e liga, dificil", "ROXA: 100 vitorias LAN", "PRETA: 1.000.000 de fichas de uma vez",
     "ARMARIO", "PELE", "OLHOS", "CABELO", "COR DO CABELO", "CHAPEU", "PARTE DE CIMA", "PERNAS", "SAPATOS", "ROSTO", "COSTAS", "LOOKS %u/%u", "NOVO VISUAL: %s!", "proximo visual em %uh %um",
     "ande: %u/%u passos",
-    "CORTESIA: +%u!", "VOLTE EM %u MIN" },
+    "CORTESIA: +%u!", "VOLTE EM %u MIN",
+    "LUVAS" },
 };
 
 // Nombres de medalla en sus tres longitudes [idioma][medalla].
