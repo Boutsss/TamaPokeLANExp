@@ -1675,6 +1675,24 @@ per save is the real fix.
 
 ### Tests
 
+**On Windows (this machine) they run under MSYS2**, installed 2026-11-26 with
+`winget install MSYS2.MSYS2` and then, inside it, `pacman -S
+mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-SDL2 mingw-w64-ucrt-x86_64-pkgconf
+mingw-w64-ucrt-x86_64-python make` (gdb too, for a crash). From PowerShell:
+
+```powershell
+$env:MSYSTEM="UCRT64"; $env:CHERE_INVOKING="1"; & C:\msys64\usr\bin\bash.exe -lc "cd /c/Users/Bouts/TamaPoke && bash tools/emu/tests/run.sh"
+```
+
+Add `$env:MSYS2_PATH_TYPE="inherit"` to also run the arduino-cli firmware gate.
+The first native-Windows run found four portability traps, all fixed: a test
+capturing stdout through `/tmp` (no such path for a Windows program), POSIX
+`mkdir(path, mode)`, a 1 MB default stack (run.sh links Windows test builds
+with 16 MB), and wall-clock `millis()` making a fixed frame count over-run a
+timed animation on a slower machine -- wait for the CONDITION, not a count.
+Run `python tools/unpack_bundle.py` and `python tools/gen_dexinfo.py` first,
+or the sprite and Pokedex-entry suites fail for want of their files.
+
 ```bash
 bash tools/emu/tests/run.sh          # all 34 suites
 bash tools/emu/tests/run.sh battle   # just matching ones

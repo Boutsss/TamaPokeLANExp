@@ -32,15 +32,12 @@ int main(){
   // ---- the avatar tap (page 0, the sprite under the name) skips locked ones
   uiTileGo(0); render();
   ck(playerOpen && playerPage == 0, "the PLAYER tile opens the card on page 0");
-  bool sawLocked = false, cycled = false;
-  for (int i = 0; i < 20; i++) {
-    onTap(233, 110); render();
-    if (!rankAvatarUnlocked(pet.avatar)) sawLocked = true;
-    if (pet.avatar != 0) cycled = true;
-    playerOpen = true; playerPage = 0;
-  }
-  ck(cycled, "tapping the avatar changes it");
-  ck(!sawLocked, "and never lands on one the rank has not unlocked");
+  // Since v3.51 the tap opens the avatar PICKER (what it offers, locks
+  // included, is avpick_ui_test's); it no longer cycles in place.
+  extern bool avPickOpen;
+  onTap(233, 110); render();
+  ck(avPickOpen && pet.avatar == 0, "tapping the avatar opens the picker, changing nothing yet");
+  avPickOpen = false; playerOpen = true; playerPage = 0;
 
   // ---- opening the card re-scores progress that came without an event
   uint8_t r0 = rankShown();

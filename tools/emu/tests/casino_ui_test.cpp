@@ -102,7 +102,10 @@ int main(){
   const uint32_t coinsBefore = pet.coins;
   ck(!casino.welcomed, "a fresh save has not had the dealer's welcome");
   g_touchX = 233; g_touchY = arcHubBtnCenterY(); g_touchDown = true; emuFireInterrupt();
-  pump((CASINO_HOLD_MS + 300) / 30);
+  // Stop the moment the door opens: millis() is wall-clock time here, so a
+  // fixed frame count over-ran the door on a slower machine and the doors were
+  // already open by the time the next check looked.
+  for (int i = 0; i < 2 * (CASINO_HOLD_MS + 300) / 30 && !casinoOpen; i++) pump(1);
   ck(casinoOpen && onScreen("casino"), "the full hold on ARCADE opens the GAME CORNER");
   // ---- the dealer's welcome: CASINO_WELCOME_COINS, once per save
   ck(pet.coins == coinsBefore + CASINO_WELCOME_COINS && casino.welcomed && casinoWelcomeShowing(),

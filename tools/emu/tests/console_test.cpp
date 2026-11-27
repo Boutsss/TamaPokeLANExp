@@ -42,7 +42,9 @@ static void ck(bool ok,const char*w){printf("%s  %s\n",ok?"PASS":"FAIL",w); if(!
 // everything it printed.
 static std::string runConsole(const std::vector<std::string> &lines){
   gIn = lines; gAt = 0;
-  char path[] = "/tmp/tamapoke_console_XXXXXX";
+  // In the working directory, not /tmp: run.sh runs each test in its own
+  // scratch folder, and a native Windows build has no /tmp to write to.
+  char path[] = "tamapoke_console_XXXXXX";
   int fd = mkstemp(path);
   if (fd < 0) return "";
   fflush(stdout);
@@ -84,6 +86,7 @@ int main(){
     size_t nl = out.find('\n', at);
     if (nl == std::string::npos) nl = out.size();
     std::string ln = out.substr(at, nl - at);
+    if (!ln.empty() && ln.back() == '\r') ln.pop_back();   // a text-mode capture on Windows
     if (ln.rfind("IMPORT", 0) == 0) back.push_back(ln);
     at = nl + 1;
   }

@@ -82,7 +82,11 @@ int main(){
     PartyMon old[BOX_LEGACY_SLOTS]; old[2] = mon(150, 70, "MEW2");
     Preferences p; p.begin("tamapoke", false); p.putBytes("box", old, sizeof(old)); p.end();
     // a directory where the tmp file should go makes the write fail
+#ifdef _WIN32
+    mkdir("tamapoke-box.tmp");           // MinGW's mkdir takes no mode
+#else
     mkdir("tamapoke-box.tmp", 0755);
+#endif
     Party q; q.begin();
     Preferences r; r.begin("tamapoke", true);
     ck(r.isKey("box"), "if the file cannot be written, the old box is NOT removed (never in neither place)");

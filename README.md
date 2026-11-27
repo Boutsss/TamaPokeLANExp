@@ -1,6 +1,5 @@
 # TamaPoke
 
-[![Flash in browser](https://img.shields.io/badge/flash-in%20browser-FF6B00?logo=googlechrome&logoColor=white)](https://boutsss.github.io/TamaPokeLANExp/web/)
 [![MakerWorld](https://img.shields.io/badge/MakerWorld-3D%20case-00AE42?logo=bambulab&logoColor=white)](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)
 ![Board](https://img.shields.io/badge/board-ESP32--S3%20round%20AMOLED-E7352C?logo=espressif&logoColor=white)
 ![Firmware](https://img.shields.io/badge/firmware-v3.57-8A2BE2)
@@ -25,11 +24,21 @@ and complete them all (shinies included).
 > Original: MIT © 2026 Quique Tortosa. Changes in this fork and in Dylan's are
 > MIT on the same terms.
 
-> **Personal, non-commercial fan project.** Code is MIT; the sprites are from
-> PMD SpriteCollab (CC BY-NC, Pokémon © Nintendo/Game Freak), and the 3D case is
-> CC BY-NC-SA. See **[License](#license)** and **Credits**.
+> ### ⚠️ Unofficial fan project
+>
+> TamaPoke is a **free, non-commercial fan project** made for personal use. It
+> is **not affiliated with, endorsed, sponsored or approved by** Nintendo,
+> Game Freak, Creatures Inc., The Pokémon Company, PokeMMO, Smogon or any other
+> company or project named here. **Pokémon** and every related name, character
+> and image are trademarks and © of their respective owners, used here only
+> for identification. Nothing in this repository is sold, and it accepts no
+> payment or donations. See **[Legal](#legal)** below.
+>
+> Code is MIT; the sprites are from PMD SpriteCollab (CC BY-NC, Pokémon ©
+> Nintendo/Game Freak), and the 3D case is CC BY-NC-SA. See
+> **[License](#license)** and **Credits**.
 
-🔴 **3D-printed Pokéball case + print profiles → [on MakerWorld](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)** · flash it in your browser → **[web installer](https://boutsss.github.io/TamaPokeLANExp/web/)**
+🔴 **3D-printed Pokéball case + print profiles → [on MakerWorld](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)**
 
 ## Status
 
@@ -1498,3 +1507,30 @@ Full list in [`CREDITS.md`](CREDITS.md).
   licensed **CC BY-NC-SA**, and shared here under the same terms.
 
 This is an unofficial fan project, not affiliated with or endorsed by Nintendo.
+
+## Legal
+
+- **Fan work, non-commercial.** TamaPoke is an unofficial, free fan project
+  made for personal use and shared with a few friends. It is not sold, not
+  monetised, carries no ads and takes no donations. Do not sell it, sell
+  devices with it installed, or charge for it in any form.
+- **No affiliation.** Not affiliated with, endorsed, sponsored or approved by
+  Nintendo, Game Freak, Creatures Inc., The Pokémon Company, PokeMMO,
+  pokemmohub.com, Smogon, Waveshare, PMD SpriteCollab or any other party named
+  in this repository.
+- **Trademarks and copyright.** Pokémon and all related names, characters,
+  sprites, moves, items and images are trademarks and © of Nintendo, Game Freak,
+  Creatures Inc. and The Pokémon Company. Trainer and cosmetic art credited to
+  PokeMMO in [CREDITS.md](CREDITS.md) is © its owners. Those names and images
+  are used for identification and personal, non-commercial fan use only; no
+  ownership of them is claimed, and **no licence to them is given** by this
+  repository's MIT licence, which covers only the original code.
+- **Third-party art is not redistributable from here.** Where art is not
+  openly licensed, the clean way to use it is to run the repository's
+  scripts and fetch it yourself from its source (see [CREDITS.md](CREDITS.md)),
+  rather than copying the generated files.
+- **No warranty.** Provided "as is", without warranty of any kind (see
+  [LICENSE](LICENSE)). Flashing firmware is at your own risk.
+- **Takedown.** If you hold rights to anything here and want it changed or
+  removed, open an issue on this repository and it will be removed promptly,
+  no questions asked.

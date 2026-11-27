@@ -150,7 +150,7 @@ int main(){
     casino.avatarsHi[(A - 128) / 8] |= (uint8_t)(1u << (A % 8));
     casino.avatarsX[3] = 0x5A;    // nothing sells this high yet: the bytes must still persist
     ck(casinoSave(), "the casino record saves");
-    ck(nvs()["casino"].size() == 152 && nvs()["casino"][1] == 152, "at 152 bytes, all three blocks");
+    ck(nvs()["casino"].size() == 157 && nvs()["casino"][1] == 157, "at 157 bytes (v3.55 added the welcome flag and the hourly gift), all three blocks");
     casinoBegin();
     ck(casinoOwns(PK_AVATAR, A) && casino.avatarsX[3] == 0x5A, "and every block comes back");
     auto &v = nvs()["casino"]; v.resize(56); v[1] = 56;

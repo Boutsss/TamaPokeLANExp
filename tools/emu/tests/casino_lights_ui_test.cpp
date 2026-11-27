@@ -18,7 +18,7 @@ volatile int g_touchX=0,g_touchY=0; volatile bool g_touchDown=false;
 void FakeESP::restart(){exit(0);}
 int FakeSerial::available(){return 0;}
 String FakeSerial::readStringUntil(char){return String("");}
-void setup(); void loop(); void render(); void onTap(int16_t,int16_t);
+void setup(); void loop(); void render(); void onTap(int16_t,int16_t); void onSwipeV(int dir);
 uint8_t uiCurrentScreen();
 extern const char *const SCREEN_NAME[];
 extern Pet pet; extern bool casinoOpen;

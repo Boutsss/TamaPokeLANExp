@@ -23,7 +23,7 @@
 #define BACK_H 36
 #define BACK_Y 400
 #define BACK_PAD_X 12
-#define BACK_PAD_DOWN 18    // to y 454: still on the glass at the centre
+#define BACK_PAD_DOWN 14    // to y 450: 454 put the padded corners 1 px off the glass (hit_test)
 
 static bool backOwned = false;      // this gesture started on the button
 static bool backCancelled = false;  // ... and the finger slid off it

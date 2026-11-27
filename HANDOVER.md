@@ -81,7 +81,7 @@ Not done: a board has not seen any of it, and the installer has not been rebuilt
 
 | | |
 |---|---|
-| Published firmware | **v3.28**, live at https://reallyjustsomeguy.github.io/TamaPokeLANExp/web/ |
+| Published firmware | **v3.28**, live on the project's installer page (link deliberately not published) |
 | Repo version | **v3.28** in `TamaPoke.ino`, merged to `main` and tagged, GitHub Release published |
 | GitHub repo | fork `reallyjustsomeguy/TamaPokeLANExp`, of `DylanPDao/TamaPoke`, of `socquique/TamaPoke` (the original) |
 | Dex | `DEX_COUNT` **1025**, `REGION_COUNT` 10, `GYM_REGIONS` 7 |

@@ -364,6 +364,7 @@ uint16_t towerWin(TowerReward *got) {
   // rather than granting it twice on the next win.
   towerSave();
   fightEnd();
+  s_resumed = false;    // a won floor is past any checkpoint: the note is stale now
   TowerReward r;
   towerRewardFor(s_streak, r);
   if (s_streak == TOWER_TOP_FLOOR) {

@@ -158,19 +158,24 @@ int main() {
   ck(rankAvatarUnlocked(0) && rankAvatarUnlocked(1) && rankAvatarUnlocked(2), "RED, BLUE and GIRL are open at rank 1");
   {
     bool someLocked = false;
-    for (uint8_t a = 0; a < AVATAR_COUNT; a++) if (!rankAvatarUnlocked(a)) someLocked = true;
+    for (uint16_t a = 0; a < AVATAR_COUNT; a++) if (!rankAvatarUnlocked(a)) someLocked = true;
     ck(someLocked, "(and some are locked, or none of this tests anything)");
     bool consistent = true;
-    for (uint8_t a = 0; a < AVATAR_BASE_COUNT; a++)
+    for (uint16_t a = 0; a < AVATAR_BASE_COUNT; a++)
       if (rankAvatarUnlocked(a) != (rankShown() >= rankAvatarNeeds(a))) consistent = false;
     ck(consistent, "unlocked means the shown rank reached rankAvatarNeeds()");
     // The Game Corner's avatars are BOUGHT, never ranked: locked until owned.
     bool shopLocked = true;
-    for (uint8_t a = AVATAR_BASE_COUNT; a < AVATAR_COUNT; a++)
+    // (the free starters and the CUSTOM trainer sit past the base set too, and
+    // are open from the start: they are not shop stock)
+    for (uint16_t a = AVATAR_BASE_COUNT; a < STARTER_AVATAR_FIRST; a++)
       if (rankAvatarUnlocked(a) != casinoOwns(PK_AVATAR, a - AVATAR_BASE_COUNT)) shopLocked = false;
     ck(AVATAR_COUNT > AVATAR_BASE_COUNT && shopLocked, "a shop avatar is open exactly when it has been bought");
   }
-  ck(rankNextAvatar(2) == 0, "cycling from GIRL at rank 1 skips every locked one back to RED");
+  ck(rankNextAvatar(2) == STARTER_AVATAR_FIRST,
+     "cycling from GIRL at rank 1 skips every locked one to the first free starter");
+  ck(rankNextAvatar(AVATAR_YOU) == 0 && rankNextAvatar(STARTER_AVATAR_FIRST + STARTER_AVATAR_COUNT - 1) == AVATAR_YOU,
+     "then the CUSTOM trainer, then round to RED");
   ck(!rankAvatarUnlocked(6), "SAILOR is locked at rank 1");
   ck(!rankAvatarUnlocked(AVATAR_COUNT), "an index past the art is never unlocked");
   // grandfathering: a save that already wears a locked avatar keeps it

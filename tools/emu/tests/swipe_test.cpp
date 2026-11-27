@@ -30,7 +30,7 @@ uint8_t uiCurrentScreen(); uint16_t uiRimPages(); uint16_t uiRimPage();
 extern Pet pet;
 extern bool cardOpen, galleryOpen, clockOpen, kbOpen, menuOpen, partyOpen, partyPick;
 extern bool trainOpen, movePickOpen, battleOpen, gymOpen, playerOpen, boxOpen, pickOpen;
-extern bool exploreOpen;
+extern bool exploreOpen; extern bool badgesOpen; extern bool arcHubOpen, towerOpen;
 extern bool martOpen;
 extern bool daycareOpen; extern uint8_t dcView; extern uint16_t dcPage;
 extern bool tasksOpen; extern uint8_t tasksPage;
@@ -68,7 +68,7 @@ static void clearAll(){
   daycareOpen=false; dcView=0;
   tasksOpen=false;
   bagOpen=false;
-  badgesOpen=false;
+  badgesOpen=false; arcHubOpen=false; towerOpen=false;
   partyDetail=0; boxSel=boxSwapFrom=0;
 }
 // Page it forward; the page must advance and the screen must stay open. Paging
@@ -288,7 +288,8 @@ int main(){
     clearAll();
     onSwipe(-1);
     onSwipe(-1);
-    onSwipe(-1);                       // Gyms follows Explore, Mart
+    onSwipe(-1);
+    onSwipe(-1);                       // Gyms follows Explore, Mart, Arcade (v3.57)
     if (!gymOpen || !gymPick) { printf("FAIL  gyms       does not open on the region chooser\n"); bad++; }
     else printf("PASS  %-10s opens on the region chooser\n", "gyms");
     // and a swipe DOWN out of a ladder returns to it -- one step of depth, not

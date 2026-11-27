@@ -161,7 +161,7 @@ int main() {
   ck(!arcadeOpen && arcHubOpen, "asleep: the cabinet refuses to open the arcade");
   onSwipeV(1);
   ck(!arcHubOpen && onScreen("main"), "down from the ARCADE page: the pet, like every tile");
-  arcadeOpen = true; arcGame = NONE;
+  arcHubOpen = true; arcadeOpen = true; arcGame = NONE;   // back on the page, list open
   arcStart(G_CATCH);
   ck(arcGame == NONE, "asleep: arcStart refuses too (the twin path)");
   pet.sleeping = false;

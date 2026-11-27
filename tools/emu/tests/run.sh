@@ -82,6 +82,9 @@ fi
 # and passing these through eval silently strips them
 CORE=("$ROOT/gbsynth.cpp" "$ROOT/pet.cpp" "$ROOT/i18n.cpp" "$ROOT/party.cpp" "$ROOT/battle.cpp" "$ROOT/link.cpp" "$ROOT/save.cpp" "$ROOT/inventory.cpp" "$ROOT/held_items.cpp" "$ROOT/wild.cpp" "$ROOT/game_events.cpp" "$ROOT/tasks.cpp" "$ROOT/dex_rewards.cpp" "$ROOT/breed.cpp" "$ROOT/persona.cpp" "$ROOT/chain.cpp" "$ROOT/tower.cpp" "$ROOT/challenge.cpp" "$ROOT/rank.cpp" "$ROOT/friends.cpp" "$ROOT/casino.cpp" "$ROOT/ghost.cpp" "$ROOT/card.cpp" "$ROOT/box_filter.cpp" "$ROOT/box_store.cpp" "$ROOT/pinball.cpp" "$ROOT/dexinfo.cpp" "$ROOT/stars.cpp" "$ROOT/wardrobe.cpp" "$EMU/nvsinfo_stub.cpp")
 FLAGS=(-std=c++17 -O1 -w -I"$EMU" -I"$ROOT" -DSPRITE_DIR="\"$SPRITE_DIR\"")
+# Windows gives a program a 1 MB stack where Linux and macOS give 8 MB; the
+# console and save suites build whole backups on the stack and crash on less.
+case "$(uname -s)" in MINGW*|MSYS*) FLAGS+=(-Wl,--stack,16777216) ;; esac
 
 # these drive setup()/loop()/render(), so they need the sketch itself
 needs_sketch() { case "$1" in touch_test|flush_test|joy_test|anim_test|swipe_test|lan_test|console_test|hit_test|starter_test|release_test|focus_test|explore_test|daycare_ui_test|chain_test|tower_ui_test|challenge_ui_test|rank_ui_test|training_ui_test|arcade_ui_test|trade_ui_test|friends_ui_test|egg_once_test|casino_ui_test|ghost_test|cards_test|boxfav_ui_test|switch_test|brightness_test|partylive_test|surf_test|boxtools_test|fieldui_test|helditem_ui_test|switchmove_ui_test|dexentry_ui_test|casino_mon_ui_test|casino_lights_ui_test|avpick_ui_test|help_ui_test) return 0;; *) return 1;; esac; }

@@ -188,7 +188,7 @@ attribution is allowed); see [`../CREDITS.md`](../CREDITS.md).
 
 1. Repo settings → Pages → serve from `main`, folder `/web` (or move `web/` to
    `docs/`). Pages gives HTTPS automatically.
-2. URL ends up at `https://<user>.github.io/<repo>/`.
+2. Pages serves it over HTTPS. Share that address privately; do not put it in the README.
 
 > **Pages on private repos** needs GitHub Pro/Team. If you make the repo
 > **public** to use Pages for free, decide about the sprites first (see above and

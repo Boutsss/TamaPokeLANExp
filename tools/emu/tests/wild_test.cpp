@@ -54,10 +54,14 @@ int main(){
   ck(grown.count(IT_POTION)==0, "no starter kit is re-granted over a real save");
 
   // ---- weighted drops ------------------------------------------------------
-  uint32_t total = grown.weightTotal();
-  ck(total == 120, "the drop table weighs what the catalogue says");
+  // Derived from the catalogue, never restated: berries joining the drops
+  // (v3.55) moved the total, and a pinned 120 then failed for no bug at all.
+  uint32_t total = grown.weightTotal(), want = 0;
+  ItemKey lastWeighted = ITEM_NONE;
+  for (uint8_t k = 1; k < ITEM_COUNT; k++) if (ITEM_TBL[k].dropWeight) { want += ITEM_TBL[k].dropWeight; lastWeighted = k; }
+  ck(total == want && total > 0, "the drop table weighs what the catalogue says");
   ck(grown.weightedDrop(0)==IT_POKEBALL, "roll 0 lands on the first weight");
-  ck(grown.weightedDrop(total-1)==IT_CARBOS, "and the last roll on the last");
+  ck(grown.weightedDrop(total-1)==lastWeighted, "and the last roll on the last");
   // The Master Ball is weight 1 of 120: it must be reachable and must not be
   // reachable one roll either side, or "rare" is an accident of arithmetic.
   uint32_t master = 0;
@@ -65,9 +69,10 @@ int main(){
   ck(master==1, "the master ball is exactly one roll in the whole table");
 
   ItemKey ex[1] = { IT_POKEBALL };
-  ck(grown.weightTotal(ex,1)==90, "excluding an item removes its weight");
+  uint32_t without = total - ITEM_TBL[IT_POKEBALL].dropWeight;
+  ck(grown.weightTotal(ex,1)==without, "excluding an item removes its weight");
   bool never=true;
-  for (uint32_t r=0;r<90;r++) if (grown.weightedDrop(r,ex,1)==IT_POKEBALL) never=false;
+  for (uint32_t r=0;r<without;r++) if (grown.weightedDrop(r,ex,1)==IT_POKEBALL) never=false;
   ck(never, "and it can no longer be drawn");
 
   // ---- shiny ---------------------------------------------------------------

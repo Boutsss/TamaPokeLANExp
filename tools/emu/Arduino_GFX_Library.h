@@ -60,6 +60,7 @@ public:
       for (int i = 0; i < w; i++) px(x + i, y + j, c);
   }
   void drawFastHLine(int x, int y, int w, uint16_t c) { fillRect(x, y, w, 1, c); }
+  void drawPixel(int x, int y, uint16_t c) { px(x, y, c); }
   void drawFastVLine(int x, int y, int h, uint16_t c) { fillRect(x, y, 1, h, c); }
   void drawRect(int x, int y, int w, int h, uint16_t c) {
     fillRect(x, y, w, 1, c); fillRect(x, y + h - 1, w, 1, c);
