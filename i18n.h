@@ -592,6 +592,7 @@ enum StrId : uint16_t {
   S_ARC_PLAY,      // arcade page: tap the cabinet
   S_ARC_ASLEEP,    // arcade page: pet asleep
   S_ARC_EGG,       // arcade page: still an egg
+  S_FAV_HOLD,      // sheet: unstarring takes a hold
   STR_COUNT
 };
 

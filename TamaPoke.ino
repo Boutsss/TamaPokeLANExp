@@ -490,13 +490,13 @@ uint8_t btlMyAct = 0;        // host: our own action, latched until theirs lands
 // The LAN battle button on the gym region chooser.
 // LAN, TOWER and WEEKLY share the row under the region chooser, as thirds. The
 // row spans 340 px: at its bottom edge (y=380) the glass is +-180 px wide.
-#define LANBTN_W 104
+// Two buttons under the gym chooser: LAN BATTLE and WEEKLY. The TOWER button
+// that sat between them went when the tower became a tile of its own (v3.57).
+#define LANBTN_W 150
 #define LANBTN_H UI_TAP_MIN
-#define LANBTN_X (233 - 170)
+#define LANBTN_X (233 - 6 - LANBTN_W)
 #define LANBTN_Y 336
-#define TWBTN_X (LANBTN_X + LANBTN_W + 14)
-#define TWBTN_W LANBTN_W
-#define CHBTN_X (TWBTN_X + TWBTN_W + 14)
+#define CHBTN_X (233 + 6)
 #define CHBTN_W LANBTN_W
 
 // The BOX button is the hub in the middle of the party ring now (PSLOT_HUB_R),
@@ -1057,25 +1057,14 @@ void uiArc(int cx, int cy, int r, int a0, int a1, int w, uint16_t col) {
 int uiGymPillY() { return GYMDIF_Y + GYMDIF_H / 2; }
 int uiTrainRowCenterY(int i) { return TRAIN_ROW_Y(i) + TRAIN_ROW_H / 2; }
 // The chooser's three buttons: 0 LAN, 1 TOWER, 2 WEEKLY.
+// The chooser's buttons: 0 LAN, 1 WEEKLY.
 int uiChooserBtnX(int i) {
-  return (i == 0 ? LANBTN_X : i == 1 ? TWBTN_X : CHBTN_X) + LANBTN_W / 2;
+  return (i == 0 ? LANBTN_X : CHBTN_X) + LANBTN_W / 2;
 }
 int uiChooserBtnY() { return LANBTN_Y + LANBTN_H / 2; }
 int uiGymRowCenterY(int i) { int x, y, w, h; gymRowRect(i, &x, &y, &w, &h); return y + h / 2; }
 int pickGoX() { return PICK_GO_X + PICK_BTN_W / 2; }
 int pickGoY() { return PICK_GO_Y + PICK_BTN_H / 2; }
-
-// One of the three buttons under the gym chooser; the label shrinks to size 1
-// rather than spill out of its third of the row.
-static void rpickButton(int x, int w, const char *label, bool live) {
-  gfx->fillRoundRect(x, LANBTN_Y, w, LANBTN_H, 11, live ? UI_BG_DAY : UI_TRACK);
-  gfx->drawRoundRect(x, LANBTN_Y, w, LANBTN_H, 11, live ? UI_INK : UI_INK_SOFT);
-  gfx->setTextColor(live ? UI_INK : UI_INK_SOFT);
-  uint8_t sz = (int)strlen(label) * 12 <= w - 12 ? 2 : 1;
-  gfx->setTextSize(sz);
-  gfx->setCursor(x + w / 2 - (int)strlen(label) * 3 * sz, LANBTN_Y + (sz == 2 ? 14 : 18));
-  gfx->print(label);
-}
 
 void gymRowRect(int i, int *x, int *y, int *w, int *h) {
   int ry = GYM_ROW_Y(i);
@@ -2049,6 +2038,7 @@ static void touchStep(bool pressed, int16_t x, int16_t y) {
   // is never a tap (taps need < 1.5 s), so the arcade itself does not open.
   casinoTouchPeek(pressed, x, y,
                   arcHubOpen && !arcadeOpen && !casinoOpen && arcHubBtnAt(x, y));
+  favHoldPeek(pressed, x, y);   // a creature sheet's star: unstarring is a 2 s hold
 
   // saco de entrenamiento: cada toque cuenta al instante (aporrear rapido)
   if (sackOpen) {
@@ -2358,6 +2348,23 @@ void renderMonSheet(const PartyMon &m, bool fromBox) {
   gfx->drawRoundRect(PDET_S_X, PDET_BTN_Y, PDET_S_W, PDET_BTN_H, 10, UI_INK);
   drawFavStar(PDET_S_X + PDET_S_W / 2, PDET_BTN_Y + PDET_BTN_H / 2 + 2, 17, UI_INK);
   drawFavStar(PDET_S_X + PDET_S_W / 2, PDET_BTN_Y + PDET_BTN_H / 2 + 2, 14, m.isFav() ? 0xFEA0 : UI_WHITE);
+  {   // unstarring is a hold (monSheetFavTap): a bar fills under the star, and a tap says how
+    uint8_t hp = favHoldProgress();
+    if (hp) {
+      gfx->fillRect(PDET_S_X + 4, PDET_BTN_Y + PDET_BTN_H - 6, PDET_S_W - 8, 4, UI_TRACK);
+      gfx->fillRect(PDET_S_X + 4, PDET_BTN_Y + PDET_BTN_H - 6, (PDET_S_W - 8) * hp / 255, 4, UI_BAR_BAD);
+    }
+    if (favHintShowing()) {
+      const char *h = T(S_FAV_HOLD);
+      int hw = (int)strlen(h) * 6 + 16;
+      int hx = PDET_S_X + PDET_S_W / 2;
+      gfx->fillRoundRect(hx - hw / 2, PDET_BTN_Y - 24, hw, 18, 6, UI_INK);
+      gfx->setTextColor(UI_WHITE);
+      gfx->setTextSize(1);
+      gfx->setCursor(hx - (int)strlen(h) * 3, PDET_BTN_Y - 19);
+      gfx->print(h);
+    }
+  }
 
   bool canGo = monReleasable(m);
   gfx->fillRoundRect(PDET_R_X, PDET_BTN_Y, PDET_R_W, PDET_BTN_H, 10, canGo ? UI_BAR_BAD : UI_TRACK);
@@ -2488,12 +2495,58 @@ void monSheetCentres(int *left, int *star, int *right, int *cy) {
 bool monSheetStarAt(int16_t x, int16_t y) {
   return y >= PDET_BTN_Y && y <= PDET_BTN_Y + PDET_BTN_H && x >= PDET_S_X && x <= PDET_S_X + PDET_S_W;
 }
+// v3.57: a TAP makes a favourite, but taking the star away takes a HOLD of
+// FAV_UNSTAR_MS. A favourite is what protects a creature from release, so
+// losing it should never be one fumbled tap -- a tap on a starred creature
+// only says how. The hold is watched by favHoldPeek(), from the touch path.
+#define FAV_UNSTAR_MS 2000
+static uint32_t favHoldAt = 0;      // when the current hold on a starred star began (0 = none)
+static bool favHoldDone = false;    // this hold has already taken the star
+static uint32_t favHintUntil = 0;   // "hold 2 s to unstar" is showing
 bool monSheetFavTap(int16_t x, int16_t y, PartyMon &m, bool fromBox) {
   if (!monSheetStarAt(x, y) || m.empty()) return false;
-  m.fav = m.isFav() ? 0 : PM_FAV;
+  if (m.isFav()) {                  // a tap never unstars: say how
+    favHintUntil = millis() + 1800;
+    sfxPlay(SFX_DENY);
+    return true;
+  }
+  m.fav = PM_FAV;
   if (fromBox) party.boxSave(); else party.save();
-  sfxPlay(m.isFav() ? SFX_MEDAL : SFX_TAP);
+  sfxPlay(SFX_MEDAL);
   return true;
+}
+// The creature whose sheet is showing, or nullptr. THE answer for the hold,
+// the same two sheets monSheetFavTap() is called from.
+static PartyMon *favSheetMon(bool *fromBox) {
+  uint8_t s = uiCurrentScreen();
+  if (s == SCR_BOX && boxDetail && boxDetail <= BOX_SLOTS && party.box) { *fromBox = true; return &party.box[boxDetail - 1]; }
+  if (s == SCR_PARTY && partyDetail && partyDetail <= PARTY_SLOTS) { *fromBox = false; return &party.slots[partyDetail - 1]; }
+  return nullptr;
+}
+void favHoldPeek(bool pressed, int16_t x, int16_t y) {
+  bool fromBox = false;
+  PartyMon *m = pressed ? favSheetMon(&fromBox) : nullptr;
+  if (!m || m->empty() || !monSheetStarAt(x, y) || (!m->isFav() && !favHoldDone)) {
+    favHoldAt = 0;
+    if (!pressed) favHoldDone = false;
+    return;
+  }
+  if (favHoldDone) return;
+  if (!favHoldAt) { favHoldAt = millis(); return; }
+  if (millis() - favHoldAt >= FAV_UNSTAR_MS) {
+    m->fav = 0;
+    if (fromBox) party.boxSave(); else party.save();
+    sfxPlay(SFX_TAP);
+    favHoldDone = true;
+    favHoldAt = 0;
+  }
+}
+bool favHintShowing() { return millis() < favHintUntil; }
+// 0..255 of the hold so far, for the sheet's fill.
+uint8_t favHoldProgress() {
+  if (!favHoldAt) return 0;
+  uint32_t t = millis() - favHoldAt;
+  return t >= FAV_UNSTAR_MS ? 255 : (uint8_t)(t * 255 / FAV_UNSTAR_MS);
 }
 
 bool monSheetBtn(int16_t x, int16_t y, bool left) {
@@ -2889,13 +2942,6 @@ void onTap(int16_t x, int16_t y) {
       lan.state = LINK_OFF;
       lanOpen = true;
       lanPractice = false;
-      sfxPlay(SFX_TAP);
-      return;
-    }
-    if (y >= LANBTN_Y && y <= LANBTN_Y + LANBTN_H &&
-        x >= TWBTN_X && x <= TWBTN_X + TWBTN_W) {      // the Battle Tower
-      gymOpen = false; gymPick = false;
-      towerOpen = true;
       sfxPlay(SFX_TAP);
       return;
     }
@@ -7364,7 +7410,253 @@ static bool rpickSwipe(int dir) {
   return true;
 }
 
+// The GYM tile's chooser (v3.57): an arena rather than a form. A dark stadium
+// with two spotlights sweeping the stands, the title in gold, and each region
+// a plaque carrying its own eight badges -- earned ones in their real art,
+// the rest as dim outlines -- so the page shows the collection, not a number.
+// Same rows, same geometry and the same taps as the shared chooser below:
+// only the drawing differs.
+#define GP_BG      C565(0x10, 0x16, 0x2e)
+#define GP_BEAM    C565(0x1c, 0x26, 0x4a)
+#define GP_PLAQUE  C565(0x22, 0x2c, 0x52)
+#define GP_EDGE    C565(0xff, 0xc8, 0x3c)
+#define GP_INK     C565(0xf4, 0xf0, 0xe0)
+#define GP_DIM     C565(0x56, 0x60, 0x88)
+static void gpMiniBadge(uint8_t rg, uint8_t i, int cx, int cy) {
+  bool got = pet.hasBadge(rg, i, false), hard = pet.hasBadge(rg, i, true);
+  if (hard) gfx->drawCircle(cx, cy, 11, 0xFEA0);          // won on hard: a gold ring
+  if (!got) { gfx->drawCircle(cx, cy, 8, GP_DIM); return; }
+  const BadgeArt *a = badgeArtFor(rg, i);
+  if (!a) {                                               // no art for the region: won is won
+    gfx->fillCircle(cx, cy, 7, typeColor(TRAINER_SETS[rg].list[i].type));
+    return;
+  }
+  for (int r = 0; r < BADGE_PX; r += 2)                   // the real badge at half size
+    for (int c = 0; c < BADGE_PX; c += 2) {
+      uint8_t v = a->idx[r * BADGE_PX + c];
+      if (v != 0xFF) gfx->drawPixel(cx - BADGE_PX / 4 + c / 2, cy - BADGE_PX / 4 + r / 2, a->pal[v]);
+    }
+}
+static void gpButton(int x, int w, const char *label, bool live, uint16_t fill) {
+  gfx->fillRoundRect(x, LANBTN_Y, w, LANBTN_H, 14, live ? fill : GP_PLAQUE);
+  gfx->drawRoundRect(x, LANBTN_Y, w, LANBTN_H, 14, live ? GP_EDGE : GP_DIM);
+  gfx->setTextColor(live ? UI_WHITE : GP_DIM);
+  uint8_t sz = (int)strlen(label) * 12 <= w - 16 ? 2 : 1;
+  gfx->setTextSize(sz);
+  gfx->setCursor(x + w / 2 - (int)strlen(label) * 3 * sz, LANBTN_Y + LANBTN_H / 2 - 4 * sz);
+  gfx->print(label);
+}
+static void renderGymPick() {
+  const uint8_t mode = RPICK_FOR_GYMS;
+  uint8_t nreg = rpickRegions(mode), pages = rpickPageCount(mode);
+  if (rpickPage >= pages) rpickPage = 0;
+  uint8_t first = (uint8_t)(rpickPage * RPICK_PER_PAGE);
+  uint32_t t = millis();
+  gfx->fillScreen(RGB565_BLACK);
+  gfx->fillCircle(CX, CY, 231, GP_BG);
+  // two spotlights from the top corners, sweeping slowly across the arena
+  float sw = sinf((float)(t % 6000) / 6000.0f * 6.2832f) * 60.0f;
+  gfx->fillTriangle(40, 30, (int)(170 + sw) - 50, 466, (int)(170 + sw) + 50, 466, GP_BEAM);
+  gfx->fillTriangle(426, 30, (int)(296 - sw) - 50, 466, (int)(296 - sw) + 50, 466, GP_BEAM);
+  // the title, gold with a shadow
+  const char *ttl = T(S_GYMS);
+  gfx->setTextSize(3);
+  gfx->setTextColor(C565(0x40, 0x28, 0x00));
+  gfx->setCursor(CX - (int)strlen(ttl) * 9 + 2, 50);
+  gfx->print(ttl);
+  gfx->setTextColor(GP_EDGE);
+  gfx->setCursor(CX - (int)strlen(ttl) * 9, 48);
+  gfx->print(ttl);
+  // the difficulty the counts are for
+  const char *diff = gymHard ? "HARD" : "EASY";
+  gfx->setTextSize(1);
+  gfx->setTextColor(gymHard ? C565(0xff, 0x70, 0x60) : GP_DIM);
+  gfx->setCursor(CX - (int)strlen(diff) * 3, 80);
+  gfx->print(diff);
+
+  for (uint8_t row = 0; row < RPICK_PER_PAGE; row++) {
+    uint8_t i = (uint8_t)(first + row);
+    if (i >= nreg) break;
+    int y = RPICK_Y(row);
+    uint8_t got = pet.badgeCountIn(i, gymHard);
+    bool full = got >= TRAINER_GYMS;
+    gfx->fillRoundRect(RPICK_X, y, RPICK_W, RPICK_H, 12, GP_PLAQUE);
+    gfx->drawRoundRect(RPICK_X, y, RPICK_W, RPICK_H, 12, full ? GP_EDGE : GP_DIM);
+    if (full) gfx->drawRoundRect(RPICK_X + 1, y + 1, RPICK_W - 2, RPICK_H - 2, 11, GP_EDGE);
+    gfx->setTextColor(GP_INK);
+    gfx->setTextSize(2);
+    gfx->setCursor(RPICK_X + 16, y + 8);
+    gfx->print(TRAINER_SETS[i].region);
+    char sub[12];
+    snprintf(sub, sizeof(sub), "%u/%u", (unsigned)got, (unsigned)TRAINER_GYMS);
+    gfx->setTextColor(full ? GP_EDGE : GP_DIM);
+    gfx->setCursor(RPICK_X + RPICK_W - 16 - (int)strlen(sub) * 12, y + 8);
+    gfx->print(sub);
+    for (uint8_t k = 0; k < TRAINER_GYMS; k++)
+      gpMiniBadge(i, k, RPICK_X + 30 + k * 37, y + 43);
+  }
+  gpButton(LANBTN_X, LANBTN_W, T(S_LAN_SHORT), true, C565(0x2a, 0x6c, 0xd8));
+  gpButton(CHBTN_X, CHBTN_W, T(S_CH_BTN), challengeUnlockedFor(pet), C565(0xe0, 0x7a, 0x20));
+  if (pages > 1) {
+    int total = pages * 16 - 8;
+    for (uint8_t d = 0; d < pages; d++) {
+      int cx = CX - total / 2 + d * 16;
+      if (d == rpickPage) gfx->fillCircle(cx, RPICK_DOTS_Y, RPICK_DOT_R, GP_EDGE);
+      else gfx->drawCircle(cx, RPICK_DOTS_Y, RPICK_DOT_R, GP_DIM);
+    }
+  }
+  uiChrome();
+  gfx->flush();
+}
+
+
+// ---------------------------------------------------------------------------
+// THE POKEDEX LOOK (v3.57): one device across all three Pokedex screens -- the
+// region list, the species grid and the entry. A red shell with a bevelled
+// rim, the big blue lens and three status lights on top, and the content on a
+// grey-bezelled, light-green LCD with scanlines. A light LCD, not a dark one,
+// on purpose: an unseen creature is drawn as a near-black silhouette
+// (drawThumb's INK_K, drawPmdActM's silhouette), and it has to read against it.
+//
+// The LCD is ONE rectangle for every page (dexShell), sized round the grid's
+// fixed 4 x 4 cells -- the grid's geometry and every tap target are unchanged.
+#define DX_RED     C565(0xd0, 0x1c, 0x2c)
+#define DX_RED_D   C565(0x78, 0x0a, 0x14)
+#define DX_RED_L   C565(0xf2, 0x60, 0x60)
+#define DX_BEZEL   C565(0xd4, 0xd2, 0xc8)
+#define DX_LCD     C565(0xc4, 0xdf, 0xa8)
+#define DX_SCAN    C565(0xb6, 0xd2, 0x9a)
+#define DX_INK     C565(0x1c, 0x34, 0x1c)
+#define DX_DIM     C565(0x5c, 0x78, 0x50)
+#define DX_CARD    C565(0xd8, 0xec, 0xc0)
+#define DX_BAR     C565(0x2e, 0x6a, 0x34)
+#define DX_LCD_X 60
+#define DX_LCD_Y 80
+#define DX_LCD_W 346
+#define DX_LCD_H 336
+#define DX_LCD_R 60
+#define DX_THUMB_HALF 40   // drawThumb() centres a sprite in an 80 px cell (GAL_CELL)
+
+// The shell, the lights and the empty LCD. `lens` false leaves the top free
+// for a long header (the entry pages put their name on the shell's top band).
+static void dexShell(bool lens) {
+  uint32_t t = millis();
+  gfx->fillScreen(RGB565_BLACK);
+  gfx->fillCircle(CX, CY, 231, DX_RED_D);
+  gfx->fillCircle(CX, CY, 224, DX_RED);
+  gfx->drawCircle(CX, CY, 222, DX_RED_L);                 // the rim's highlight
+  // a hinge line across the top band, like the real one's lid seam
+  gfx->drawFastHLine(96, 74, 274, DX_RED_D);
+  if (lens) {
+    const int lx = 124, ly = 52;
+    gfx->fillCircle(lx, ly, 22, UI_WHITE);
+    gfx->fillCircle(lx, ly, 19, C565(0x20, 0x30, 0x58));
+    uint8_t pulse = (uint8_t)((t / 40) % 50); if (pulse > 25) pulse = 50 - pulse;
+    gfx->fillCircle(lx, ly, 17, C565(0x18, 0x5c + pulse * 2, 0xd8));
+    gfx->fillCircle(lx + 2, ly + 2, 11, C565(0x40, 0x9c, 0xf8));
+    gfx->fillCircle(lx - 6, ly - 6, 5, UI_WHITE);           // the glint
+    static const uint16_t LED[3] = { C565(0xff, 0x40, 0x40), C565(0xff, 0xd8, 0x30), C565(0x40, 0xe0, 0x60) };
+    for (int i = 0; i < 3; i++) {
+      bool on = (t / 350 + i) % 3 != 0;
+      gfx->fillCircle(162 + i * 16, 40, 5, on ? LED[i] : DX_RED_D);
+      gfx->drawCircle(162 + i * 16, 40, 5, DX_RED_D);
+    }
+  }
+  // the screen: bezel, a red power dot in its corner, the LCD and its scanlines
+  gfx->fillRoundRect(DX_LCD_X - 8, DX_LCD_Y - 8, DX_LCD_W + 16, DX_LCD_H + 16, DX_LCD_R + 8, DX_BEZEL);
+  gfx->drawRoundRect(DX_LCD_X - 8, DX_LCD_Y - 8, DX_LCD_W + 16, DX_LCD_H + 16, DX_LCD_R + 8, DX_RED_D);
+  gfx->fillRoundRect(DX_LCD_X, DX_LCD_Y, DX_LCD_W, DX_LCD_H, DX_LCD_R, DX_LCD);
+  for (int y = DX_LCD_Y + 2; y < DX_LCD_Y + DX_LCD_H - 2; y += 3) {
+    // only inside the rounded rectangle: inset the line where the corners curve
+    int dy = y < DX_LCD_Y + DX_LCD_R ? DX_LCD_Y + DX_LCD_R - y : (y > DX_LCD_Y + DX_LCD_H - DX_LCD_R ? y - (DX_LCD_Y + DX_LCD_H - DX_LCD_R) : 0);
+    int in = dy ? DX_LCD_R - (int)sqrtf((float)(DX_LCD_R * DX_LCD_R - dy * dy)) : 0;
+    gfx->drawFastHLine(DX_LCD_X + in + 2, y, DX_LCD_W - 2 * in - 4, DX_SCAN);
+  }
+  gfx->fillCircle(DX_LCD_X + 30, DX_LCD_Y - 2, 3, C565(0xff, 0x30, 0x30));
+}
+// White text with a dark edge, for the red shell.
+static void dexShellText(const char *s, int cx, int y, uint8_t size) {
+  int x = cx - (int)strlen(s) * 3 * size;
+  gfx->setTextSize(size);
+  gfx->setTextColor(DX_RED_D);
+  for (int d = 0; d < 4; d++) { gfx->setCursor(x + (d & 1 ? 1 : -1), y + (d & 2 ? 1 : -1)); gfx->print(s); }
+  gfx->setTextColor(UI_WHITE);
+  gfx->setCursor(x, y);
+  gfx->print(s);
+}
+
+// The Pokedex tile's region list: the same rows, geometry and taps as the
+// shared chooser, drawn as entries on the LCD.
+static void renderDexPick() {
+  const uint8_t mode = RPICK_FOR_DEX;
+  uint8_t nreg = rpickRegions(mode), pages = rpickPageCount(mode);
+  if (rpickPage >= pages) rpickPage = 0;
+  uint8_t first = (uint8_t)(rpickPage * RPICK_PER_PAGE);
+  dexShell(true);
+  dexShellText("POKEDEX", 290, 26, 3);
+  char l[32];
+  uint16_t seen = pet.registeredCount();
+  snprintf(l, sizeof(l), "%u / %u", (unsigned)seen, (unsigned)DEX_COUNT);
+  dexShellText(l, 290, 54, 1);
+  // the whole collection, as a thin bar under the count
+  gfx->fillRoundRect(230, 66, 120, 5, 2, DX_RED_D);
+  int fw = (int)(118L * seen / DEX_COUNT);
+  if (fw > 0) gfx->fillRoundRect(231, 67, fw, 3, 1, C565(0xff, 0xe0, 0x60));
+
+  for (uint8_t row = 0; row < RPICK_PER_PAGE; row++) {
+    uint8_t i = (uint8_t)(first + row);
+    if (i >= nreg) break;
+    const RegionInfo &rg = REGIONS[i];
+    int y = RPICK_Y(row);
+    bool open = regionAvailable(i);
+    uint16_t have = pet.registeredCountIn(rg.lo, rg.hi), span = rg.hi - rg.lo + 1;
+    bool done = open && have >= span;
+    gfx->fillRoundRect(RPICK_X, y, RPICK_W, RPICK_H, 10, open ? DX_CARD : DX_LCD);
+    gfx->drawRoundRect(RPICK_X, y, RPICK_W, RPICK_H, 10, done ? C565(0xd0, 0x9c, 0x10) : DX_DIM);
+    // the region's first starter: in colour once caught, a silhouette before
+    int16_t st = rg.starterCount ? rg.starters[0] : rg.lo;
+    const uint8_t *th = open ? thumbs.get(st) : nullptr;
+    if (th) drawThumb(th, RPICK_X + 30 - DX_THUMB_HALF, y + RPICK_H / 2 - DX_THUMB_HALF, 1, !pet.isRegistered(st));
+    else { gfx->drawCircle(RPICK_X + 30, y + RPICK_H / 2, 14, DX_DIM); }
+    gfx->setTextColor(open ? DX_INK : DX_DIM);
+    gfx->setTextSize(2);
+    gfx->setCursor(RPICK_X + 60, y + 10);
+    gfx->print(rg.name);
+    if (!open) {
+      gfx->setTextSize(1);
+      gfx->setCursor(RPICK_X + 60, y + 38);
+      gfx->print(T(S_NEED_PACK));
+      continue;
+    }
+    snprintf(l, sizeof(l), "%u/%u", (unsigned)have, (unsigned)span);
+    gfx->setCursor(RPICK_X + RPICK_W - 14 - (int)strlen(l) * 12, y + 10);
+    gfx->print(l);
+    // ten segments, the way a little LCD would show it
+    int bx = RPICK_X + 60, bw = RPICK_W - 60 - 56, segW = bw / 10;
+    int lit = (int)((10L * have + span - 1) / span);
+    if (have && lit < 1) lit = 1;
+    for (int s = 0; s < 10; s++)
+      gfx->fillRect(bx + s * segW, y + 38, segW - 2, 10, s < lit ? DX_BAR : DX_SCAN);
+    snprintf(l, sizeof(l), "%u%%", (unsigned)(100L * have / span));
+    gfx->setTextSize(1);
+    gfx->setCursor(RPICK_X + RPICK_W - 14 - (int)strlen(l) * 6, y + 40);
+    gfx->print(l);
+  }
+  if (pages > 1) {
+    int total = pages * 16 - 8;
+    for (uint8_t d = 0; d < pages; d++) {
+      int cx = CX - total / 2 + d * 16;
+      if (d == rpickPage) gfx->fillCircle(cx, RPICK_DOTS_Y, RPICK_DOT_R, DX_INK);
+      else gfx->drawCircle(cx, RPICK_DOTS_Y, RPICK_DOT_R, DX_DIM);
+    }
+  }
+  uiChrome();
+  gfx->flush();
+}
+
 static void renderRegionPick(uint8_t mode) {
+  if (mode == RPICK_FOR_GYMS) { renderGymPick(); return; }
+  if (mode == RPICK_FOR_DEX) { renderDexPick(); return; }
   bool forGyms = (mode == RPICK_FOR_GYMS);
   uint8_t nreg = rpickRegions(mode);
   uint8_t pages = rpickPageCount(mode);
@@ -7415,13 +7707,6 @@ static void renderRegionPick(uint8_t mode) {
       gfx->setCursor(RPICK_X + RPICK_W - 18 - (int)strlen(sub) * 12, y + 22);
       gfx->print(sub);
     }
-  }
-  if (forGyms) {
-    // Locked is drawn greyed but still opens: the screen behind it says WHY,
-    // and a grey button with no reason reads as broken.
-    rpickButton(LANBTN_X, LANBTN_W, T(S_LAN_SHORT), true);
-    rpickButton(TWBTN_X, TWBTN_W, T(S_TW_BTN), towerUnlocked());
-    rpickButton(CHBTN_X, CHBTN_W, T(S_CH_BTN), challengeUnlockedFor(pet));
   }
   if (pages > 1) {                        // dots: which page of regions this is
     int total = pages * 16 - 8;
@@ -9530,19 +9815,20 @@ void renderGallery() {
   if (!galleryDetail) galleryEntry = false;   // every way out of the detail closes the entry too
   if (galleryDetail && galleryEntry) { renderDexEntry(galleryDetail); return; }
   if (galleryDetail) {  // vista detalle: se redibuja siempre (animada)
-    gfx->fillScreen(RGB565_BLACK);
-    gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
+    dexShell(true);
     const DexEntry &d = DEX_TBL[galleryDetail];
     bool reg = pet.isRegistered(galleryDetail);
     char head[24];
     snprintf(head, sizeof(head), "N.%03d %s%s", galleryDetail,
              pet.isShinyRegistered(galleryDetail) ? "*" : "", reg ? d.name : "???");
-    gfx->setTextColor(reg ? d.accent : UI_INK);
+    // the name on the LCD, top: the shell's band holds the lens
     int glen = strlen(head);
     int gts = (glen <= 13) ? 3 : 2;  // auto-encoge nombres largos (no caben a t3)
+    gfx->setTextColor(DX_INK);
     gfx->setTextSize(gts);
-    gfx->setCursor(CX - glen * (gts == 3 ? 9 : 6), gts == 3 ? 56 : 60);
+    gfx->setCursor(CX - glen * (gts == 3 ? 9 : 6), gts == 3 ? 100 : 104);
     gfx->print(head);
+    if (reg) gfx->fillRect(CX - glen * (gts == 3 ? 9 : 6), gts == 3 ? 126 : 122, glen * (gts == 3 ? 18 : 12), 3, d.accent);
     if (galleryPmd.loaded) {
       // animado y a color si esta registrado; silueta estatica si no (estilo "?")
       drawPmdActM(galleryPmd, PMD_IDLE, CX, 300, reg ? millis() : 0, true, !reg, 6);
@@ -9550,14 +9836,14 @@ void renderGallery() {
       const uint8_t *t = thumbs.get(galleryDetail);
       if (t) drawThumb(t, CX - GAL_CELL, 135, 4, !reg);
     }
-    gfx->setTextColor(UI_INK);
+    gfx->setTextColor(DX_INK);
     gfx->setTextSize(2);
-    gfx->setCursor(CX - strlen(T(S_DETAIL_BACK)) * 6, 408);
+    gfx->setCursor(CX - strlen(T(S_DETAIL_BACK)) * 6, 392);
     gfx->print(T(S_DETAIL_BACK));
     if (reg) {                 // the entry is one level deeper
-      gfx->setTextColor(UI_INK_SOFT);
+      gfx->setTextColor(DX_DIM);
       gfx->setTextSize(1);
-      gfx->setCursor(CX - (int)strlen(T(S_DEX_SWIPE)) * 3, 390);
+      gfx->setCursor(CX - (int)strlen(T(S_DEX_SWIPE)) * 3, 376);
       gfx->print(T(S_DEX_SWIPE));
     }
     uiChrome();
@@ -9568,18 +9854,14 @@ void renderGallery() {
   if (!galleryDirty) return;  // la rejilla es estatica
   galleryDirty = false;
 
-  gfx->fillScreen(RGB565_BLACK);
-  gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
+  dexShell(true);
   // the region's own name and its own tally: "how much of Johto have I seen"
-  // is the question you are actually asking here
+  // is the question you are actually asking here -- on the shell, by the lens
   char head[32];
   const RegionInfo &grg = REGIONS[galleryRegion % GAL_REGIONS];
-  snprintf(head, sizeof(head), "%s %u/%u", grg.name,
-           pet.registeredCountIn(grg.lo, grg.hi), (unsigned)GAL_SPAN);
-  gfx->setTextColor(UI_INK);
-  gfx->setTextSize(3);
-  gfx->setCursor(CX - strlen(head) * 9, 36);
-  gfx->print(head);
+  dexShellText(grg.name, 290, 26, strlen(grg.name) <= 7 ? 3 : 2);
+  snprintf(head, sizeof(head), "%u / %u", pet.registeredCountIn(grg.lo, grg.hi), (unsigned)GAL_SPAN);
+  dexShellText(head, 290, 56, 1);
 
   for (int r = 0; r < 4; r++) {
     for (int c = 0; c < 4; c++) {
@@ -9598,7 +9880,7 @@ void renderGallery() {
       } else {
         char num[6];
         snprintf(num, sizeof(num), "%d", dex);
-        gfx->setTextColor(UI_INK_SOFT);
+        gfx->setTextColor(DX_DIM);
         gfx->setTextSize(2);
         gfx->setCursor(x + 24, y + 32);
         gfx->print(num);
@@ -9610,10 +9892,7 @@ void renderGallery() {
   // them to find where you are is worse than reading the number.
   char pg[12];
   snprintf(pg, sizeof(pg), "%d/%d", galleryPage + 1, (int)GAL_PAGES);
-  gfx->setTextColor(UI_INK_SOFT);
-  gfx->setTextSize(2);
-  gfx->setCursor(CX - (int)strlen(pg) * 6, 410);
-  gfx->print(pg);
+  dexShellText(pg, CX, 428, 1);   // on the shell, between the bezel (424) and the tile dots
   uiChrome();
   gfx->flush();
 }
@@ -9631,20 +9910,17 @@ void renderDexEntry(int16_t dex) {
     galEntryDex = dex; galEntryLang = (uint8_t)gLang;
   }
   const DexEntry &d = DEX_TBL[dex];
-  gfx->fillScreen(RGB565_BLACK);
-  gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
+  dexShell(false);
   char line[48];
   snprintf(line, sizeof(line), "N.%03d %s", dex, d.name);
-  gfx->setTextColor(d.accent);
-  gfx->setTextSize(strlen(line) <= 15 ? 3 : 2);
-  gfx->setCursor(CX - (int)strlen(line) * (strlen(line) <= 15 ? 9 : 6), 50);
-  gfx->print(line);
-  gfx->setTextColor(UI_INK);
+  dexShellText(line, CX, 44, strlen(line) <= 15 ? 2 : 1);   // on the shell's top band
+  gfx->fillRect(CX - (int)strlen(line) * (strlen(line) <= 15 ? 6 : 3), 62, (int)strlen(line) * (strlen(line) <= 15 ? 12 : 6), 3, d.accent);
+  gfx->setTextColor(DX_INK);
   gfx->setTextSize(2);
   if (galEntryOk) { gfx->setCursor(CX - (int)strlen(galEntry.genus) * 6, 92); gfx->print(galEntry.genus); }
   if (d.type2 == T_NONE) snprintf(line, sizeof(line), "%s", typeName(d.type1));
   else snprintf(line, sizeof(line), "%s / %s", typeName(d.type1), typeName(d.type2));
-  gfx->setTextColor(UI_INK_SOFT);
+  gfx->setTextColor(DX_DIM);
   gfx->setCursor(CX - (int)strlen(line) * 6, 120);
   gfx->print(line);
   uint16_t w = (dex >= 1 && dex <= DEX_COUNT) ? DEX_WEIGHT[dex] : 0;
@@ -9652,7 +9928,8 @@ void renderDexEntry(int16_t dex) {
   else snprintf(line, sizeof(line), "%u.%u kg", w / 10, w % 10);
   gfx->setCursor(CX - (int)strlen(line) * 6, 146);
   gfx->print(line);
-  gfx->setTextColor(UI_INK);
+  gfx->drawFastHLine(CX - 120, 168, 240, DX_DIM);   // a rule under the facts
+  gfx->setTextColor(DX_INK);
   if (!galEntryOk) {
     gfx->setTextSize(2);
     gfx->setCursor(CX - (int)strlen(T(S_DEX_NOENTRY)) * 6, 240);
@@ -9665,6 +9942,7 @@ void renderDexEntry(int16_t dex) {
       bool fits = true;
       while (*p) {
         int half = uiSafeHalfWidthFor(y, y + lh) - 24;
+        if (half > DX_LCD_W / 2 - 18) half = DX_LCD_W / 2 - 18;   // inside the LCD
         int cap = half * 2 / cw;
         if (cap < 8) { fits = false; break; }
         int n = (int)strlen(p), take = n <= cap ? n : cap;
@@ -9679,6 +9957,7 @@ void renderDexEntry(int16_t dex) {
       y = 180; p = galEntry.text;
       while (*p && y + lh <= 400) {
         int half = uiSafeHalfWidthFor(y, y + lh) - 24;
+        if (half > DX_LCD_W / 2 - 18) half = DX_LCD_W / 2 - 18;
         int cap = half * 2 / cw;
         int n = (int)strlen(p), take = n <= cap ? n : cap;
         if (take < n) { int k = take; while (k > 0 && p[k] != ' ') k--; if (k > 0) take = k; }
@@ -9692,9 +9971,9 @@ void renderDexEntry(int16_t dex) {
       break;
     }
   }
-  gfx->setTextColor(UI_INK_SOFT);
+  gfx->setTextColor(DX_DIM);
   gfx->setTextSize(2);
-  gfx->setCursor(CX - (int)strlen(T(S_DETAIL_BACK)) * 6, 408);
+  gfx->setCursor(CX - (int)strlen(T(S_DETAIL_BACK)) * 6, 396);
   gfx->print(T(S_DETAIL_BACK));
   uiChrome();
   gfx->flush();

@@ -94,7 +94,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "GUANTES",
     "LUEGO", "ACABAR", "SEGURO?", "Guardado en el piso %u", "EQUIPO", "La torre te espera aqui",
     "TOCA Y JUEGA",
-    "Tu mascota duerme", "Primero, el huevo" },
+    "Tu mascota duerme", "Primero, el huevo",
+    "manten 2 s para quitar" },
   // ---------------- EN ----------------
   {
     "Evolving!", "Yum yum!", "It likes it!", "It's hungry!", "Needs a bath!",
@@ -180,7 +181,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "GLOVES",
     "LATER", "END RUN", "SURE?", "Climb saved at floor %u", "TEAM", "The climb waits here",
     "TAP TO PLAY",
-    "Your pet is asleep", "Hatch your egg first" },
+    "Your pet is asleep", "Hatch your egg first",
+    "hold 2 s to unstar" },
   // ---------------- FR ----------------
   {
     "Il evolue!", "Miam miam!", "Il aime ca!", "Il a faim!", "Besoin d'un bain!",
@@ -265,7 +267,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "GANTS",
     "PLUS TARD", "ABANDON", "SUR?", "Sauvegarde etage %u", "EQUIPE", "La tour vous attend",
     "TOUCHE ET JOUE",
-    "Il dort", "Fais eclore l'oeuf" },
+    "Il dort", "Fais eclore l'oeuf",
+    "maintenir 2 s: retirer" },
   // ---------------- DE ----------------
   {
     "Entwickelt sich!", "Mampf mampf!", "Gefaellt ihm!", "Hat Hunger!", "Braucht ein Bad!",
@@ -350,7 +353,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "HANDSCHUHE",
     "SPAETER", "AUFGEBEN", "SICHER?", "Gespeichert: Etage %u", "TEAM", "Der Turm wartet",
     "TIPPEN!",
-    "Es schlaeft", "Erst schluepfen" },
+    "Es schlaeft", "Erst schluepfen",
+    "2 s halten: entfernen" },
   // ---------------- IT ----------------
   {
     "Si evolve!", "Gnam gnam!", "Gli piace!", "Ha fame!", "Vuole un bagno!",
@@ -435,7 +439,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "GUANTI",
     "DOPO", "ABBANDONA", "SICURO?", "Salvato al piano %u", "SQUADRA", "La torre ti aspetta",
     "TOCCA E GIOCA",
-    "Sta dormendo", "Prima la schiusa" },
+    "Sta dormendo", "Prima la schiusa",
+    "tieni 2 s per togliere" },
   // ---------------- PT ----------------
   {
     "Evoluindo!", "Nham nham!", "Ele gosta!", "Esta com fome!", "Precisa de banho!",
@@ -520,7 +525,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "LUVAS",
     "DEPOIS", "DESISTIR", "CERTEZA?", "Salvo no andar %u", "EQUIPE", "A torre espera aqui",
     "TOQUE E JOGUE",
-    "Esta dormindo", "Choque o ovo antes" },
+    "Esta dormindo", "Choque o ovo antes",
+    "segure 2 s p/ tirar" },
 };
 
 // Nombres de medalla en sus tres longitudes [idioma][medalla].

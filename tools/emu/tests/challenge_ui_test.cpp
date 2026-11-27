@@ -51,7 +51,7 @@ static bool weekWith(uint8_t rule) {
 }
 static void openWeekly() {
   uiTileGo(7); render();   // GYM (v3.57: ARCADE is 6)
-  onTap(uiChooserBtnX(2), uiChooserBtnY()); render();
+  onTap(uiChooserBtnX(1), uiChooserBtnY()); render();
 }
 
 int main(){

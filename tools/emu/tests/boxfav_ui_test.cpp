@@ -13,6 +13,8 @@
 #include "dex.h"
 #include "box_filter.h"
 #include <cstdio>
+#include <thread>
+#include <chrono>
 #include <cstring>
 uint32_t g_seed=37; FakeSerial Serial; FakeESP ESP; FakeWire Wire;
 volatile int g_touchX=0,g_touchY=0; volatile bool g_touchDown=false;
@@ -32,6 +34,7 @@ void boxCellPos(uint8_t i, int *cx, int *cy); void boxPillCentre(int *x, int *y)
 void bfChip(uint8_t i, int *x, int *y, int *w, int *h);
 void bfSortBtn(int *x, int *y, int *w, int *h);
 void monSheetCentres(int *left, int *star, int *right, int *cy);
+void favHoldPeek(bool pressed, int16_t x, int16_t y);
 void uiConfirmRects(int *c1t, int *c1b, int *c2t, int *c2b);
 void partyButtonRects(int *boxTop, int *boxBot, int *closeTop, int *closeBot);
 uint8_t tradeOfferableCount();
@@ -110,8 +113,19 @@ int main(){
   releaseConfirm = true;                          // even if the confirm were somehow up,
   { int c1t, c1b, c2t, c2b; uiConfirmRects(&c1t, &c1b, &c2t, &c2b); boxTap(233, (c1t + c1b) / 2); render(); }
   ck(!party.box[0].empty(), "its YES refuses too");
+  // v3.57: a TAP never unstars -- it only says how; a 2 s HOLD does
   boxTap(S, BY); render();
-  ck(!party.box[0].isFav(), "unstarred");
+  ck(party.box[0].isFav(), "a tap on a starred star keeps the star");
+  auto hold = [&](int ms) {
+    favHoldPeek(true, S, BY);
+    for (int t = 0; t < ms; t += 50) { std::this_thread::sleep_for(std::chrono::milliseconds(50)); favHoldPeek(true, S, BY); }
+    favHoldPeek(false, S, BY);
+  };
+  hold(1000);
+  ck(party.box[0].isFav(), "and so does a 1 s hold");
+  hold(2200);
+  ck(!party.box[0].isFav(), "a 2 s hold unstars");
+  { Party q; q.begin(); ck(!q.box[0].isFav(), "and that is saved"); }
   boxTap(R, BY); render();
   ck(releaseConfirm, "and now RELEASE asks");
   releaseConfirm = false;

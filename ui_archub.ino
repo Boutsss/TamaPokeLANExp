@@ -85,7 +85,7 @@ void arcHubFace(int x, int y, int w, int h) {
   }
   int cx = x + w / 2, sub = y + h / 2 + 30;
   if (!ok) {   // say why, rather than sit there dark
-    const char *why = T(pet.isEgg() ? S_ARC_EGG : S_ARC_ASLEEP);
+    const char *why = T(S_ARC_EGG);   // (asleep no longer shuts it; S_ARC_ASLEEP is unused)
     if (w > (int)strlen(why) * 12 + 30) ahText(cx, sub, why, UI_WHITE, 2);
     return;
   }

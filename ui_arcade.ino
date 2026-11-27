@@ -185,7 +185,9 @@ static void arcSave() {
 }
 
 // THE gate, for the hub row and every start alike.
-bool arcadeAllowed() { return !pet.isEgg() && !pet.sleeping && !pet.ceremony; }
+// Asleep is fine (v3.57): the player plays, the pet dozes on. Only an egg (no
+// creature to share the joy with) and a ceremony in progress keep it shut.
+bool arcadeAllowed() { return !pet.isEgg() && !pet.ceremony; }
 // arcPaid belongs to arcPrizeDay; a new day starts it over.
 static void arcPaidRoll() {
   uint32_t d = pet.currentDay() + 1;
@@ -1340,6 +1342,8 @@ void arcadeSwipe(int dir) {
 // only the held BACK button leaves -- a swipe is part of playing (SURF steers by
 // dragging) or an accident, never a request to quit.
 bool arcadeInRound() { return arcGame != ARC_NONE && !arcOver; }
+// The held BACK button moves to the top-left corner for this one (ui_back.ino).
+bool arcadePinballInRound() { return arcadeOpen && arcGame == ARC_PINBALL && !arcOver; }
 void arcadeLeaveRound() { if (arcadeInRound()) arcLeave(); }
 
 bool arcadeSwipeV(int dir) {

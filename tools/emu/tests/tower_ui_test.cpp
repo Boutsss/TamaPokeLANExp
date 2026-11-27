@@ -24,7 +24,7 @@ void setup(); void render(); void onTap(int16_t,int16_t); void onSwipeV(int dir)
 void battleTap(int16_t,int16_t);
 int uiTileIndex(); void uiTileGo(int i);
 extern Pet pet;
-extern bool gymOpen, gymPick, towerOpen, pickOpen, battleOpen, gymRematch, gymHard;
+extern bool gymOpen, gymPick, towerOpen, pickOpen, battleOpen, gymRematch, gymHard, chalOpen;
 extern uint8_t gymRegion, btlKind, btlTeamN, btlFoeAt, btlSquadN, btlMsgCount;
 extern TrainerMon btlTeam[];
 extern Combatant btlFoe, btlYou;
@@ -71,23 +71,24 @@ int main(){
   towerClearAll();
 
   // ---- locked: the button opens a screen that says why, and START does nothing
-  uiTileGo(7); render();                     // GYM tile -> its chooser (v3.57: ARCADE is 6)
-  ck(gymOpen && gymPick, "the GYM tile opens on its chooser");
-  onTap(uiChooserBtnX(1), uiChooserBtnY()); render();
-  ck(towerOpen, "TOWER opens the tower screen even while locked");
+  // v3.57: the tower is its OWN tile (8, after the gyms); the gym chooser no
+  // longer carries a TOWER button, and its button 1 is WEEKLY.
+  uiTileGo(8); render();
+  ck(towerOpen, "the TOWER tile opens the tower screen even while locked");
   onTap(233, twBtnCenterY()); render();
   ck(towerOpen && !pickOpen, "but START does nothing until a champion falls");
   onSwipeV(1); render();
   ck(!towerOpen && !gymOpen, "the tower is a tile now: down goes to the pet");
-  uiTileGo(8); render();
-  ck(towerOpen, "and it is the tile after the gyms (v3.57)");
+  uiTileGo(7); render();
+  onTap(uiChooserBtnX(1), uiChooserBtnY()); render();
+  ck(!towerOpen && chalOpen, "the gym chooser's second button is WEEKLY, not the tower");
   uiTileGo(7); render();
 
   // ---- unlocked: START -> picker (three) -> a fight against the shown team
   pet.winBadge(0, TRAINER_COUNT - 1, false);
   TowerTeam shown;
   ck(towerTeamFor(towerFloor(), towerSeed(), shown) && shown.count == TOWER_TEAM, "floor 1 has a team of three");
-  onTap(uiChooserBtnX(1), uiChooserBtnY()); render();
+  uiTileGo(8); render();
   onTap(233, twBtnCenterY()); render();
   ck(pickOpen && !towerOpen, "START opens the team picker");
   extern uint8_t pickTrainer;

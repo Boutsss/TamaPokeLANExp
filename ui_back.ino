@@ -79,7 +79,22 @@ bool uiBackShown() {
 }
 
 // Geometry, asked of the firmware rather than restated (the tests aim here).
+//
+// PINBALL is the exception (v3.57): at the bottom the pill sat over both
+// flippers, the drain between them and the balls-left row. In a pinball round
+// it is a compact pill in the top-left corner instead, mostly on the glass
+// OUTSIDE the table (the playfield ends at radius PB_WALL_R 214, the glass at
+// 233), clear of the score (top centre), the top lanes and the saucer.
+#define BACK_PB_X 96
+#define BACK_PB_Y 48
+#define BACK_PB_W 76
+#define BACK_PB_H 34
+bool arcadePinballInRound();
 void uiBackRect(int *x, int *y, int *w, int *h) {
+  if (uiCurrentScreen() == SCR_ARCADE && arcadePinballInRound()) {
+    *x = BACK_PB_X; *y = BACK_PB_Y; *w = BACK_PB_W; *h = BACK_PB_H;
+    return;
+  }
   *x = CX - BACK_W / 2; *y = BACK_Y; *w = BACK_W; *h = BACK_H;
 }
 bool uiBackHit(int16_t px, int16_t py) {
@@ -138,21 +153,24 @@ void uiBeforeFlush() {
   gfx->drawRoundRect(x + 1, y + 1, w - 2, h - 2, h / 2 - 1, UI_INK);
   // a left-pointing chevron, then the label
   const char *lbl = T(S_BACK_BTN);
-  int tw = (int)strlen(lbl) * 12;
-  int gx = CX - (tw + 16) / 2;
+  uint8_t ts = (int)strlen(lbl) * 12 + 16 <= w - 8 ? 2 : 1;   // the pinball pill is narrow
+  int tw = (int)strlen(lbl) * 6 * ts;
+  int gx = x + w / 2 - (tw + 16) / 2;
   int cy = y + h / 2;
   gfx->fillTriangle(gx, cy, gx + 9, cy - 8, gx + 9, cy + 8, UI_INK);
   gfx->setTextColor(UI_INK);
-  gfx->setTextSize(2);
-  gfx->setCursor(gx + 16, cy - 7);
+  gfx->setTextSize(ts);
+  gfx->setCursor(gx + 16, cy - 4 * ts + 1);
   gfx->print(lbl);
   if (millis() < backHintUntil) {
     const char *hint = T(S_BACK_HOLD);
     int hw = (int)strlen(hint) * 6 + 16;
-    gfx->fillRoundRect(CX - hw / 2, y - 22, hw, 18, 6, UI_INK);
+    int hx = x + w / 2, hy = y > 200 ? y - 22 : y + h + 6;   // above at the bottom, below in the corner
+    if (hx - hw / 2 < 60) hx = 60 + hw / 2;                  // keep a corner hint on the glass
+    gfx->fillRoundRect(hx - hw / 2, hy, hw, 18, 6, UI_INK);
     gfx->setTextColor(UI_WHITE);
     gfx->setTextSize(1);
-    gfx->setCursor(CX - (int)strlen(hint) * 3, y - 17);
+    gfx->setCursor(hx - (int)strlen(hint) * 3, hy + 5);
     gfx->print(hint);
   }
 }

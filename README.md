@@ -422,8 +422,8 @@ to open the games. Six short games played for fun,
 joy and the bond -- they train **no stat** (that is what the
 [Training games](#training-games) are for). The list shows each game with your
 best score, as a grid of six tiles; a star marks a game you have S-ranked. The cabinet says why, and no
-game starts, while the pet is an **egg, asleep or in a ceremony**; if it falls
-asleep mid-game the session is banked and the list comes back.
+game starts, while the pet is an **egg or in a ceremony** (asleep is fine: you play while it dozes, and it
+falling asleep mid-game does not end the game).
 
 Shared with the training games: the **3-2-1 countdown** (1.8 s, nothing scores
 during it), the **COMBO** and its multiplier (**x1 below 5, x2 from 5, x3 from
@@ -686,8 +686,7 @@ what rate-limits rematching. A fully trained creature is told so.
 
 Both open once you have beaten a **champion** (either difficulty for the tower;
 **easy** for that region's rematches). The tower has its own **TOWER** page on the swipe axis, right after the gyms
-(v3.57), and is also the **TOWER** button beside
-LAN BATTLE on the gym chooser; rematches are a third state on a ladder's
+(v3.57); the gym chooser keeps just **LAN** and **WEEKLY**. Rematches are a third state on a ladder's
 difficulty pill: `EASY → HARD → REMATCH`.
 
 | Battle Tower | |
@@ -950,8 +949,8 @@ into the box, it shows the plain box, because that is where the empty slots
 are.
 
 **Favourites.** Every creature's sheet (party or box) has a **star** between
-its two buttons. Tap it to mark the creature a favourite, and again to unmark
-it. A favourite shows a gold star on its slot, and until you unstar it:
+its two buttons. Tap it to mark the creature a favourite; to unmark it, **hold
+the star for 2 seconds** (a tap on a starred one just says so). A favourite shows a gold star on its slot, and until you unstar it:
 
 - **RELEASE** is greyed out, and says why.
 - It is never offered as the one to replace when a farewell arrives with a

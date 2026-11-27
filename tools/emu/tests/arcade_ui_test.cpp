@@ -7,7 +7,7 @@
 // Then the shared rules: grades, rewards through Pet::friendVisit (joy, the
 // daily bond cap), EV_PLAY, the once-a-day prize, bests surviving a reload,
 // every frame flushing, leaving banking exactly once, and the guard that no
-// game runs while the pet is an egg, asleep or in a ceremony.
+// game runs while the pet is an egg or in a ceremony (asleep is fine since v3.57).
 #include "Arduino.h"
 #include "Arduino_GFX_Library.h"
 #include "Preferences.h"
@@ -154,31 +154,38 @@ int main() {
   ck(arcadeOpen, "a TAP where the old BACK pill was no longer leaves: back is held now");
   uiBack();
   ck(!arcadeOpen && arcHubOpen, "the held BACK button goes back to the ARCADE page");
-  // guards: no game while asleep / an egg / a ceremony -- the cabinet AND the start
+  // v3.57: ASLEEP IS ALLOWED -- the player plays while the pet dozes. Only an
+  // egg and a ceremony keep it shut, at the cabinet AND at the start.
   pet.sleeping = true;
   render();
   onTap(233, arcHubBtnCenterY());
-  ck(!arcadeOpen && arcHubOpen, "asleep: the cabinet refuses to open the arcade");
+  ck(arcadeOpen && arcadeAllowed(), "asleep: the cabinet still opens the arcade");
+  arcStart(G_CATCH);
+  ck(arcGame == G_CATCH, "and a game starts while the pet sleeps");
+  arcLeave();
+  pet.sleeping = false;
+  arcadeOpen = false;
+  int16_t keep = pet.speciesId; pet.speciesId = -1;
+  render();
+  onTap(233, arcHubBtnCenterY());
+  ck(!arcadeOpen && arcHubOpen && !arcadeAllowed(), "an egg: the cabinet refuses to open the arcade");
   onSwipeV(1);
   ck(!arcHubOpen && onScreen("main"), "down from the ARCADE page: the pet, like every tile");
   arcHubOpen = true; arcadeOpen = true; arcGame = NONE;   // back on the page, list open
-  arcStart(G_CATCH);
-  ck(arcGame == NONE, "asleep: arcStart refuses too (the twin path)");
-  pet.sleeping = false;
-  int16_t keep = pet.speciesId; pet.speciesId = -1;
   arcStart(G_POP);
-  ck(arcGame == NONE && !arcadeAllowed(), "an egg cannot play");
+  ck(arcGame == NONE, "and arcStart refuses an egg too (the twin path)");
   pet.speciesId = keep;
   pet.ceremony = CER_FAREWELL; arcStart(G_ECHO);
   ck(arcGame == NONE, "nor during a ceremony");
   pet.ceremony = CER_NONE;
-  // falling asleep mid-game banks and returns to the list
+  // the pet falling asleep mid-game no longer ends it (v3.57)
   arcStart(G_MEMORY); skipIntro();
   ck(arcGame == G_MEMORY, "awake, the game starts");
   uint16_t sBefore = arcSessions;
   pet.sleeping = true; render();
-  ck(arcGame == NONE && arcSessions == sBefore + 1, "the pet falling asleep mid-game banks it and closes it");
+  ck(arcGame == G_MEMORY && arcSessions == sBefore, "the pet falling asleep mid-game leaves the game running");
   pet.sleeping = false;
+  arcLeave();
 
   // the hint and countdown
   uint32_t t0 = millis();

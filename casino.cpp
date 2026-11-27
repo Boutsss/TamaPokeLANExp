@@ -156,12 +156,12 @@ uint16_t slotPays(uint8_t a, uint8_t b, uint8_t c) {
       case SL_BAR: return 50;
       case SL_BALL: return 15;
       case SL_BOLT: return 15;
-      case SL_MOON: return 8;
-      case SL_CHERRY: return 8;
+      case SL_MOON: return 10;     // 8 -> 10 (v3.57): the slots returned 92%,
+      case SL_CHERRY: return 10;   // harsher than every other game here; 97% now
       default: return 0;
     }
   }
-  if (a == SL_CHERRY && b == SL_CHERRY) return 4;
+  if (a == SL_CHERRY && b == SL_CHERRY) return 5;   // was 4
   if (a == SL_CHERRY) return 2;
   return 0;
 }
