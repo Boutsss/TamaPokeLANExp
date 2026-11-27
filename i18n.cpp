@@ -96,7 +96,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "TOCA Y JUEGA",
     "Tu mascota duerme", "Primero, el huevo",
     "manten 2 s para quitar",
-    "10 shinys atrapados", "ESTRELLAS NUEVAS! toca" },
+    "10 shinys atrapados", "ESTRELLAS NUEVAS! toca",
+    "No puedes usarlo ahora", "FIJO" },
   // ---------------- EN ----------------
   {
     "Evolving!", "Yum yum!", "It likes it!", "It's hungry!", "Needs a bath!",
@@ -184,7 +185,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "TAP TO PLAY",
     "Your pet is asleep", "Hatch your egg first",
     "hold 2 s to unstar",
-    "10 shiny Pokemon caught", "NEW STARS! tap to see" },
+    "10 shiny Pokemon caught", "NEW STARS! tap to see",
+    "Can't use that now", "LOCKED" },
   // ---------------- FR ----------------
   {
     "Il evolue!", "Miam miam!", "Il aime ca!", "Il a faim!", "Besoin d'un bain!",
@@ -271,7 +273,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "TOUCHE ET JOUE",
     "Il dort", "Fais eclore l'oeuf",
     "maintenir 2 s: retirer",
-    "10 chromatiques captures", "NOUVELLES ETOILES! touche" },
+    "10 chromatiques captures", "NOUVELLES ETOILES! touche",
+    "Impossible maintenant", "BLOQUE" },
   // ---------------- DE ----------------
   {
     "Entwickelt sich!", "Mampf mampf!", "Gefaellt ihm!", "Hat Hunger!", "Braucht ein Bad!",
@@ -358,7 +361,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "TIPPEN!",
     "Es schlaeft", "Erst schluepfen",
     "2 s halten: entfernen",
-    "10 schillernde gefangen", "NEUE STERNE! tippen" },
+    "10 schillernde gefangen", "NEUE STERNE! tippen",
+    "Geht jetzt nicht", "FEST" },
   // ---------------- IT ----------------
   {
     "Si evolve!", "Gnam gnam!", "Gli piace!", "Ha fame!", "Vuole un bagno!",
@@ -445,7 +449,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "TOCCA E GIOCA",
     "Sta dormendo", "Prima la schiusa",
     "tieni 2 s per togliere",
-    "10 cromatici catturati", "NUOVE STELLE! tocca" },
+    "10 cromatici catturati", "NUOVE STELLE! tocca",
+    "Non ora", "BLOCCATA" },
   // ---------------- PT ----------------
   {
     "Evoluindo!", "Nham nham!", "Ele gosta!", "Esta com fome!", "Precisa de banho!",
@@ -532,7 +537,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "TOQUE E JOGUE",
     "Esta dormindo", "Choque o ovo antes",
     "segure 2 s p/ tirar",
-    "10 brilhantes capturados", "ESTRELAS NOVAS! toque" },
+    "10 brilhantes capturados", "ESTRELAS NOVAS! toque",
+    "Nao da agora", "FIXO" },
 };
 
 // Nombres de medalla en sus tres longitudes [idioma][medalla].

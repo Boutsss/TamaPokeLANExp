@@ -76,7 +76,7 @@ struct RimPage {
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
-#define FW_VERSION "3.57"
+#define FW_VERSION "3.58"
 
 Arduino_DataBus *bus = new Arduino_ESP32QSPI(
   LCD_CS, LCD_SCLK, LCD_SDIO0, LCD_SDIO1, LCD_SDIO2, LCD_SDIO3);
@@ -5737,6 +5737,12 @@ static void btlSide(int tx, int ty, int sx, int sy, const Combatant &c, uint8_t 
   gfx->setTextSize(1);
   gfx->setCursor(tx, ty);
   gfx->print(l);
+  // A plate retypes ARCEUS for the fight (battleHeldSetup): say which type it is
+  // now, top right of the plate, since its weaknesses follow it.
+  if (c.typeOver < TYPE_COUNT) {
+    int cw = (int)strlen(typeName(c.typeOver)) * 6 + 10;
+    drawTypeChip(tx + 146 - cw, ty - 4, c.typeOver);
+  }
   gfx->setTextColor(UI_BAR_WARN);
   gfx->setCursor(tx, ty + 14);
   gfx->print("HP");
@@ -6099,11 +6105,21 @@ void renderBattle() {
     for (int i = 0; i < MOVE_SLOTS; i++) {
       int x = BTL_CELL_X(i), y = BTL_CELL_Y(i);
       uint16_t mv = btlYou.moves[i];
-      gfx->fillRoundRect(x, y, BTL_CELL_W, BTL_CELL_H, 10, mv ? UI_BG_DAY : UI_TRACK);
-      gfx->drawRoundRect(x, y, BTL_CELL_W, BTL_CELL_H, 10, UI_INK);
+      bool blocked = mv && battleMoveBlocked(btlYou, mv);   // a CHOICE lock, TAUNT, an ASSAULT VEST
+      bool lockedOn = mv && btlYou.choiceLock == mv && heldFx(btlYou.held) == HX_CHOICE;
+      gfx->fillRoundRect(x, y, BTL_CELL_W, BTL_CELL_H, 10, mv && !blocked ? UI_BG_DAY : UI_TRACK);
+      gfx->drawRoundRect(x, y, BTL_CELL_W, BTL_CELL_H, 10, lockedOn ? UI_BAR_WARN : UI_INK);
+      if (lockedOn) gfx->drawRoundRect(x + 1, y + 1, BTL_CELL_W - 2, BTL_CELL_H - 2, 9, UI_BAR_WARN);
       if (!mv) continue;
+      if (lockedOn) {                  // the move a CHOICE item holds it to
+        const char *lk = T(S_BTL_LOCKED);
+        int lw = (int)strlen(lk) * 6 + 8;
+        gfx->fillRoundRect(x + BTL_CELL_W - lw - 6, y + 34, lw, 15, 4, UI_BAR_WARN);
+        gfx->setTextSize(1); gfx->setTextColor(UI_WHITE);
+        gfx->setCursor(x + BTL_CELL_W - lw - 2, y + 38); gfx->print(lk);
+      }
       const char *name = moveName(mv);
-      gfx->setTextColor(UI_INK);
+      gfx->setTextColor(blocked ? 0x8410 : UI_INK);
       gfx->setTextSize(strlen(name) <= 11 ? 2 : 1);
       gfx->setCursor(x + 10, y + 7);
       gfx->print(name);
@@ -6433,6 +6449,11 @@ void battleTap(int16_t x, int16_t y) {
   for (int i = 0; i < MOVE_SLOTS; i++) {
     if (!btlYou.moves[i]) continue;
     if (!btlCellHit(i, x, y)) continue;
+    if (battleMoveBlocked(btlYou, btlYou.moves[i])) {   // greyed: the same rule that drew it
+      sfxPlay(SFX_DENY);
+      btlSay("%s", T(S_BTL_BLOCKED));
+      return;
+    }
     sfxPlay(SFX_TAP);
     btlMenu = 0;
     if (btlLink && !btlLinkHost) {
@@ -8217,12 +8238,19 @@ void renderBag() {
     gfx->drawRoundRect(76, y, 314, 50, 10, UI_INK);
     gfx->setTextColor(usable ? UI_INK : 0x8410);
     gfx->setTextSize(2);
-    gfx->setCursor(92, y + 17);
+    gfx->setCursor(92, y + 8);
     gfx->print(itemEntry(k).name);
     char cnt[8];
     snprintf(cnt, sizeof(cnt), "x%u", bag.count(k));
-    gfx->setCursor(374 - (int)strlen(cnt) * 12, y + 17);
+    gfx->setCursor(374 - (int)strlen(cnt) * 12, y + 8);
     gfx->print(cnt);
+    // what it does (v3.57), generated from the item's own effect -- held_items.cpp
+    char desc[ITEM_DESC_MAX + 2];
+    itemDescribe(k, desc, sizeof(desc));
+    gfx->setTextColor(UI_INK_SOFT);
+    gfx->setTextSize(1);
+    gfx->setCursor(92, y + 32);
+    gfx->print(desc);
   }
   // A page NUMBER, not a dot row: the catalogue is append-only and a dot per
   // page stopped fitting the round panel once the Pokedex reached 25 of them.

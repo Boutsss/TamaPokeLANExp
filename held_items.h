@@ -17,3 +17,9 @@ bool heldGive(Pet &p, Party &pt, uint16_t who, ItemKey item);
 bool heldTake(Pet &p, Party &pt, uint16_t who);
 void heldReturn(ItemKey &held);
 int shinyCharmOdds(int base);
+// One line saying what an item does, for the bag (v3.57). GENERATED from the
+// item's own effect code and numbers in ITEM_TBL -- what battle.cpp reads --
+// so it cannot drift from the game. English and ASCII, like the item names;
+// at most ITEM_DESC_MAX characters, which fits under a bag row's name.
+#define ITEM_DESC_MAX 46
+void itemDescribe(ItemKey k, char *out, size_t n);

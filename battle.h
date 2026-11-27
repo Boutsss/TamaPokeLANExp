@@ -199,6 +199,11 @@ void battleBatonPass(const Combatant &from, Combatant &to);
 uint8_t battleMoveType(const Combatant &atk, uint16_t mv);
 // The creature's types as this fight sees them (a plate on ARCEUS changes it).
 bool battleIsType(const Combatant &c, uint8_t t);
+// THE answer to "may this creature pick that move right now?" (v3.57): no when
+// a CHOICE item has locked it into another, or TAUNT or an ASSAULT VEST rules
+// out a status move. The battle screen greys what this refuses and refuses the
+// tap, so the menu can never offer a move the turn would then override.
+bool battleMoveBlocked(const Combatant &c, uint16_t mv);
 // Sets up what a held item decides before the fight starts (ARCEUS's plate).
 // combatantFromPet/Party call it; anything building a Combatant by hand and
 // giving it an item must too.

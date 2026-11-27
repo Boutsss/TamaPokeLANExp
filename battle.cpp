@@ -39,6 +39,16 @@ static bool isType(const Combatant &c, uint8_t t) {
   return t == a || t == b;
 }
 bool battleIsType(const Combatant &c, uint8_t t) { return isType(c, t); }
+bool battleMoveBlocked(const Combatant &c, uint16_t mv) {
+  if (!mv || mv >= MOVE_COUNT) return true;
+  if (c.choiceLock && hx(c) == HX_CHOICE && mv != c.choiceLock) {
+    // locked only while the locked move is still one of its four (battleTurnStart's rule)
+    for (int k = 0; k < MOVE_SLOTS; k++) if (c.moves[k] == c.choiceLock) return true;
+  }
+  bool status = MOVE_TBL[mv].cat == MC_STATUS;
+  if (status && (c.tauntTurns || hx(c) == HX_ASSAULT_VEST)) return true;
+  return false;
+}
 // "On the ground", for terrain, spikes and Ground moves. No abilities exist;
 // an IRON BALL pins anyone down and an AIR BALLOON lifts anyone until popped.
 static bool grounded(const Combatant &c) {

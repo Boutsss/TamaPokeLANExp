@@ -595,6 +595,8 @@ enum StrId : uint16_t {
   S_FAV_HOLD,      // sheet: unstarring takes a hold
   S_STAR_D6,       // star: rainbow
   S_PC_NEWSTARS,   // card book: new stars
+  S_BTL_BLOCKED,   // battle: a move that cannot be used now
+  S_BTL_LOCKED,    // move cell: the Choice-locked move
   STR_COUNT
 };
 

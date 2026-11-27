@@ -2,7 +2,7 @@
 
 [![MakerWorld](https://img.shields.io/badge/MakerWorld-3D%20case-00AE42?logo=bambulab&logoColor=white)](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)
 ![Board](https://img.shields.io/badge/board-ESP32--S3%20round%20AMOLED-E7352C?logo=espressif&logoColor=white)
-![Firmware](https://img.shields.io/badge/firmware-v3.57-8A2BE2)
+![Firmware](https://img.shields.io/badge/firmware-v3.58-8A2BE2)
 ![Code](https://img.shields.io/badge/code-MIT-blue)
 ![Languages](https://img.shields.io/badge/languages-6-FFCB05)
 [![Stars](https://img.shields.io/github/stars/DylanPDao/TamaPoke?style=flat&logo=github&color=yellow)](https://github.com/DylanPDao/TamaPoke/stargazers)
@@ -1084,7 +1084,7 @@ not here either.
 | Leftovers | heals **1/16** of max HP at the end of every turn | every turn |
 | Black Sludge | Poison types heal 1/16 a turn; anyone else loses 1/8 | every turn |
 | Quick Claw | **20%** chance to move first (priority moves still win) | every turn |
-| Choice Band / Specs / Scarf | **x1.5** Atk / SpA / Spe, locked into the first move used | while out |
+| Choice Band / Specs / Scarf | **x1.5** Atk / SpA / Spe, locked into the first move used (the menu marks it LOCKED and greys the rest) | while out |
 | Life Orb | **x1.3** damage, costs **1/10** max HP a hit | every hit |
 | Expert Belt / Muscle Band / Wise Glasses | x1.2 super-effective / x1.1 physical / x1.1 special | every hit |
 | Metronome | +20% for each use of the same move in a row, up to x2 | every hit |
@@ -1119,7 +1119,9 @@ not here either.
 **Arceus and the plates.** Any plate gives its type's moves x1.2 on anyone, but
 on **Arceus** it does what it does in the games: Arceus **becomes that type**
 for the fight — its same-type bonus, its weaknesses and its resistances all
-follow the plate. No ability is needed, and no other creature changes type.
+follow the plate. No ability is needed, and no other creature changes type. Its battle panel
+shows the type it has become. Every item in the bag also shows a one-line
+description of what it does.
 
 **Nothing is ever used up for good (v3.38).** A berry or a sash works once in
 a fight, and the creature is holding it again when the fight ends -- you never
