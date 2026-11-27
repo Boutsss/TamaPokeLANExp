@@ -71,6 +71,15 @@ struct Combatant {
   uint16_t lockMove = 0;     // THRASH, PETAL DANCE, OUTRAGE
   uint8_t lockTurns = 0;
 
+  // ---- v3.56: held items. Battle-only like everything above.
+  uint8_t typeOver = 0xFF;   // a plate on ARCEUS: its one type for this fight (0xFF = its own)
+  uint16_t choiceLock = 0;   // CHOICE items: the move it is locked into
+  bool micle = false;        // MICLE BERRY: the next move is more accurate
+  bool custap = false;       // CUSTAP BERRY: acts first this turn
+  bool gemOn = false;        // a gem is powering THIS hit
+  bool resistOn = false;     // a resist berry is softening THIS hit
+  bool strongBind = false;   // bound by a BINDING BAND holder: 1/6 a turn
+
   bool fainted() const { return hp == 0; }
 };
 
@@ -121,6 +130,10 @@ struct TurnLog {
   // selfOut: the USER leaves after acting (U-TURN, VOLT SWITCH, PARTING SHOT),
   // the player choosing who comes in. baton: BATON PASS, see battleBatonPass().
   bool forceOut = false, selfOut = false, baton = false;
+  // v3.56: held items that move a creature out. ejectOut: the TARGET's EJECT
+  // BUTTON sends it back; userOut: its RED CARD sends the ATTACKER back. Both
+  // bring on a random healthy teammate and, unlike ROAR, never end a wild fight.
+  bool ejectOut = false, userOut = false;
   uint8_t atkItem = ITEM_NONE, defItem = ITEM_NONE;
   // v3.37: everything else that happened, in order, for the narration. Each is
   // a BN_ code and who it is about (0 = the one acting, 1 = its target).
@@ -184,6 +197,12 @@ bool battleCanSwitch(const Combatant &c);
 void battleBatonPass(const Combatant &from, Combatant &to);
 // The type a move hits with in THIS situation (HIDDEN POWER, WEATHER BALL).
 uint8_t battleMoveType(const Combatant &atk, uint16_t mv);
+// The creature's types as this fight sees them (a plate on ARCEUS changes it).
+bool battleIsType(const Combatant &c, uint8_t t);
+// Sets up what a held item decides before the fight starts (ARCEUS's plate).
+// combatantFromPet/Party call it; anything building a Combatant by hand and
+// giving it an item must too.
+void battleHeldSetup(Combatant &c);
 
 // Picks the attacker's move. `smart` is what separates hard mode from easy:
 // easy picks uniformly at random, hard reads the type chart, accuracy, whether

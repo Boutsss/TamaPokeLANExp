@@ -170,13 +170,19 @@ int main() {
   for (uint16_t s = 0; s <= 100; s++) { TowerReward r; if (towerRewardFor(s, r) != (s && s % 7 == 0)) rwOnlyAt7 = false; }
   ck(rwOnlyAt7, "a reward exactly at every multiple of 7");
   uint8_t ub0 = bag.count(IT_ULTRABALL);
+  // v3.56: any floor may also roll a held item -- on floors 1-10 a C-tier one
+  // and nothing else, ever.
   bool noEarly = true;
-  for (int i = 1; i <= 6; i++) { TowerReward g; towerWin(&g); if (g.n) noEarly = false; }
-  ck(noEarly && bag.count(IT_ULTRABALL) == ub0, "wins 1-6 pay nothing");
+  for (int i = 1; i <= 6; i++) {
+    TowerReward g; towerWin(&g);
+    for (uint8_t k = 0; k < g.n; k++) if (itemTier(g.item[k]) != HT_C || g.qty[k] != 1) noEarly = false;
+  }
+  ck(noEarly && bag.count(IT_ULTRABALL) == ub0, "wins 1-6 pay no balls, and at most a C-tier held item");
   ck(towerStreak() == 6 && towerBest() == 6 && towerRunActive(), "six wins: streak 6, best 6, run active");
   TowerReward g7; towerWin(&g7);
-  ck(g7.n == 2 && bag.count(IT_ULTRABALL) == ub0 + 3 && bag.count(IT_SITRUS_BERRY) == 2,
-     "the 7th win bags 3 ULTRA BALL + 2 SITRUS BERRY");
+  ck(g7.n == 3 && bag.count(IT_ULTRABALL) == ub0 + 3 && bag.count(IT_SITRUS_BERRY) == 2 &&
+     itemTier(g7.item[2]) == HT_C,
+     "the 7th win bags 3 ULTRA BALL + 2 SITRUS BERRY + a certain C-tier held item");
   towerBegin();          // a reload: the run is on flash
   {
     Inventory b2; b2.begin();
@@ -184,11 +190,37 @@ int main() {
     ck(b2.count(IT_ULTRABALL) == ub0 + 3, "and a reload does not pay the reward again");
   }
   TowerReward g8; towerWin(&g8);
-  ck(g8.n == 0 && bag.count(IT_ULTRABALL) == ub0 + 3, "the 8th win pays nothing (once, not every win after 7)");
+  ck(g8.n <= 1 && bag.count(IT_ULTRABALL) == ub0 + 3, "the 8th win pays no balls (once, not every win after 7)");
   for (int i = 9; i <= 13; i++) towerWin(nullptr);
   TowerReward g14; towerWin(&g14);
-  ck(g14.n == 3 && bag.count(IT_LUM_BERRY) == 2 && bag.count(IT_LEFTOVERS) == 1 &&
-     bag.count(IT_ULTRABALL) == ub0 + 6, "the 14th: 3 ULTRA BALL + 2 LUM BERRY + LEFTOVERS");
+  ck(g14.n == 3 && bag.count(IT_LUM_BERRY) >= 2 && bag.count(IT_ULTRABALL) == ub0 + 6 &&
+     itemTier(g14.item[2]) >= HT_C && itemTier(g14.item[2]) <= HT_B,
+     "the 14th: 3 ULTRA BALL + 2 LUM BERRY + a B- or C-tier held item");
+
+  // ---- the reward tiers (v3.56). Each guard below is phrased against the
+  // RULE, and the positive companions prove the tiers are actually reached.
+  {
+    bool onlyC = true, bAt11 = false, noAS49 = true, aAt50 = false, sAt99 = false, onlyAS = true;
+    int b11 = 0, b49 = 0;
+    for (int r = 0; r < 100; r++) {
+      for (int f = 1; f <= 10; f++) onlyC &= towerTierFor(f, r) == HT_C;
+      if (towerTierFor(11, r) == HT_B) { bAt11 = true; b11++; }
+      if (towerTierFor(49, r) == HT_B) b49++;
+      for (int f = 11; f < 50; f++) noAS49 &= towerTierFor(f, r) <= HT_B;
+      aAt50 |= towerTierFor(50, r) == HT_A;
+      sAt99 |= towerTierFor(99, r) == HT_S;
+      onlyAS &= towerTierFor(100, r) >= HT_A && towerTierFor(250, r) >= HT_A;
+    }
+    ck(onlyC, "floors 1-10 roll C only");
+    ck(bAt11 && noAS49, "B from floor 11, and no A/S below 50");
+    ck(b49 > b11, "the B share climbs between 11 and 49");
+    ck(aAt50 && sAt99, "A from floor 50, and S by 99");
+    ck(onlyAS, "the top floor and endless: A/S only");
+    bool own = true;
+    for (uint8_t t = HT_C; t <= HT_S; t++)
+      for (uint32_t r = 0; r < 600; r += 3) { ItemKey k = towerItemOfTier(t, r); own &= k && itemTier(k) == t && itemIsHeld(k); }
+    ck(own, "a tier hands out only its own held items");
+  }
   ck(evWin == 14 && lastWinArg == 14 && winArgsInOrder, "EV_TOWER_WIN fired 14 times, arg = the new streak");
   uint32_t seedBefore = towerSeed();
   towerLoss();
@@ -317,8 +349,16 @@ int main() {
     TowerReward g100; towerWin(&g100);
     ck(towerStreak() == 100 && isTower(g100.avatar) && casinoOwns(PK_AVATAR, g100.avatar - AVATAR_BASE_COUNT) && ownedTower() == 1,
        "clearing floor 100 unlocks exactly one legendary costume, and says which");
+    int as100 = 0;
+    for (uint8_t k = 0; k < g100.n; k++) if (itemTier(g100.item[k]) >= HT_A) as100++;
+    ck(as100 == TOWER_TOP_ITEMS, "and pays four A/S held items");
     TowerReward g101; towerWin(&g101);
     ck(g101.avatar < 0 && ownedTower() == 1, "floor 101 does not unlock another");
+    ck(g101.n == 1 && g101.item[0] == IT_MASTERBALL, "endless: a MASTER BALL a floor");
+    for (int f = 102; f < 105; f++) towerWin(nullptr);
+    TowerReward g105; towerWin(&g105);
+    ck(g105.n == 2 && g105.item[0] == IT_MASTERBALL && itemTier(g105.item[1]) >= HT_A,
+       "and every 5th floor an A/S held item too");
     casinoBegin();
     ck(casinoOwns(PK_AVATAR, g100.avatar - AVATAR_BASE_COUNT), "the costume is saved");
 
@@ -350,6 +390,32 @@ int main() {
     for (int f = 1; f < TOWER_AVATAR_FLOOR; f++) towerWin(nullptr);
     TowerReward full; towerWin(&full);
     ck(full.avatar < 0 && towerStreak() == 100, "and floor 100 then still counts, with no costume");
+  }
+
+  // ---- the run's team and the checkpoint (v3.56)
+  {
+    towerLoss();
+    ck(!towerRunActive() && towerTeam(nullptr) == 0, "no run, no team");
+    PartyMon t[TOWER_TEAM];
+    for (int i = 0; i < TOWER_TEAM; i++) { t[i] = PartyMon(); t[i].dex = (uint16_t)(1 + 3 * i); t[i].level = 30; }
+    ck(towerSetTeam(t, TOWER_TEAM) && towerRunActive(), "locking a team in is a run, before any win");
+    t[0].dex = 150;                                  // the party changes...
+    PartyMon got[TOWER_TEAM];
+    ck(towerTeam(got) == TOWER_TEAM && got[0].dex == 1, "...and the run's copy does not");
+    towerFightBegin();
+    towerBegin();                                    // the board went down mid-fight
+    ck(towerResumed() && towerTeam(got) == TOWER_TEAM && got[2].dex == 7 && towerStreak() == 0,
+       "a restart mid-fight comes back at the same floor, same team, and says so");
+    towerFightBegin();
+    ck(!towerResumed(), "the next fight clears the note");
+    towerSuspend();
+    ck(towerResumed() && towerRunActive(), "leaving a fight keeps the run");
+    towerWin(nullptr);
+    towerBegin();
+    ck(!towerResumed() && towerStreak() == 1, "a won floor is no checkpoint to report");
+    towerLoss();
+    towerBegin();
+    ck(towerTeam(nullptr) == 0 && !towerRunActive(), "a loss releases the team, on flash too");
   }
 
   printf(bad ? "tower_test: %d FAILED\n" : "tower_test: all passed\n", bad);

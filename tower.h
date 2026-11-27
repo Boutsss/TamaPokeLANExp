@@ -1,6 +1,8 @@
 #pragma once
 #include <Arduino.h>
 #include "trainers.h"
+#include "party.h"
+#include "items.h"
 
 // The Battle Tower after the Elite 4, and harder gym rematches.
 //
@@ -14,7 +16,8 @@
 // battle: both features hand it a TrainerMon team (btlTeam), and it never
 // looks at TRAINER_SETS for replacements.
 //
-// Keys (all in SAVE_FIELDS): twStrk U16, twBest U16, twSeed U32, rmWin BYTES.
+// Keys (all in SAVE_FIELDS): twStrk U16, twBest U16, twSeed U32, rmWin BYTES,
+// twTeam BYTES (the run's team), twMid U8 (a fight was in progress).
 
 class Pet;
 
@@ -35,6 +38,28 @@ class Pet;
 // Every run that clears this floor unlocks one legendary costume avatar, picked
 // at random from those not owned yet (none once all are).
 #define TOWER_AVATAR_FLOOR 100
+
+// ---- held-item rewards (v3.56), by tier (items.h HT_*)
+// Every floor cleared rolls TOWER_HELD_PCT for a held item (certain on every
+// TOWER_REWARD_EVERY-th). Which tier it comes from climbs with the floor:
+//   floors 1-10   C only
+//   floors 11-49  B rising 20% -> 60%, the rest C
+//   floors 50-99  S 3% -> 15%, A 10% -> 40%, B 45%, the rest C
+// Floor 100 pays TOWER_TOP_ITEMS from A/S. Past it, ENDLESS: a MASTER BALL
+// every floor, and one A/S item every TOWER_ENDLESS_EVERY floors.
+#define TOWER_HELD_PCT 35
+#define TOWER_TIER_B_FLOOR 11
+#define TOWER_TIER_A_FLOOR 50
+#define TOWER_TOP_FLOOR 100
+#define TOWER_TOP_ITEMS 4
+#define TOWER_ENDLESS_EVERY 5
+#define TOWER_REWARD_MAX 6
+// The tier a roll in 0..99 lands in on `floor`.
+uint8_t towerTierFor(uint16_t floor, uint8_t roll);
+// A pick from `tier`, weighted: a plate or a gem counts 1, anything else 4
+// (seventeen plates for one creature must not crowd out everything else).
+// `roll` is reduced into range here. ITEM_NONE if the tier is empty.
+ItemKey towerItemOfTier(uint8_t tier, uint32_t roll);
 
 // ---- gym rematches
 #define REMATCH_IV 24           // between EASY_IV and HARD_IV
@@ -60,7 +85,7 @@ bool towerUnlocked();
 uint16_t towerStreak();         // wins in a row in the current run
 uint16_t towerBest();           // best streak ever
 inline uint16_t towerFloor() { return towerStreak() + 1; }   // the next fight
-bool towerRunActive();          // a run with at least one win: CONTINUE
+bool towerRunActive();          // a run under way (a win, or a team locked in): CONTINUE
 uint32_t towerSeed();
 void towerStartRun(uint32_t seed);   // START: streak 0, a fresh set of floors
 
@@ -90,8 +115,8 @@ const char *towerFoeName(uint16_t floor);
 bool towerTeamFor(uint16_t floor, uint32_t seed, TowerTeam &out);
 
 struct TowerReward {
-  uint8_t item[3];
-  uint8_t qty[3];
+  uint8_t item[TOWER_REWARD_MAX];
+  uint8_t qty[TOWER_REWARD_MAX];
   uint8_t n;
   int16_t avatar;               // towerWin only: the AVATARS[] index just unlocked, else -1
 };
@@ -103,8 +128,21 @@ bool towerRewardFor(uint16_t streak, TowerReward &r);
 // A floor cleared: streak +1, best kept, saved, the reward (if any) bagged
 // once, EV_TOWER_WIN emitted. Returns the new streak.
 uint16_t towerWin(TowerReward *got);
-// A loss, or RUN: EV_TOWER_LOSS with the streak that ended, and the run is over.
+// A loss, or END RUN: EV_TOWER_LOSS with the streak that ended, and the run is over.
 void towerLoss();
+
+// ---- the run's team and its checkpoint (v3.56)
+// The team is copied when a run starts and every floor is fought with that
+// copy, so the party can be changed, traded or released mid-climb without
+// touching the run. Stored records, not references: the copy is the team.
+uint8_t towerTeam(PartyMon *out);          // how many (0 = none locked in)
+bool towerSetTeam(const PartyMon *m, uint8_t n);
+// A tower fight starting / ending. If the board restarts in between, the run
+// comes back at the same floor with a fresh fight -- the checkpoint -- and
+// towerResumed() says so until the next fight starts.
+void towerFightBegin();
+void towerSuspend();                       // left mid-fight: same floor, later
+bool towerResumed();
 
 // ---- rematches: open per region once its champion fell on EASY
 bool rematchUnlockedFor(const Pet &p, uint8_t region);

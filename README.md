@@ -3,7 +3,7 @@
 [![Flash in browser](https://img.shields.io/badge/flash-in%20browser-FF6B00?logo=googlechrome&logoColor=white)](https://boutsss.github.io/TamaPokeLANExp/web/)
 [![MakerWorld](https://img.shields.io/badge/MakerWorld-3D%20case-00AE42?logo=bambulab&logoColor=white)](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)
 ![Board](https://img.shields.io/badge/board-ESP32--S3%20round%20AMOLED-E7352C?logo=espressif&logoColor=white)
-![Firmware](https://img.shields.io/badge/firmware-v3.55-8A2BE2)
+![Firmware](https://img.shields.io/badge/firmware-v3.56-8A2BE2)
 ![Code](https://img.shields.io/badge/code-MIT-blue)
 ![Languages](https://img.shields.io/badge/languages-6-FFCB05)
 [![Stars](https://img.shields.io/github/stars/DylanPDao/TamaPoke?style=flat&logo=github&color=yellow)](https://github.com/DylanPDao/TamaPoke/stargazers)
@@ -249,7 +249,7 @@ While **awake**, per minute:
 
 ### Eggs & who you get (spawn odds)
 
-- Hatch the egg: tap it **3×** (or wait — it hatches on its own).
+- Hatch the egg by **walking**: **200 real steps** on the board's step sensor (the egg shows how many are left). On a board without the sensor, tap it **3×** instead (or wait — it hatches on its own).
 - Every later egg rolls a **rarity tier** (over the ~79 base forms that come from eggs):
 
 | Tier | Base chance | After a proper goodbye | # species |
@@ -682,8 +682,24 @@ difficulty pill: `EASY → HARD → REMATCH`.
 |---|---|
 | Format | **3 vs 3**, **everyone at Lv.50** for the fight (your creatures raised or lowered; nothing is saved to them) |
 | Opponents | drawn from a base-stat band that climbs **10 per floor** from 380 to 600; IVs climb from 16 (floor 1) to 31 (floor 15); expert AI from **floor 7**; no legendaries before **floor 22** |
-| Run | a win is a floor; a **loss or running** ends the run (your best streak is kept) |
-| Rewards | every **7th** floor: 3 Ultra Balls + 2 Sitrus/Lum Berries; every **14th** adds Leftovers / Focus Sash / Quick Claw in turn |
+| Team | picked once, when a run **starts**, and **copied**: every floor is fought with that copy, so you can change, trade or release your party mid-climb without touching the run |
+| Run | a win is a floor. Only a **loss** or **END RUN** (tap twice) ends it; your best streak is kept |
+| Resume | **LATER** walks away with the run saved. **RUN** mid-fight, or the board switching off mid-fight, is a checkpoint: you come back to the same floor, fight starting over |
+| Rewards | every **7th** floor: 3 Ultra Balls + 2 Sitrus/Lum Berries; **every floor**: a **35%** chance of a held item (certain on every 7th) |
+| Held-item tier | floors **1-10**: **C** only · **11-49**: **B** rising 20% → 60%, the rest C · **50-99**: **S** 3% → 15%, **A** 10% → 40%, B 45%, the rest C |
+| Floor 100 | **4** held items, each **A or S** (and a legendary costume) |
+| Endless (101+) | a **Master Ball** every floor, and an **A/S** held item every **5th** floor |
+
+The tiers follow how often each item is actually used in competitive play
+(Smogon's Gen 7 OU usage statistics): **S** — Leftovers, Choice Band / Specs /
+Scarf, Life Orb, Assault Vest, Rocky Helmet, Focus Sash; **A** — Black Sludge,
+Eviolite, Weakness Policy, Expert Belt, Air Balloon, Red Card, Light Clay,
+Metronome, Toxic Orb, Shed Shell, Mental Herb, Damp Rock, Electric / Psychic
+Seed, Sitrus and Lum Berry, the half-heal pinch berries, and the signature
+items (Light Ball, Thick Club, Soul Dew, Adamant / Lustrous Orb); **B** — type
+boosters, plates, gems, resist berries, lenses and the rest of the situational
+items; **C** — Oran, the single-status cure berries, incenses, Iron Ball,
+Lagging Tail, Sticky Barb, Float Stone, Ring Target.
 
 | Gym rematches | |
 |---|---|
@@ -1028,20 +1044,74 @@ or anyone in the party or box. One item per creature; a released or runaway
 creature's item goes back to the bag. Items work in gym and wild battles; **LAN
 battles carry no items** on either side, so they stay even.
 
+Every battle held item of **Gens 1-7** is in (v3.56), except Z-crystals, mega
+stones and the items that change a creature's form. They work as in the games,
+with three differences: there are no abilities, so nothing that needs one
+(Adrenaline Orb) is here; there is no contact flag on moves, so **a physical
+move counts as contact** (Rocky Helmet); and there is no PP, so Leppa Berry is
+not here either.
+
 | Item | Effect in battle | How often |
 |---|---|---|
-| Oran Berry | heals **10 HP** at half HP or below | once per battle |
+| Oran Berry / Berry Juice | heals **10 / 20 HP** at half HP or below | once per battle |
 | Sitrus Berry | heals **25%** of max HP at half HP or below | once per battle |
+| Figy / Wiki / Mago / Aguav / Iapapa | heal **50%** at a quarter HP or below | once per battle |
 | Lum Berry | cures an ailment or confusion | once per battle |
+| Cheri / Chesto / Pecha / Rawst / Aspear / Persim | cure paralysis / sleep / poison / burn / freeze / confusion | once per battle |
+| Liechi / Ganlon / Salac / Petaya / Apicot | +1 Atk / Def / Spe / SpA / SpD at a quarter HP | once per battle |
+| Lansat / Starf / Micle / Custap | at a quarter HP: crit +2 / +2 to a random stat / next move more accurate / move first next turn | once per battle |
+| Resist berries (Occa, Passho … Roseli; Chilan) | halve one super-effective hit of their type (Chilan: any Normal hit) | once per battle |
+| Kee / Maranga | +1 Def / SpD when hit by a physical / special move | once per battle |
+| Jaboca / Rowap | the physical / special attacker loses **1/8** | once per battle |
+| Enigma Berry | heals **25%** when hit super-effectively | once per battle |
+| Gems (Normal Gem … Fairy Gem) | **x1.3** to one move of their type | once per battle |
 | Focus Sash | survives one hit from **full HP** with 1 HP | once per battle |
+| Focus Band | **10%** to survive any hit with 1 HP | every hit |
 | Leftovers | heals **1/16** of max HP at the end of every turn | every turn |
+| Black Sludge | Poison types heal 1/16 a turn; anyone else loses 1/8 | every turn |
 | Quick Claw | **20%** chance to move first (priority moves still win) | every turn |
+| Choice Band / Specs / Scarf | **x1.5** Atk / SpA / Spe, locked into the first move used | while out |
+| Life Orb | **x1.3** damage, costs **1/10** max HP a hit | every hit |
+| Expert Belt / Muscle Band / Wise Glasses | x1.2 super-effective / x1.1 physical / x1.1 special | every hit |
+| Metronome | +20% for each use of the same move in a row, up to x2 | every hit |
+| Type boosters, incenses, plates | **x1.2** to one type (Charcoal, Mystic Water, Flame Plate …) | every hit |
+| Assault Vest | **x1.5** SpD, attacking moves only | always |
+| Eviolite | **x1.5** Def and SpD on a creature that can still evolve | always |
+| Rocky Helmet | a physical attacker loses **1/6** | every hit |
+| Weakness Policy | +2 Atk and SpA when hit super-effectively | once per battle |
+| Air Balloon | immune to Ground moves until hit | until popped |
+| Eject Button / Red Card | when hit: the holder / the attacker is switched for a random teammate | once per battle |
+| Shed Shell | can always switch out | always |
+| White Herb / Mental Herb / Power Herb | undo lowered stats / end Taunt or Encore / skip a charging turn | once per battle |
+| Absorb Bulb, Cell Battery, Luminous Moss, Snowball | +1 to a stat when hit by Water / Electric / Water / Ice | once per battle |
+| Light Clay, Damp / Heat / Smooth / Icy Rock, Terrain Extender | screens, the matching weather, a terrain last **8** turns instead of 5 | — |
+| Electric / Grassy / Misty / Psychic Seed | +1 Def or SpD under their terrain | once per battle |
+| Scope Lens / Razor Claw | crit +1 | always |
+| King's Rock / Razor Fang | **10%** flinch on a damaging move | every hit |
+| Wide Lens / Zoom Lens | accuracy x1.1 / x1.2 when moving second | always |
+| BrightPowder / Lax Incense | the foe's accuracy x0.9 | always |
+| Shell Bell / Big Root | heal 1/8 of damage dealt / drains heal 30% more | every hit |
+| Toxic Orb / Flame Orb | badly poisons / burns the holder at the end of a turn | — |
+| Binding Band / Grip Claw | binding moves deal 1/6 / last 7 turns | — |
+| Safety Goggles | no sandstorm or hail damage | always |
+| Protective Pads | no Rocky Helmet damage when attacking | always |
+| Iron Ball / Lagging Tail, Full Incense | half Speed and grounded / moves last | always |
+| Sticky Barb | the holder loses 1/8 a turn | every turn |
+| Float Stone / Ring Target | halves weight / the holder loses its type immunities | always |
+| Light Ball, Thick Club, DeepSeaTooth / Scale, Metal / Quick Powder | double a stat on Pikachu / Cubone and Marowak / Clamperl / Ditto | always |
+| Leek, Lucky Punch | crit +2 on Farfetch'd and Sirfetch'd / Chansey | always |
+| Soul Dew, Adamant Orb, Lustrous Orb | x1.2 to the signature types of Latias and Latios / Dialga / Palkia | every hit |
+
+**Arceus and the plates.** Any plate gives its type's moves x1.2 on anyone, but
+on **Arceus** it does what it does in the games: Arceus **becomes that type**
+for the fight — its same-type bonus, its weaknesses and its resistances all
+follow the plate. No ability is needed, and no other creature changes type.
 
 **Nothing is ever used up for good (v3.38).** A berry or a sash works once in
 a fight, and the creature is holding it again when the fight ends -- you never
 have to re-equip it. (KNOCK OFF also only takes an item for that one battle.)
 
-They are never sold. They come from the **Pokédex**: every **25** species
+They are never sold. They come from the **Battle Tower** (above) and the **Pokédex**: every **25** species
 registered gives one, cycling Oran ×3 → Sitrus ×2 → Lum ×2 → Quick Claw → Focus
 Sash → Leftovers. An existing save is paid every milestone it has already
 passed on its first boot.

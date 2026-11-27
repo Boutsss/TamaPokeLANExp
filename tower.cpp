@@ -20,6 +20,39 @@ static const Pet *s_pet = nullptr;
 static uint16_t s_streak = 0, s_best = 0;
 static uint32_t s_seed = 1;
 static uint16_t s_rm[GYM_REGIONS] = { 0 };
+static PartyMon s_team[TOWER_TEAM];
+static uint8_t s_teamN = 0;
+static bool s_resumed = false;          // a checkpoint was found at boot, or a fight was left
+
+// "twTeam": [u8 version 1][u8 count][u8 record size][record x count]. The size
+// travels with it so a later, longer PartyMon still reads the prefix it knows
+// -- the same rule as the party's migration.
+#define TW_TEAM_VER 1
+static void teamSave() {
+  if (!s_opened) return;
+  if (!s_teamN) { s_prefs.remove("twTeam"); return; }
+  uint8_t buf[3 + sizeof(PartyMon) * TOWER_TEAM];
+  buf[0] = TW_TEAM_VER; buf[1] = s_teamN; buf[2] = (uint8_t)sizeof(PartyMon);
+  memcpy(buf + 3, s_team, sizeof(PartyMon) * s_teamN);
+  size_t len = 3 + sizeof(PartyMon) * s_teamN;
+  if (s_prefs.putBytes("twTeam", buf, len) != len) Serial.println("tower: team write failed");
+}
+static void teamLoad() {
+  s_teamN = 0;
+  for (auto &m : s_team) m = PartyMon();
+  size_t have = s_prefs.getBytesLength("twTeam");
+  if (have < 3 || have > 3 + 255 * TOWER_TEAM) return;
+  static uint8_t buf[3 + 255 * TOWER_TEAM];
+  s_prefs.getBytes("twTeam", buf, have);
+  uint8_t n = buf[1], sz = buf[2];
+  if (buf[0] != TW_TEAM_VER || !n || n > TOWER_TEAM || !sz || have < 3 + (size_t)sz * n) return;
+  for (uint8_t i = 0; i < n; i++) {
+    PartyMon m;
+    memcpy(&m, buf + 3 + (size_t)sz * i, sz < sizeof(PartyMon) ? sz : sizeof(PartyMon));
+    if (m.empty() || m.dex < 1 || m.dex > DEX_COUNT) continue;   // never trust a stored record
+    s_team[s_teamN++] = m;
+  }
+}
 
 bool towerBindPet(const Pet *p) { s_pet = p; return p != nullptr; }
 
@@ -38,6 +71,9 @@ void towerBegin() {
   s_streak = s_prefs.getUShort("twStrk", 0);
   s_best = s_prefs.getUShort("twBest", 0);
   s_seed = s_prefs.getUInt("twSeed", 1);
+  teamLoad();
+  // a fight was under way when the board went down: the run waits at that floor
+  if (s_prefs.getUChar("twMid", 0)) { s_resumed = true; s_prefs.putUChar("twMid", 0); }
   memset(s_rm, 0, sizeof(s_rm));
   size_t have = s_prefs.getBytesLength("rmWin");
   if (have) s_prefs.getBytes("rmWin", s_rm, have < sizeof(s_rm) ? have : sizeof(s_rm));
@@ -52,8 +88,31 @@ void towerClearAll() {
   s_streak = s_best = 0;
   s_seed = 1;
   memset(s_rm, 0, sizeof(s_rm));
+  s_teamN = 0;
+  s_resumed = false;
   towerSave();
+  teamSave();
+  if (s_opened) s_prefs.putUChar("twMid", 0);
 }
+
+uint8_t towerTeam(PartyMon *out) {
+  if (out) for (uint8_t i = 0; i < s_teamN; i++) out[i] = s_team[i];
+  return s_teamN;
+}
+bool towerSetTeam(const PartyMon *m, uint8_t n) {
+  if (n > TOWER_TEAM) n = TOWER_TEAM;
+  s_teamN = 0;
+  for (uint8_t i = 0; i < n; i++) if (!m[i].empty()) s_team[s_teamN++] = m[i];
+  teamSave();
+  return s_teamN > 0;
+}
+void towerFightBegin() {
+  s_resumed = false;
+  if (s_opened) s_prefs.putUChar("twMid", 1);
+}
+static void fightEnd() { if (s_opened) s_prefs.putUChar("twMid", 0); }
+void towerSuspend() { fightEnd(); s_resumed = true; }
+bool towerResumed() { return s_resumed && towerRunActive(); }
 
 // ---------- unlocking ----------
 bool towerUnlockedFor(const Pet &p) {
@@ -66,7 +125,7 @@ bool towerUnlocked() { return s_pet && towerUnlockedFor(*s_pet); }
 
 uint16_t towerStreak() { return s_streak; }
 uint16_t towerBest() { return s_best; }
-bool towerRunActive() { return s_streak > 0; }
+bool towerRunActive() { return s_streak > 0 || s_teamN > 0; }
 uint32_t towerSeed() { return s_seed; }
 
 void towerStartRun(uint32_t seed) {
@@ -222,23 +281,63 @@ bool towerTeamFor(uint16_t floor, uint32_t seed, TowerTeam &out) {
 
 // ---------- rewards ----------
 static void rwAdd(TowerReward &r, uint8_t item, uint8_t q) {
-  if (r.n < 3) { r.item[r.n] = item; r.qty[r.n] = q; r.n++; }
+  if (r.n < TOWER_REWARD_MAX) { r.item[r.n] = item; r.qty[r.n] = q; r.n++; }
 }
 
-// Every 7th win: 3 ULTRA BALLs and 2 berries (SITRUS, then LUM alternately);
-// every 14th adds a held item, cycling LEFTOVERS, FOCUS SASH, QUICK CLAW.
+// The FIXED part of a floor's pay, deterministic so a test can pin it. Every
+// 7th win up to the top: 3 ULTRA BALLs and 2 berries (SITRUS, then LUM
+// alternately). Past the top floor: a MASTER BALL every floor instead. The
+// held items are rolled on top of this by towerWin().
 bool towerRewardFor(uint16_t streak, TowerReward &r) {
   r.n = 0;
   r.avatar = -1;
-  if (!streak || streak % TOWER_REWARD_EVERY) return false;
+  if (!streak) return false;
+  if (streak > TOWER_TOP_FLOOR) { rwAdd(r, IT_MASTERBALL, 1); return true; }
+  if (streak % TOWER_REWARD_EVERY) return false;
   uint16_t k = streak / TOWER_REWARD_EVERY;
   rwAdd(r, IT_ULTRABALL, 3);
   rwAdd(r, (k % 2) ? IT_SITRUS_BERRY : IT_LUM_BERRY, 2);
-  if (k % 2 == 0) {
-    static const uint8_t HELD[3] = { IT_LEFTOVERS, IT_FOCUS_SASH, IT_QUICK_CLAW };
-    rwAdd(r, HELD[(k / 2 - 1) % 3], 1);
-  }
   return true;
+}
+
+uint8_t towerTierFor(uint16_t f, uint8_t roll) {
+  roll %= 100;
+  if (f < TOWER_TIER_B_FLOOR) return HT_C;
+  if (f < TOWER_TIER_A_FLOOR) {
+    uint32_t b = 20 + (uint32_t)(f - TOWER_TIER_B_FLOOR) * 40 / (TOWER_TIER_A_FLOOR - 1 - TOWER_TIER_B_FLOOR);
+    return roll < b ? HT_B : HT_C;
+  }
+  if (f >= TOWER_TOP_FLOOR) return roll < 30 ? HT_S : HT_A;   // the top and past it: A/S only
+  uint32_t span = TOWER_TOP_FLOOR - 1 - TOWER_TIER_A_FLOOR;
+  uint32_t s = 3 + (uint32_t)(f - TOWER_TIER_A_FLOOR) * 12 / span;
+  uint32_t a = 10 + (uint32_t)(f - TOWER_TIER_A_FLOOR) * 30 / span;
+  if (roll < s) return HT_S;
+  if (roll < s + a) return HT_A;
+  if (roll < s + a + 45) return HT_B;
+  return HT_C;
+}
+
+static uint8_t tierWeight(ItemKey k) {
+  uint8_t fx = heldFx(k);
+  return (fx == HX_PLATE || fx == HX_GEM) ? 1 : 4;
+}
+ItemKey towerItemOfTier(uint8_t tier, uint32_t roll) {
+  uint32_t total = 0;
+  for (uint8_t k = 1; k < ITEM_COUNT; k++) if (itemTier(k) == tier) total += tierWeight(k);
+  if (!total) return ITEM_NONE;
+  roll %= total;
+  for (uint8_t k = 1; k < ITEM_COUNT; k++) {
+    if (itemTier(k) != tier) continue;
+    uint8_t w = tierWeight(k);
+    if (roll < w) return k;
+    roll -= w;
+  }
+  return ITEM_NONE;
+}
+// One held item off `floor`'s table into the reward.
+static void rwHeld(TowerReward &r, uint16_t floor) {
+  ItemKey k = towerItemOfTier(towerTierFor(floor, (uint8_t)random(100)), (uint32_t)random(0x7FFFFFFF));
+  if (k) rwAdd(r, k, 1);
 }
 
 static void bagReward(const TowerReward &r) {
@@ -264,8 +363,17 @@ uint16_t towerWin(TowerReward *got) {
   // Saved BEFORE the reward goes in: a reset between the two loses a reward
   // rather than granting it twice on the next win.
   towerSave();
+  fightEnd();
   TowerReward r;
-  bool any = towerRewardFor(s_streak, r);
+  towerRewardFor(s_streak, r);
+  if (s_streak == TOWER_TOP_FLOOR) {
+    for (uint8_t i = 0; i < TOWER_TOP_ITEMS; i++) rwHeld(r, s_streak);
+  } else if (s_streak > TOWER_TOP_FLOOR) {
+    if (s_streak % TOWER_ENDLESS_EVERY == 0) rwHeld(r, s_streak);
+  } else if (s_streak % TOWER_REWARD_EVERY == 0 || random(100) < TOWER_HELD_PCT) {
+    rwHeld(r, s_streak);
+  }
+  bool any = r.n > 0;
   if (any) bagReward(r);
   if (got) { if (any) *got = r; else got->n = 0; }
   // After the save, like the items: a reset in between loses the costume
@@ -277,6 +385,10 @@ uint16_t towerWin(TowerReward *got) {
 }
 
 void towerLoss() {
+  fightEnd();
+  s_teamN = 0;          // the team was this run's; the next run picks again
+  s_resumed = false;
+  teamSave();
   gameEvent(EV_TOWER_LOSS, (int16_t)s_streak);
   // The next run climbs a different tower. Rolled here, not on START, so the
   // floor-1 team the screen shows before START is the one you then fight.

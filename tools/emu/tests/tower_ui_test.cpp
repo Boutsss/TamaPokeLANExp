@@ -109,9 +109,10 @@ int main(){
   ck(pet.level() < TOWER_LEVEL, "the live pet itself was never raised");
 
   // ---- a loss ends the run, the best is kept
+  // v3.56: the run's team was copied on floor 1, so CONTINUE goes straight to
+  // the fight -- no picker, whatever the party has become meanwhile
   onTap(233, twBtnCenterY()); render();
-  onTap(pickGoX(), pickGoY()); render();
-  ck(battleOpen && towerFloor() == 2, "CONTINUE fights floor 2");
+  ck(battleOpen && !pickOpen && towerFloor() == 2, "CONTINUE fights floor 2 with the run's team, no picker");
   ck(loseFight(), "losing ends the fight");
   ck(towerStreak() == 0 && towerBest() == 1, "a loss ends the run; the best is kept");
 

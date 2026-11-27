@@ -71,6 +71,7 @@ const SaveField SAVE_FIELDS[] = {
   { "arcHi", SK_BYTES },  { "arcDay", SK_U32 },  { "arcRw", SK_BYTES },
   { "rkTop", SK_U8 },  { "rkCat", SK_U16 },  { "rkChW", SK_U16 },  { "rkChL", SK_U16 },  { "rkAvG", SK_U8 },
   { "twStrk", SK_U16 },  { "twBest", SK_U16 },  { "twSeed", SK_U32 },  { "rmWin", SK_BYTES },
+  { "twTeam", SK_BYTES }, { "twMid", SK_U8 },
   // friends: gifts and visits between two boards (friends.cpp)
   // the Game Corner: coins ride the player checkpoint (legacy "coin");
   // prizes owned and equipped (casino.cpp)

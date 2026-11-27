@@ -76,7 +76,7 @@ struct RimPage {
 
 // Version del firmware. Subir este numero en cada release (y manifest.json para
 // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
-#define FW_VERSION "3.55"
+#define FW_VERSION "3.56"
 
 Arduino_DataBus *bus = new Arduino_ESP32QSPI(
   LCD_CS, LCD_SCLK, LCD_SDIO0, LCD_SDIO1, LCD_SDIO2, LCD_SDIO3);
@@ -4977,12 +4977,42 @@ void startTrainerBattle(uint8_t idx, bool hard) {
 // squad (buildSquad) and set btlTrainer / btlRegion / btlHard / btlKind.
 // The Battle Tower: the floor tower.cpp shows is the floor you fight -- the same
 // seed and floor build the same team.
+// The run's team, copied from what the picker chose: the live pet first, then
+// the banked party, exactly buildSquad()'s order.
+static uint8_t towerTeamFromPick(PartyMon *out) {
+  uint8_t n = 0;
+  if (!pet.isEgg() && (squadMask & 1)) out[n++] = pet.toPartyMon();
+  for (int i = 0; i < PARTY_SLOTS && n < TOWER_TEAM; i++)
+    if (!party.slots[i].empty() && (squadMask & (1 << (i + 1)))) out[n++] = party.slots[i];
+  return n;
+}
+
 void startTowerBattle() {
   if (pet.isEgg() || pet.ceremony != CER_NONE || !towerUnlocked()) return;
   TowerTeam tt;
   if (!towerTeamFor(towerFloor(), towerSeed(), tt) || !tt.count) return;
-  buildSquad(0, TOWER_TEAM, squadMask, TOWER_LEVEL);
+  // Every floor is fought with the COPY taken when the run began, so the
+  // party can change mid-climb -- a trade, a release, a new held item --
+  // without the run noticing. Only a new run reads the picker.
+  PartyMon team[TOWER_TEAM];
+  uint8_t n = towerTeam(team);
+  if (!n) {
+    n = towerTeamFromPick(team);
+    if (!n || !towerSetTeam(team, n)) return;
+  }
+  btlSquadN = 0;
+  btlSquadAt = 0;
+  btlPetIn = false;      // a copy fights: no training lands on the live pet
+  for (uint8_t i = 0; i < n && btlSquadN < TOWER_TEAM; i++) {
+    PartyMon m = team[i];
+    m.level = TOWER_LEVEL;
+    combatantFromParty(btlSquad[btlSquadN], m);
+    btlSquad[btlSquadN].holder = -1;   // nobody's slot: nothing is written back
+    btlSquadN++;
+  }
   if (!btlSquadN) return;
+  btlYou = btlSquad[0];
+  towerFightBegin();     // the checkpoint: a restart now resumes on this floor
   btlTrainer = TRAINER_COUNT - 1;   // a "trainer" fight, scored like the champion's
   btlRegion = gymRegion % GYM_REGIONS;
   btlHard = false;
@@ -5378,6 +5408,21 @@ static bool btlOutEffects(Combatant &actor, const TurnLog &lg) {
     if (k < 0) btlSay("%s", T(S_BN_FAILED));
     else { btlSay(T(S_BN_DRAGGED), tSide ? btlFoe.name : btlYou.name); btlBringIn(tSide, (uint8_t)k, false, nullptr); }
   }
+  // EJECT BUTTON (the target goes back) and RED CARD (the attacker is sent
+  // back): a random healthy teammate, and nothing at all in a wild fight.
+  if ((lg.ejectOut || lg.userOut) && !btlWild) {
+    uint8_t side = lg.ejectOut ? tSide : aSide;
+    Combatant &who = side ? btlFoe : btlYou;
+    int k = who.fainted() ? -1 : btlRandomHealthy(side);
+    if (k >= 0) {
+      btlSay(T(S_BN_DRAGGED), who.name);
+      btlBringIn(side, (uint8_t)k, false, nullptr);
+      // an ejected target that had not moved yet loses its move: the
+      // newcomer must not fire the move its teammate chose
+      if (lg.ejectOut && btlTurn.firstDone && !btlTurn.secondDone) btlTurn.secondDone = true;
+    }
+    if (lg.userOut) return false;    // the attacker is gone: no U-TURN after it
+  }
   if (lg.selfOut && !actor.fainted()) {
     if (btlNextHealthy(aSide) < 0) return false;          // nobody to switch to: it stays
     if (aSide == 0) {
@@ -5709,6 +5754,8 @@ void renderWin() {
   gfx->print(l);
 
   // A tower floor or a rematch has no badge: say what it was and what it paid.
+  // Floor 100 pays up to six lines AND a costume, so the rows close up then.
+  auto btlRewardRowH = []() { return btlReward.n > 3 ? 20 : 26; };
   if (btlKind == BK_TOWER || btlKind == BK_REMATCH || btlKind == BK_CHALLENGE) {
     if (btlKind == BK_TOWER) snprintf(l, sizeof(l), T(S_TW_STREAK_FMT), (unsigned)towerStreak(), (unsigned)towerBest());
     else if (btlKind == BK_CHALLENGE) snprintf(l, sizeof(l), "%s", T(btlReward.n ? S_CH_PAID : S_CH_DONE));
@@ -5720,13 +5767,13 @@ void renderWin() {
     for (uint8_t i = 0; i < btlReward.n; i++) {
       snprintf(l, sizeof(l), "+%u %s", (unsigned)btlReward.qty[i], itemEntry(btlReward.item[i]).name);
       gfx->setTextColor(UI_BAR_OK);
-      gfx->setCursor(CX - (int)strlen(l) * 6, 196 + i * 26);
+      gfx->setCursor(CX - (int)strlen(l) * 6, 196 + i * btlRewardRowH());
       gfx->print(l);
     }
     // Floor TOWER_AVATAR_FLOOR: the legendary costume this run unlocked,
     // drawn large with its aura (which needs 2 cells of room each side).
     if (btlKind == BK_TOWER && btlReward.avatar >= 0) {
-      int ty = 196 + btlReward.n * 26;
+      int ty = 196 + btlReward.n * btlRewardRowH();
       gfx->setTextColor(UI_BAR_WARN);
       gfx->setTextSize(2);
       gfx->setCursor(CX - (int)strlen(T(S_TW_COSTUME)) * 6, ty);
@@ -5982,7 +6029,7 @@ void renderBattle() {
       // Same chip as the move list: in a fight the type IS the decision, and
       // grey 6px text was the least visible thing on the busiest screen.
       int cw = drawTypeChip(x + 10, y + 34, MOVE_TBL[mv].type);
-      if (hasStab(btlYou.dex, MOVE_TBL[mv].type) &&
+      if (battleIsType(btlYou, MOVE_TBL[mv].type) &&   // a plate retypes ARCEUS
           MOVE_TBL[mv].cat != MC_STATUS) {
         gfx->setTextSize(1);
         gfx->setTextColor(DEX_TBL[btlYou.dex].accent);
@@ -6145,8 +6192,9 @@ static void btlRun() {
   btlFreeSprites();
   audioMusic(MUS_NONE);
   if (btlLink) { lanLeave(); btlLink = false; lanOpen = true; }
-  // Running from the tower is a loss: the run ends, the best is kept.
-  if (btlKind == BK_TOWER && btlTrainer >= 0 && !btlOver) towerLoss();
+  // Leaving a tower fight is NOT a loss: the climb waits on this floor and the
+  // fight starts over from the run's team. Only a lost fight or END RUN ends it.
+  if (btlKind == BK_TOWER && btlTrainer >= 0 && !btlOver) towerSuspend();
   battleOpen = false;
   btlWild = false;
   btlMenu = 0;
@@ -8599,10 +8647,23 @@ void tradeTap(int16_t x, int16_t y) {
 // FLOOR n, the streak and best, who waits on this floor (the team tower.cpp
 // will build for the fight -- same seed, same floor), the rules, and one
 // finger-sized START/CONTINUE that opens the team picker capped at three.
-#define TW_BTN_Y 312
-#define TW_BTN_H UI_TAP_FINGER
-#define TW_BTN_W 220
+// CONTINUE (or START) is the big button. With a run under way two more sit
+// under it: LATER walks back to the pet with the run kept (it always was --
+// the streak and the team are on flash), END RUN asks twice. Everything stays
+// above BACK_Y.
+#define TW_BTN_Y 262
+#define TW_BTN_H 78
+#define TW_BTN_W 240
+#define TW_SUB_Y 346
+#define TW_SUB_H 50
+#define TW_SUB_W 140
+#define TW_SUB_GAP 8
 int twBtnCenterY() { return TW_BTN_Y + TW_BTN_H / 2; }
+int twLaterCenterX() { return CX - TW_SUB_GAP / 2 - TW_SUB_W / 2; }
+int twEndCenterX() { return CX + TW_SUB_GAP / 2 + TW_SUB_W / 2; }
+int twSubCenterY() { return TW_SUB_Y + TW_SUB_H / 2; }
+static_assert(TW_SUB_Y + TW_SUB_H <= 400, "nothing may sit in the BACK band");
+static uint32_t twEndArmed = 0;    // END RUN tapped once: a second tap within 3 s ends it
 
 static void twCenter(const char *s, int y, uint8_t size, uint16_t col) {
   gfx->setTextColor(col);
@@ -8610,49 +8671,82 @@ static void twCenter(const char *s, int y, uint8_t size, uint16_t col) {
   gfx->setCursor(CX - (int)strlen(s) * 3 * size, y);
   gfx->print(s);
 }
+static void twButton(int x, int y, int w, int h, uint16_t fill, const char *label, uint8_t size) {
+  gfx->fillRoundRect(x, y, w, h, 14, fill);
+  gfx->drawRoundRect(x, y, w, h, 14, UI_INK);
+  gfx->setTextColor(UI_WHITE);
+  gfx->setTextSize(size);
+  gfx->setCursor(x + (w - (int)strlen(label) * 6 * size) / 2, y + (h - 8 * size) / 2);
+  gfx->print(label);
+}
 
 void renderTower() {
   gfx->fillScreen(RGB565_BLACK);
   gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
-  twCenter(T(S_TW_TITLE), 46, 2, UI_INK);
-  char l[48];
+  twCenter(T(S_TW_TITLE), 40, 2, UI_INK);
+  char l[64];
   if (!towerUnlocked()) {
     twCenter(T(S_TW_WHY), 200, 2, UI_INK_SOFT);
     gfx->flush();
     return;
   }
+  bool run = towerRunActive();
   snprintf(l, sizeof(l), T(S_TW_FLOOR_FMT), (unsigned)towerFloor());
-  twCenter(l, 80, 4, UI_INK);
+  twCenter(l, 64, 3, UI_INK);
   snprintf(l, sizeof(l), T(S_TW_STREAK_FMT), (unsigned)towerStreak(), (unsigned)towerBest());
-  twCenter(l, 126, 2, UI_INK);
-  uint16_t nextRw = (uint16_t)((towerStreak() / TOWER_REWARD_EVERY + 1) * TOWER_REWARD_EVERY);
-  snprintf(l, sizeof(l), T(S_TW_NEXTRW_FMT), (unsigned)nextRw);
-  twCenter(l, 150, 1, UI_INK_SOFT);
+  twCenter(l, 96, 2, UI_INK);
+  if (towerResumed()) {
+    snprintf(l, sizeof(l), T(S_TW_SAVED_FMT), (unsigned)towerFloor());
+    twCenter(l, 120, 1, UI_BAR_WARN);
+  } else if (towerStreak() < TOWER_TOP_FLOOR) {
+    uint16_t nextRw = (uint16_t)((towerStreak() / TOWER_REWARD_EVERY + 1) * TOWER_REWARD_EVERY);
+    snprintf(l, sizeof(l), T(S_TW_NEXTRW_FMT), (unsigned)nextRw);
+    twCenter(l, 120, 1, UI_INK_SOFT);
+  }
   // who waits on this floor
   TowerTeam tt;
+  tt.smart = false;
   if (towerTeamFor(towerFloor(), towerSeed(), tt)) {
     snprintf(l, sizeof(l), "%s  IV %u", towerFoeName(towerFloor()), (unsigned)tt.iv);
-    twCenter(l, 176, 2, tt.smart ? UI_BAR_BAD : UI_INK);
+    twCenter(l, 138, 2, tt.smart ? UI_BAR_BAD : UI_INK);
     for (uint8_t i = 0; i < tt.count; i++)
-      twCenter(DEX_TBL[tt.mon[i].dex].name, 204 + i * 22, 2, UI_INK);
+      twCenter(DEX_TBL[tt.mon[i].dex].name, 162 + i * 20, 2, UI_INK);
+  }
+  // the run's own team, once it is locked in
+  PartyMon team[TOWER_TEAM];
+  uint8_t n = towerTeam(team);
+  if (n) {
+    int at = snprintf(l, sizeof(l), "%s:", T(S_TW_TEAM));
+    for (uint8_t i = 0; i < n && at < (int)sizeof(l) - 2; i++)
+      at += snprintf(l + at, sizeof(l) - at, " %s", team[i].nick[0] ? team[i].nick : DEX_TBL[team[i].dex].name);
+    twCenter(l, 228, 1, UI_INK);
   }
   snprintf(l, sizeof(l), "%s%s%s", T(S_TW_RULES), tt.smart ? " - " : "", tt.smart ? T(S_TW_SMART) : "");
-  twCenter(l, 280, 1, UI_INK_SOFT);
-  gfx->fillRoundRect(CX - TW_BTN_W / 2, TW_BTN_Y, TW_BTN_W, TW_BTN_H, 18, UI_BAR_OK);
-  gfx->drawRoundRect(CX - TW_BTN_W / 2, TW_BTN_Y, TW_BTN_W, TW_BTN_H, 18, UI_INK);
-  twCenter(T(towerRunActive() ? S_TW_CONT : S_TW_START), TW_BTN_Y + TW_BTN_H / 2 - 12, 3, UI_WHITE);
+  twCenter(l, 244, 1, UI_INK_SOFT);
+  twButton(CX - TW_BTN_W / 2, TW_BTN_Y, TW_BTN_W, TW_BTN_H, UI_BAR_OK, T(run ? S_TW_CONT : S_TW_START), 3);
+  if (run) {
+    if (twEndArmed && millis() - twEndArmed > 3000) twEndArmed = 0;
+    twButton(twLaterCenterX() - TW_SUB_W / 2, TW_SUB_Y, TW_SUB_W, TW_SUB_H, UI_INK_SOFT, T(S_TW_LATER), 2);
+    twButton(twEndCenterX() - TW_SUB_W / 2, TW_SUB_Y, TW_SUB_W, TW_SUB_H, UI_BAR_BAD,
+             T(twEndArmed ? S_TW_SURE : S_TW_END), 2);
+  }
   gfx->flush();
 }
 
 void towerTap(int16_t x, int16_t y) {
   // the held BACK button (ui_back.ino) does this now; a tap no longer does
   if (!towerUnlocked()) { sfxPlay(SFX_DENY); return; }
+  bool run = towerRunActive();
   if (y >= TW_BTN_Y && y <= TW_BTN_Y + TW_BTN_H &&
       x >= CX - TW_BTN_W / 2 && x <= CX + TW_BTN_W / 2) {
+    twEndArmed = 0;
+    sfxPlay(SFX_TAP);
+    // A run with its team locked in goes straight to the next floor: the
+    // picker is only for choosing the team a NEW run copies.
+    if (towerTeam(nullptr)) { towerOpen = false; startTowerBattle(); if (!battleOpen) towerOpen = true; return; }
     // START rolls a fresh tower only when there is no run to continue; the
     // floor-1 team shown before START is the one that seed builds.
-    if (!towerRunActive()) towerStartRun(towerSeed());
-    sfxPlay(SFX_TAP);
+    if (!run) towerStartRun(towerSeed());
     towerOpen = false;
     pickTrainer = PICK_TOWER;
     pickRematch = false;
@@ -8661,6 +8755,21 @@ void towerTap(int16_t x, int16_t y) {
     pickPage = 0;
     pickDefault(TOWER_TEAM);
     pickOpen = true;
+    return;
+  }
+  if (!run || y < TW_SUB_Y || y > TW_SUB_Y + TW_SUB_H) return;
+  if (x >= twLaterCenterX() - TW_SUB_W / 2 && x <= twLaterCenterX() + TW_SUB_W / 2) {
+    // LATER: the run is already on flash; just go home
+    twEndArmed = 0;
+    sfxPlay(SFX_TAP);
+    towerOpen = false;
+    return;
+  }
+  if (x >= twEndCenterX() - TW_SUB_W / 2 && x <= twEndCenterX() + TW_SUB_W / 2) {
+    if (!twEndArmed || millis() - twEndArmed > 3000) { twEndArmed = millis(); sfxPlay(SFX_TAP); return; }
+    twEndArmed = 0;
+    sfxPlay(SFX_DENY);
+    towerLoss();          // the streak ends here; the best is kept, the team is released
   }
 }
 

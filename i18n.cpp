@@ -91,7 +91,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "ARMARIO", "PIEL", "OJOS", "PELO", "COLOR DE PELO", "GORRO", "PARTE DE ARRIBA", "PIERNAS", "ZAPATOS", "CARA", "ESPALDA", "LOOKS %u/%u", "NUEVO LOOK: %s!", "proximo look en %uh %um",
     "camina: %u/%u pasos",
     "INVITA LA CASA: +%u!", "VUELVE EN %u MIN",
-    "GUANTES" },
+    "GUANTES",
+    "LUEGO", "ACABAR", "SEGURO?", "Guardado en el piso %u", "EQUIPO", "La torre te espera aqui" },
   // ---------------- EN ----------------
   {
     "Evolving!", "Yum yum!", "It likes it!", "It's hungry!", "Needs a bath!",
@@ -174,7 +175,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "WARDROBE", "SKIN", "EYES", "HAIR", "HAIR COLOUR", "HAT", "TOP", "LEGS", "SHOES", "FACE", "BACK", "LOOKS %u/%u", "NEW LOOK: %s!", "next look in %uh %um",
     "walk to hatch %u/%u",
     "ON THE HOUSE: +%u!", "COME BACK IN %u MIN",
-    "GLOVES" },
+    "GLOVES",
+    "LATER", "END RUN", "SURE?", "Climb saved at floor %u", "TEAM", "The climb waits here" },
   // ---------------- FR ----------------
   {
     "Il evolue!", "Miam miam!", "Il aime ca!", "Il a faim!", "Besoin d'un bain!",
@@ -256,7 +258,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "GARDE-ROBE", "PEAU", "YEUX", "CHEVEUX", "COULEUR CHEVEUX", "CHAPEAU", "HAUT", "JAMBES", "CHAUSSURES", "VISAGE", "DOS", "LOOKS %u/%u", "NOUVEAU LOOK: %s!", "prochain look dans %uh %um",
     "marche: %u/%u pas",
     "OFFERT: +%u!", "REVIENS DANS %u MIN",
-    "GANTS" },
+    "GANTS",
+    "PLUS TARD", "ABANDON", "SUR?", "Sauvegarde etage %u", "EQUIPE", "La tour vous attend" },
   // ---------------- DE ----------------
   {
     "Entwickelt sich!", "Mampf mampf!", "Gefaellt ihm!", "Hat Hunger!", "Braucht ein Bad!",
@@ -338,7 +341,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "KLEIDUNG", "HAUT", "AUGEN", "HAARE", "HAARFARBE", "HUT", "OBERTEIL", "BEINE", "SCHUHE", "GESICHT", "RUECKEN", "LOOKS %u/%u", "NEUER LOOK: %s!", "naechster Look in %uh %um",
     "laufen: %u/%u Schritte",
     "GESCHENKT: +%u!", "KOMM IN %u MIN WIEDER",
-    "HANDSCHUHE" },
+    "HANDSCHUHE",
+    "SPAETER", "AUFGEBEN", "SICHER?", "Gespeichert: Etage %u", "TEAM", "Der Turm wartet" },
   // ---------------- IT ----------------
   {
     "Si evolve!", "Gnam gnam!", "Gli piace!", "Ha fame!", "Vuole un bagno!",
@@ -420,7 +424,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "ARMADIO", "PELLE", "OCCHI", "CAPELLI", "COLORE CAPELLI", "CAPPELLO", "SOPRA", "GAMBE", "SCARPE", "VISO", "SCHIENA", "LOOKS %u/%u", "NUOVO LOOK: %s!", "prossimo look tra %uh %um",
     "cammina: %u/%u passi",
     "OFFRE LA CASA: +%u!", "TORNA TRA %u MIN",
-    "GUANTI" },
+    "GUANTI",
+    "DOPO", "ABBANDONA", "SICURO?", "Salvato al piano %u", "SQUADRA", "La torre ti aspetta" },
   // ---------------- PT ----------------
   {
     "Evoluindo!", "Nham nham!", "Ele gosta!", "Esta com fome!", "Precisa de banho!",
@@ -502,7 +507,8 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "ARMARIO", "PELE", "OLHOS", "CABELO", "COR DO CABELO", "CHAPEU", "PARTE DE CIMA", "PERNAS", "SAPATOS", "ROSTO", "COSTAS", "LOOKS %u/%u", "NOVO VISUAL: %s!", "proximo visual em %uh %um",
     "ande: %u/%u passos",
     "CORTESIA: +%u!", "VOLTE EM %u MIN",
-    "LUVAS" },
+    "LUVAS",
+    "DEPOIS", "DESISTIR", "CERTEZA?", "Salvo no andar %u", "EQUIPE", "A torre espera aqui" },
 };
 
 // Nombres de medalla en sus tres longitudes [idioma][medalla].

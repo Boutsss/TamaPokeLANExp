@@ -583,6 +583,12 @@ enum StrId : uint16_t {
   S_CAS_GIFT_FMT,  // the dealer's hourly gift, in his bubble
   S_CAS_GIFT_WAIT_FMT, // ... and when he will give again
   S_WD_GLOVES,     // wardrobe row
+  S_TW_LATER,      // tower: leave, run kept
+  S_TW_END,        // tower: abandon the run
+  S_TW_SURE,       // tower: confirm end run
+  S_TW_SAVED_FMT,  // tower: checkpoint floor
+  S_TW_TEAM,       // tower: the run's team
+  S_TW_LEFT,       // tower: left mid-fight
   STR_COUNT
 };
 
