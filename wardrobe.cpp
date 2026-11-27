@@ -77,6 +77,7 @@ static void defaults() {
   wardrobe.worn[WS_TOP] = itemById(1323);    // T-Shirt
   wardrobe.worn[WS_LEGS] = itemById(1316);   // Pants
   wardrobe.worn[WS_SHOES] = itemById(1327);  // Boots
+  wardrobe.hairDye = 5;                        // DARK BROWN: "natural" is the undyed grey template
 }
 
 static void sanitize() {

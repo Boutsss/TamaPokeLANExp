@@ -69,12 +69,35 @@ void drawWardrobeTrainer(int bx, int by, int box) {
   if (!px) { px = (uint16_t *)malloc(W * H * 2); mask = (uint8_t *)malloc(W * H); }
   if (!px || !mask) return;
   wardrobeCompose(px, mask);
-  int side = W > H ? W : H;
-  int k = box / side; if (k < 1) k = 1;
-  int ox = bx + (box - W * k) / 2, oy = by + (box - H * k) / 2;
+  // Scale the drawn pixels, not the canvas: PokeMMO's canvas carries empty
+  // margins, and fitting those drew the trainer at 1x in a 64 px square.
+  int x0 = W, y0 = H, x1 = -1, y1 = -1;
   for (int y = 0; y < H; y++)
     for (int x = 0; x < W; x++)
-      if (mask[y * W + x]) gfx->fillRect(ox + x * k, oy + y * k, k, k, px[y * W + x]);
+      if (mask[y * W + x]) {
+        if (x < x0) x0 = x; if (x > x1) x1 = x;
+        if (y < y0) y0 = y; if (y > y1) y1 = y;
+      }
+  if (x1 < 0) return;
+  const int bw = x1 - x0 + 1, bh = y1 - y0 + 1, side = bw > bh ? bw : bh;
+  int k = box / side;
+  if (k >= 2) {   // a whole zoom where it fits: every source pixel the same size
+    int ox = bx + (box - bw * k) / 2, oy = by + (box - bh * k) / 2;
+    for (int y = y0; y <= y1; y++)
+      for (int x = x0; x <= x1; x++)
+        if (mask[y * W + x]) gfx->fillRect(ox + (x - x0) * k, oy + (y - y0) * k, k, k, px[y * W + x]);
+    return;
+  }
+  // Smaller squares (the picker's 48 px): nearest-neighbour to fill the box.
+  const int dw = bw * box / side, dh = bh * box / side;
+  const int ox = bx + (box - dw) / 2, oy = by + (box - dh) / 2;
+  for (int dy = 0; dy < dh; dy++) {
+    const int sy = y0 + dy * bh / dh;
+    for (int dx = 0; dx < dw; dx++) {
+      const int sx = x0 + dx * bw / dw;
+      if (mask[sy * W + sx]) gfx->drawPixel(ox + dx, oy + dy, px[sy * W + sx]);
+    }
+  }
 }
 
 void renderWardrobe() {
