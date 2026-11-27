@@ -92,7 +92,9 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "camina: %u/%u pasos",
     "INVITA LA CASA: +%u!", "VUELVE EN %u MIN",
     "GUANTES",
-    "LUEGO", "ACABAR", "SEGURO?", "Guardado en el piso %u", "EQUIPO", "La torre te espera aqui" },
+    "LUEGO", "ACABAR", "SEGURO?", "Guardado en el piso %u", "EQUIPO", "La torre te espera aqui",
+    "TOCA Y JUEGA",
+    "Tu mascota duerme", "Primero, el huevo" },
   // ---------------- EN ----------------
   {
     "Evolving!", "Yum yum!", "It likes it!", "It's hungry!", "Needs a bath!",
@@ -176,7 +178,9 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "walk to hatch %u/%u",
     "ON THE HOUSE: +%u!", "COME BACK IN %u MIN",
     "GLOVES",
-    "LATER", "END RUN", "SURE?", "Climb saved at floor %u", "TEAM", "The climb waits here" },
+    "LATER", "END RUN", "SURE?", "Climb saved at floor %u", "TEAM", "The climb waits here",
+    "TAP TO PLAY",
+    "Your pet is asleep", "Hatch your egg first" },
   // ---------------- FR ----------------
   {
     "Il evolue!", "Miam miam!", "Il aime ca!", "Il a faim!", "Besoin d'un bain!",
@@ -259,7 +263,9 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "marche: %u/%u pas",
     "OFFERT: +%u!", "REVIENS DANS %u MIN",
     "GANTS",
-    "PLUS TARD", "ABANDON", "SUR?", "Sauvegarde etage %u", "EQUIPE", "La tour vous attend" },
+    "PLUS TARD", "ABANDON", "SUR?", "Sauvegarde etage %u", "EQUIPE", "La tour vous attend",
+    "TOUCHE ET JOUE",
+    "Il dort", "Fais eclore l'oeuf" },
   // ---------------- DE ----------------
   {
     "Entwickelt sich!", "Mampf mampf!", "Gefaellt ihm!", "Hat Hunger!", "Braucht ein Bad!",
@@ -342,7 +348,9 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "laufen: %u/%u Schritte",
     "GESCHENKT: +%u!", "KOMM IN %u MIN WIEDER",
     "HANDSCHUHE",
-    "SPAETER", "AUFGEBEN", "SICHER?", "Gespeichert: Etage %u", "TEAM", "Der Turm wartet" },
+    "SPAETER", "AUFGEBEN", "SICHER?", "Gespeichert: Etage %u", "TEAM", "Der Turm wartet",
+    "TIPPEN!",
+    "Es schlaeft", "Erst schluepfen" },
   // ---------------- IT ----------------
   {
     "Si evolve!", "Gnam gnam!", "Gli piace!", "Ha fame!", "Vuole un bagno!",
@@ -425,7 +433,9 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "cammina: %u/%u passi",
     "OFFRE LA CASA: +%u!", "TORNA TRA %u MIN",
     "GUANTI",
-    "DOPO", "ABBANDONA", "SICURO?", "Salvato al piano %u", "SQUADRA", "La torre ti aspetta" },
+    "DOPO", "ABBANDONA", "SICURO?", "Salvato al piano %u", "SQUADRA", "La torre ti aspetta",
+    "TOCCA E GIOCA",
+    "Sta dormendo", "Prima la schiusa" },
   // ---------------- PT ----------------
   {
     "Evoluindo!", "Nham nham!", "Ele gosta!", "Esta com fome!", "Precisa de banho!",
@@ -508,7 +518,9 @@ static const char *const STRINGS[LANG_COUNT][STR_COUNT] = {
     "ande: %u/%u passos",
     "CORTESIA: +%u!", "VOLTE EM %u MIN",
     "LUVAS",
-    "DEPOIS", "DESISTIR", "CERTEZA?", "Salvo no andar %u", "EQUIPE", "A torre espera aqui" },
+    "DEPOIS", "DESISTIR", "CERTEZA?", "Salvo no andar %u", "EQUIPE", "A torre espera aqui",
+    "TOQUE E JOGUE",
+    "Esta dormindo", "Choque o ovo antes" },
 };
 
 // Nombres de medalla en sus tres longitudes [idioma][medalla].

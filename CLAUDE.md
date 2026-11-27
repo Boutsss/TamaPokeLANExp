@@ -2079,7 +2079,7 @@ is recorded here as fact so nobody redesigns it from the old notes.
 
 | Gesture | Means | Where |
 |---|---|---|
-| Horizontal | move along the TILE AXIS | `PLAYER . DAYCARE . PARTY . [PET] . EXPLORE . MART . GYM . DEX` |
+| Horizontal | move along the TILE AXIS | `PLAYER . DAYCARE . PARTY . [PET] . EXPLORE . MART . ARCADE . GYM . TOWER . DEX` |
 | Up | deeper (the pet's card, a sheet) | everywhere |
 | Down | BACK, one level | everywhere -- except a game in progress, left by the held BACK button only |
 | Hold BACK | BACK, one level (`uiBack()`) | every screen below the pet (`uiBackShownOn`) |
@@ -2123,7 +2123,7 @@ and its coverage from one edit. Adding a screen to `onSwipe` instead is the old
 mistake wearing new clothes.
 
 **The tile order is not arbitrary.** `PLAYER . DAYCARE . PARTY . [PET] . EXPLORE .
-MART . GYM . DEX` keeps yours on the left and the world on the right. The
+MART . ARCADE . GYM . TOWER . DEX` keeps yours on the left and the world on the right. The
 daycare (v3.29) works on the banked creatures, so it sits one step beyond
 PARTY; its picker is a level deeper (`SCR_DCPICK`), pages on the rim, and down
 walks back out of it. Explore is beside
@@ -2136,6 +2136,19 @@ gear at a gym -- and `TileDef`/`TILE[]` (`TamaPoke.ino`) is exactly the
 single table this section already describes, so adding a seventh stop was one
 edit there plus the matching `case` in `uiTileGo()`/`uiRimTarget()`, not a
 redesign of the axis itself.
+
+**ARCADE and TOWER became tiles in v3.57** (ten stops). The ARCADE page
+(`ui_archub.ino`, `SCR_ARCHUB`, `arcHubOpen`) replaced the TRAIN panel's fourth
+row: tapping its cabinet opens the game list ON TOP of it (`arcadeOpen`), and
+backing out of the list -- or out of the Game Corner lobby -- lands back on the
+page, not on the training menu. The Game Corner's hidden door moved with it:
+the hold is on the cabinet (`arcHubBtnAt()`), and `casinoDrawSpinRow()` takes
+the cabinet's own face as a callback so the turn-over animation is the same
+code at a bigger size. The tower tile is `SCR_TOWER` itself; the gym chooser
+keeps its TOWER button as a second way in, and down from the tower now goes to
+the pet like every tile. Ten dots do not fit the chord at `TILE_DOT_Y` at the
+old spacing, so `uiDrawTileDots()` closes them up past eight. The GYM tile is
+index 7 now: tests that said `uiTileGo(6)` for the gyms were updated.
 
 **Both multi-region tiles still open on their CHOOSER**, and `swipe_test` still
 asserts it. Down backs out of a ladder to the chooser and out of the chooser to

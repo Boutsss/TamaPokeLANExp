@@ -1370,16 +1370,18 @@ void arcadeGamesLine(char *out, size_t n) {
   }
 }
 void arcadeOpened() { arcGame = ARC_NONE; arcOver = false; arcLoad(); }
+// The ARCADE page with its game list open on top (the tests' way in; the
+// player's is the cabinet button, arcHubTap()).
 void arcadeOpenFromTrain() {
   featCloseAll();
   trainOpen = false;
+  arcHubOpen = true;
   arcadeOpen = true;
   arcadeOpened();
 }
-// The list's way out: back to the training menu it was opened from.
+// The list's way out: back to the ARCADE page it was opened from.
 void arcadeBack() {
   arcadeClose();
-  trainOpen = true;
 }
 // Closing the screen from anywhere (featCloseAll) banks a game in progress.
 void arcadeClose() {

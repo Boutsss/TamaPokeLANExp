@@ -71,14 +71,17 @@ int main(){
   towerClearAll();
 
   // ---- locked: the button opens a screen that says why, and START does nothing
-  uiTileGo(6); render();                     // GYM tile -> its chooser
+  uiTileGo(7); render();                     // GYM tile -> its chooser (v3.57: ARCADE is 6)
   ck(gymOpen && gymPick, "the GYM tile opens on its chooser");
   onTap(uiChooserBtnX(1), uiChooserBtnY()); render();
   ck(towerOpen, "TOWER opens the tower screen even while locked");
   onTap(233, twBtnCenterY()); render();
   ck(towerOpen && !pickOpen, "but START does nothing until a champion falls");
   onSwipeV(1); render();
-  ck(!towerOpen && gymOpen && gymPick, "down goes back to the chooser");
+  ck(!towerOpen && !gymOpen, "the tower is a tile now: down goes to the pet");
+  uiTileGo(8); render();
+  ck(towerOpen, "and it is the tile after the gyms (v3.57)");
+  uiTileGo(7); render();
 
   // ---- unlocked: START -> picker (three) -> a fight against the shown team
   pet.winBadge(0, TRAINER_COUNT - 1, false);
@@ -117,7 +120,7 @@ int main(){
   ck(towerStreak() == 0 && towerBest() == 1, "a loss ends the run; the best is kept");
 
   // ---- rematches: the pill offers REMATCH only once the region's champion fell
-  uiTileGo(6); render();
+  uiTileGo(7); render();
   gymRegion = 1; gymPick = false; gymHard = false; gymRematch = false; render();
   extern int uiGymPillY();
   onTap(233, uiGymPillY()); onTap(233, uiGymPillY()); render();

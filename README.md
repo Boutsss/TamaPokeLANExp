@@ -3,7 +3,7 @@
 [![Flash in browser](https://img.shields.io/badge/flash-in%20browser-FF6B00?logo=googlechrome&logoColor=white)](https://boutsss.github.io/TamaPokeLANExp/web/)
 [![MakerWorld](https://img.shields.io/badge/MakerWorld-3D%20case-00AE42?logo=bambulab&logoColor=white)](https://makerworld.com/es/models/2937822-tamapoke-a-pokemon-pokeball-tamagotchi)
 ![Board](https://img.shields.io/badge/board-ESP32--S3%20round%20AMOLED-E7352C?logo=espressif&logoColor=white)
-![Firmware](https://img.shields.io/badge/firmware-v3.56-8A2BE2)
+![Firmware](https://img.shields.io/badge/firmware-v3.57-8A2BE2)
 ![Code](https://img.shields.io/badge/code-MIT-blue)
 ![Languages](https://img.shields.io/badge/languages-6-FFCB05)
 [![Stars](https://img.shields.io/github/stars/DylanPDao/TamaPoke?style=flat&logo=github&color=yellow)](https://github.com/DylanPDao/TamaPoke/stargazers)
@@ -173,7 +173,7 @@ bottom of the panel:
 
 | Gesture | Means |
 |---|---|
-| **Horizontal swipe** | move along the **tile axis**: `PLAYER · DAYCARE · PARTY · [PET] · EXPLORE · MART · GYM · POKÉDEX`. It **bumps** at both ends and never closes anything. |
+| **Horizontal swipe** | move along the **tile axis**: `PLAYER · DAYCARE · PARTY · [PET] · EXPLORE · MART · ARCADE · GYM · TOWER · POKÉDEX`. It **bumps** at both ends and never closes anything. |
 | **Swipe up** | go **deeper** — from the pet, its stat card |
 | **Swipe down** | go **back**, one level, from anywhere |
 | **Drag the rim** | **page** whatever is in front of you (the arc scrollbar at 2–5 o'clock) |
@@ -327,8 +327,9 @@ training: the set you chose while it was alive is what it fights with forever.
 ### Training games
 
 Open them from the **dumbbell** icon (the training menu): **STRENGTH** → the bag,
-**SPEED** → the reaction test, **DEFENSE** → the ball game. The fourth row,
-**ARCADE**, opens the Arcade games, which train no stat. The three training games share:
+**SPEED** → the reaction test, **DEFENSE** → the ball game. (The Arcade games,
+which train no stat, have their own **ARCADE** page on the swipe axis.) The
+three training games share:
 
 - A **3-2-1 countdown** (1.8 s) before the clock starts. Nothing scores during it.
 - A **COMBO** with a multiplier **x1 below 5, x2 from 5, x3 from 10** in a row.
@@ -406,11 +407,12 @@ reaches the 18 ceiling sooner.
 <!-- ported from vunguyen2712/TamaPoke's README with the arcade (v3.18-v3.21) -->
 ### Arcade
 
-**Dumbbell > ARCADE** (the training menu's fourth row; it was ADVENTURE page 2
-until v3.20). Six short games played for fun,
+The **ARCADE** page, on the swipe axis between the **Mart** and the **gyms**
+(v3.57; before that it was the training menu's fourth row). Tap the big cabinet
+to open the games. Six short games played for fun,
 joy and the bond -- they train **no stat** (that is what the
 [Training games](#training-games) are for). The list shows each game with your
-best score, as a grid of six tiles; a star marks a game you have S-ranked. The row is greyed, and no
+best score, as a grid of six tiles; a star marks a game you have S-ranked. The cabinet says why, and no
 game starts, while the pet is an **egg, asleep or in a ceremony**; if it falls
 asleep mid-game the session is banked and the list comes back.
 
@@ -674,7 +676,8 @@ what rate-limits rematching. A fully trained creature is told so.
 ### Battle Tower and gym rematches
 
 Both open once you have beaten a **champion** (either difficulty for the tower;
-**easy** for that region's rematches). The tower is the **TOWER** button beside
+**easy** for that region's rematches). The tower has its own **TOWER** page on the swipe axis, right after the gyms
+(v3.57), and is also the **TOWER** button beside
 LAN BATTLE on the gym chooser; rematches are a third state on a ladder's
 difficulty pill: `EASY → HARD → REMATCH`.
 

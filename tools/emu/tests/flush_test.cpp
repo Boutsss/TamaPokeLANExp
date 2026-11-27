@@ -30,7 +30,7 @@ extern bool boxOpen, releaseConfirm;
 extern bool bagOpen;
 extern bool daycareOpen; extern uint8_t dcView;
 extern bool towerOpen, chalOpen;
-void arcadeOpenFromTrain(); void arcadeClose();
+void arcadeOpenFromTrain(); void arcadeClose(); extern bool arcHubOpen;
 extern bool tradeOpen; extern uint8_t tradeView;
 extern bool friendsOpen;
 extern bool casinoOpen;
@@ -96,6 +96,7 @@ int main(){
   clearAll(); towerOpen=true;    check("tower");    crumbIs("tower");
   clearAll(); chalOpen=true;     check("challenge"); crumbIs("challenge");
   clearAll(); arcadeOpenFromTrain(); check("arcade"); crumbIs("arcade"); arcadeClose();
+  check("archub"); crumbIs("archub"); arcHubOpen = false;   // v3.57: the ARCADE tile under the list
   clearAll(); tradeOpen=true; tradeView=0; check("trade"); crumbIs("trade");
   tradeView=1; check("tradepick"); crumbIs("tradepick"); tradeOpen=false; tradeView=0;
   clearAll(); friendsOpen=true; check("friends"); crumbIs("friends"); friendsOpen=false;

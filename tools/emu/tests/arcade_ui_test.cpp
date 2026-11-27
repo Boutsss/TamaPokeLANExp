@@ -32,8 +32,9 @@ extern Pet pet;
 extern Arduino_Canvas *gfx;
 extern const char *const SCREEN_NAME[];
 uint8_t uiCurrentScreen();
-extern bool arcadeOpen, trainOpen;
-void arcadeClose(); void uiTileGo(int i); int uiTrainRowCenterY(int i);
+extern bool arcadeOpen, trainOpen, arcHubOpen;
+void arcadeClose(); void uiTileGo(int i); int uiTrainRowCenterY(int i); int arcHubBtnCenterY();
+#define TILE_ARCADE 6   // v3.57: PLAYER DAYCARE PARTY [PET] EXPLORE MART ARCADE GYM TOWER DEX
 // shared training helpers the arcade borrows
 extern uint32_t trnGoAt; extern uint16_t trnCombo, trnBestCombo;
 // arcade
@@ -110,7 +111,7 @@ static void memXY(int i, int &x, int &y) {
 }
 static int memPartner(int i) { for (int k = 0; k < 16; k++) if (k != i && memType[k] == memType[i]) return k; return -1; }
 static int memOther(int i) { for (int k = 0; k < 16; k++) if (memType[k] != memType[i] && memState[k] == 0) return k; return -1; }
-static void openArcade() { arcadeClose(); trainOpen = false; arcadeOpen = true; arcGame = NONE; arcOver = false; arcLoad(); }
+static void openArcade() { arcadeClose(); trainOpen = false; arcHubOpen = true; arcadeOpen = true; arcGame = NONE; arcOver = false; arcLoad(); }
 
 int main() {
   setup(); for (int i = 0; i < 4; i++) loop();
@@ -132,13 +133,11 @@ int main() {
   }
 
   // =================================================================== ENTRY
-  printf("-- the TRAIN panel's row\n");
-  // (the feature fork also checked its Adventure hub no longer listed ARCADE;
-  // this base has no hub, so that check has nothing to test here)
-  trainOpen = true;
-  ck(flushes(), "the training menu with its ARCADE row flushes");
-  onTap(233, uiTrainRowCenterY(3));      // the fourth row, asked of the firmware
-  ck(arcadeOpen && !trainOpen && onScreen("arcade"), "TRAIN's fourth row (ARCADE) opens the arcade");
+  printf("-- the ARCADE tile (v3.57)\n");
+  uiTileGo(TILE_ARCADE);
+  ck(arcHubOpen && onScreen("archub") && flushes(), "the ARCADE tile is its own page, and it flushes");
+  onTap(233, arcHubBtnCenterY());        // the cabinet, asked of the firmware
+  ck(arcadeOpen && onScreen("arcade"), "the cabinet opens the arcade");
   ck(arcGame == NONE && flushes(), "it opens on the picker, which flushes");
   {
     bool own = true;
@@ -146,22 +145,22 @@ int main() {
     ck(own && arcRowAt(233, 30) == -1, "every picker tile maps to its own game, all six");
   }
   onSwipe(1);
-  ck(!arcadeOpen && trainOpen, "a horizontal swipe on the picker goes back to the training menu");
-  onTap(233, uiTrainRowCenterY(3));
+  ck(!arcadeOpen && arcHubOpen && onScreen("archub"), "a horizontal swipe on the picker goes back to the ARCADE page");
+  onTap(233, arcHubBtnCenterY());
   onSwipeV(1);
-  ck(!arcadeOpen && trainOpen, "a vertical swipe on the picker goes back to the training menu");
-  onTap(233, uiTrainRowCenterY(3));
+  ck(!arcadeOpen && arcHubOpen, "a vertical swipe on the picker goes back to the ARCADE page");
+  onTap(233, arcHubBtnCenterY());
   onTap(233, 394);                       // where the old instant FEAT_BACK pill was
   ck(arcadeOpen, "a TAP where the old BACK pill was no longer leaves: back is held now");
   uiBack();
-  ck(!arcadeOpen && trainOpen, "the held BACK button goes back to the training menu");
-  trainOpen = false;
-  // guards: no game while asleep / an egg / a ceremony -- the row AND the start
+  ck(!arcadeOpen && arcHubOpen, "the held BACK button goes back to the ARCADE page");
+  // guards: no game while asleep / an egg / a ceremony -- the cabinet AND the start
   pet.sleeping = true;
-  trainOpen = true; render();
-  onTap(233, uiTrainRowCenterY(3));
-  ck(!arcadeOpen, "asleep: the TRAIN row refuses to open the arcade");
-  trainOpen = false;
+  render();
+  onTap(233, arcHubBtnCenterY());
+  ck(!arcadeOpen && arcHubOpen, "asleep: the cabinet refuses to open the arcade");
+  onSwipeV(1);
+  ck(!arcHubOpen && onScreen("main"), "down from the ARCADE page: the pet, like every tile");
   arcadeOpen = true; arcGame = NONE;
   arcStart(G_CATCH);
   ck(arcGame == NONE, "asleep: arcStart refuses too (the twin path)");
@@ -317,7 +316,7 @@ int main() {
   ck(pet.joy > joy0 && arcadeOpen && onScreen("arcade"), "it paid joy and went back to the picker (not the hub)");
   onSwipeV(1);
   ck(arcGame == NONE && arcSessions == s0 + 1, "a second swipe pays nothing more");
-  ck(!arcadeOpen && trainOpen, "...and backs out to the training menu");
+  ck(!arcadeOpen && arcHubOpen, "...and backs out to the ARCADE page");
   openArcade();
 
   // =================================================================== ECHO
@@ -539,8 +538,8 @@ int main() {
   }
   // reopening the screen re-reads NVS (a WIPE or IMPORT would not leave stale bests)
   arcBest[G_CATCH] = 9999;
-  arcadeOpen = false; trainOpen = true;
-  onTap(233, uiTrainRowCenterY(3));
+  arcadeOpen = false; uiTileGo(TILE_ARCADE);
+  onTap(233, arcHubBtnCenterY());
   ck(arcadeOpen && arcBest[G_CATCH] == want[G_CATCH], "opening the arcade reloads the bests");
   ck(flushes(), "the picker with bests flushes");
 

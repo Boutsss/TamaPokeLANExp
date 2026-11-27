@@ -1331,7 +1331,8 @@ bool casinoHolding() { return casHoldArmed; }
 // The ARCADE row, turning. Drawn by renderTrain() in place of the plain row
 // for as long as casinoSpinning(). The card narrows to its edge and widens
 // again (|cos| of the angle) and lifts a little as it turns.
-void casinoDrawSpinRow(int x, int y, int w, int h, const char *arcadeLabel) {
+void casinoDrawSpinRow(int x, int y, int w, int h, const char *arcadeLabel,
+                       void (*face)(int, int, int, int)) {
   uint32_t held = casinoHeldMs();
   float a = casinoSpinAngle(held);
   float c = cosf(a);
@@ -1342,10 +1343,18 @@ void casinoDrawSpinRow(int x, int y, int w, int h, const char *arcadeLabel) {
   bool corner = c < 0;
   // its shadow stays on the panel while the card lifts
   gfx->fillRoundRect(cx - cw / 2 + 3, y + 4, cw, h, 12, 0xC618);
+  // The R and the name grow with the card: the ARCADE page's cabinet (v3.57)
+  // is twice the old TRAIN row's height.
+  int er = h * 21 / 56;
+  if (er > h / 2 - 6) er = h / 2 - 6;
+  uint8_t ts = h >= 100 ? 3 : 2;
   if (!corner) {
-    gfx->fillRoundRect(rx, ry, cw, h, 12, C565(0xff, 0xf1, 0xc4));
-    gfx->drawRoundRect(rx, ry, cw, h, 12, UI_INK);
-    if (cw > (int)strlen(arcadeLabel) * 12 + 16) casText(cx, ry + h / 2 - 8, arcadeLabel, UI_INK, 2);
+    if (face) face(rx, ry, cw, h);   // the caller's own front
+    else {
+      gfx->fillRoundRect(rx, ry, cw, h, 12, C565(0xff, 0xf1, 0xc4));
+      gfx->drawRoundRect(rx, ry, cw, h, 12, UI_INK);
+      if (cw > (int)strlen(arcadeLabel) * 12 + 16) casText(cx, ry + h / 2 - 8, arcadeLabel, UI_INK, 2);
+    }
   } else {
     // Team Rocket's side: black, a red R, and the name of what is behind it.
     gfx->fillRoundRect(rx, ry, cw, h, 12, 0x0841);
@@ -1353,15 +1362,17 @@ void casinoDrawSpinRow(int x, int y, int w, int h, const char *arcadeLabel) {
       gfx->fillRect(sx, ry + h - 8, 7, 3, CAS_RED);
     gfx->drawRoundRect(rx, ry, cw, h, 12, CAS_RED);
     if (cw > 12) gfx->drawRoundRect(rx + 2, ry + 2, cw - 4, h - 4, 10, 0x5000);
-    if (cw > 44) {
-      int ex = cw > w - 8 ? rx + 30 : cx;                     // the R, alone while it is narrow
-      gfx->fillCircle(ex, ry + h / 2, 21, UI_WHITE);
-      gfx->drawCircle(ex, ry + h / 2, 21, CAS_RED);
-      casMotif(CM_ROCKET, ex, ry + h / 2, 30, CAS_RED, CAS_RED);
+    if (cw > 2 * er + 2) {
+      int ex = cw > w - 8 ? rx + er + 9 : cx;                 // the R, alone while it is narrow
+      gfx->fillCircle(ex, ry + h / 2, er, UI_WHITE);
+      gfx->drawCircle(ex, ry + h / 2, er, CAS_RED);
+      casMotif(CM_ROCKET, ex, ry + h / 2, er * 30 / 21, CAS_RED, CAS_RED);
     }
     if (cw > w - 8) {                                         // fully round: the name
-      casText(cx + 22, ry + 12, T(S_CAS_TITLE), CAS_GOLD, 2);
-      casText(cx + 22, ry + 34, T(S_CAS_ROCKET), CAS_RED, 1);
+      int tx = (rx + 2 * er + 9 + rx + cw) / 2;               // centred in what the R leaves
+      uint8_t s = (int)strlen(T(S_CAS_TITLE)) * 6 * ts < cw - 2 * er - 24 ? ts : 2;
+      casText(tx, ry + h / 2 - 4 * s - 8, T(S_CAS_TITLE), CAS_GOLD, s);
+      casText(tx, ry + h / 2 + 6, T(S_CAS_ROCKET), CAS_RED, s > 2 ? 2 : 1);
     }
   }
   // revealed: it glitters until the door opens
@@ -1526,7 +1537,7 @@ void casinoTap(int16_t x, int16_t y) {
 // Down = back, one level: a game to the lobby (a hand in play is settled as
 // casinoClose() does), the lobby out to the training menu.
 void casinoSwipeDown() {
-  if (casView == CV_LOBBY) { casinoClose(); trainOpen = true; return; }
+  if (casView == CV_LOBBY) { casinoClose(); return; }   // back to the ARCADE page it was found on
   if (casView == CV_HL && casHl.state == HL_GUESS) casPay(casHl.cashOut());
   if (casView == CV_SLOTS && slShown < 3) { slShown = 3; casSlotsSettle(); }
   if (casView == CV_BJ && casBj.state == BJ_PLAYER) { casBj.stand(); casBjFinish(); }

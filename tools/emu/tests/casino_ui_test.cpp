@@ -25,7 +25,8 @@ void setup(); void loop(); void render(); void onTap(int16_t,int16_t); void onSw
 void emuFireInterrupt();
 uint8_t uiCurrentScreen(); uint16_t uiRimPages(); uint16_t uiRimPage();
 extern const char *const SCREEN_NAME[];
-extern Pet pet; extern bool trainOpen, casinoOpen, arcadeOpen, playerOpen;
+extern Pet pet; extern bool trainOpen, casinoOpen, arcadeOpen, playerOpen, arcHubOpen;
+int arcHubBtnCenterY(); void uiTileGo(int i);
 extern uint8_t casShopKind, casShopPage;
 int uiTrainRowCenterY(int i);
 void casLobbyBtn(uint8_t i, int *x, int *y, int *w, int *h);
@@ -68,14 +69,14 @@ int main(){
   pet.sleeping = false;
 
   // ---- the hidden door
-  trainOpen = true; render();
-  hold(233, uiTrainRowCenterY(3), 2000);
-  ck(!casinoOpen && !arcadeOpen && trainOpen, "two seconds on ARCADE opens nothing: not the arcade, not the casino");
-  hold(233, uiTrainRowCenterY(1), CASINO_HOLD_MS + 600);
-  ck(!casinoOpen, "the full hold on another row does not find the door");
-  // ---- the reveal: the ARCADE row turns over while it is held
+  uiTileGo(6); render();                          // the ARCADE tile (v3.57)
+  hold(233, arcHubBtnCenterY(), 2000);
+  ck(!casinoOpen && !arcadeOpen && arcHubOpen, "two seconds on the cabinet opens nothing: not the arcade, not the casino");
+  hold(233, 380, CASINO_HOLD_MS + 600);
+  ck(!casinoOpen, "the full hold elsewhere on the page does not find the door");
+  // ---- the reveal: the cabinet turns over while it is held
   {
-    int ry = uiTrainRowCenterY(3);
+    int ry = arcHubBtnCenterY();
     render();
     uint16_t cream = px(233 + 120, ry);            // the ARCADE row's own face
     g_touchX = 233; g_touchY = ry; g_touchDown = true; emuFireInterrupt();
@@ -89,18 +90,18 @@ int main(){
       if (casinoOpen) early = true;
     }
     ck(sawArcade && sawCorner, "held on, it turns: both faces come round");
-    ck(!early && trainOpen && !casinoOpen, "and nothing opens while it turns");
+    ck(!early && arcHubOpen && !casinoOpen, "and nothing opens while it turns");
     render();
     ck(casinoSpinShowsCorner() && px(233 + 120, ry) != cream && px(233 + 120, ry) == 0x0841,
        "it comes to rest on its black Team Rocket GAME CORNER face -- on the panel, not just in a flag");
     g_touchDown = false; emuFireInterrupt(); pump(3);
     ck(!casinoOpen && !casinoSpinning(), "let go before the door: nothing opens");
     render();
-    ck(px(233 + 120, ry) == cream, "and the row is back to ARCADE");
+    ck(px(233 + 120, ry) == cream, "and the cabinet is back to ARCADE");
   }
   const uint32_t coinsBefore = pet.coins;
   ck(!casino.welcomed, "a fresh save has not had the dealer's welcome");
-  g_touchX = 233; g_touchY = uiTrainRowCenterY(3); g_touchDown = true; emuFireInterrupt();
+  g_touchX = 233; g_touchY = arcHubBtnCenterY(); g_touchDown = true; emuFireInterrupt();
   pump((CASINO_HOLD_MS + 300) / 30);
   ck(casinoOpen && onScreen("casino"), "the full hold on ARCADE opens the GAME CORNER");
   // ---- the dealer's welcome: CASINO_WELCOME_COINS, once per save
@@ -258,7 +259,7 @@ int main(){
   onSwipeV(1); render();
   ck(onScreen("casino"), "down from the shop: the lobby");
   onSwipeV(1); render();
-  ck(!casinoOpen && trainOpen, "down from the lobby: back on the training menu");
+  ck(!casinoOpen && arcHubOpen, "down from the lobby: back on the ARCADE page");
 
   printf("%s\n", bad?"FAILURES":"all good");
   return bad?1:0;

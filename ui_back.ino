@@ -63,6 +63,8 @@ bool uiBackShownOn(uint8_t scr) {
     case SCR_BOXFILTER: case SCR_MONSTATS: case SCR_BOXLIST: case SCR_AVPICK:
     case SCR_BADGES: case SCR_WARDROBE:
       return true;
+    case SCR_ARCHUB:   // a tile: navigated sideways, like the rest of the axis
+      return false;
   }
   return false;
 }

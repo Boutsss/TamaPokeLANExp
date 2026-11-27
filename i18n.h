@@ -589,6 +589,9 @@ enum StrId : uint16_t {
   S_TW_SAVED_FMT,  // tower: checkpoint floor
   S_TW_TEAM,       // tower: the run's team
   S_TW_LEFT,       // tower: left mid-fight
+  S_ARC_PLAY,      // arcade page: tap the cabinet
+  S_ARC_ASLEEP,    // arcade page: pet asleep
+  S_ARC_EGG,       // arcade page: still an egg
   STR_COUNT
 };
 

@@ -50,7 +50,7 @@ static bool weekWith(uint8_t rule) {
   return false;
 }
 static void openWeekly() {
-  uiTileGo(6); render();
+  uiTileGo(7); render();   // GYM (v3.57: ARCADE is 6)
   onTap(uiChooserBtnX(2), uiChooserBtnY()); render();
 }
 
