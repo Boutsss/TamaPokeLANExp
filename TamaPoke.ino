@@ -589,6 +589,10 @@ uint8_t wildLvl = 1;
 uint8_t wildIv[4] = { 0, 0, 0, 0 };   // atk, def, spe, hp
 bool wildShiny = false;
 bool wildCaught = false;
+// Where the catch landed, so dismissing the battle can open its sheet: a party
+// slot + 1, or a box slot + 1, or 0 for neither (the both-full chooser owns
+// that case). Set by wildStoreCaught(), consumed once by btlShowCatch().
+uint8_t wildCaughtParty = 0, wildCaughtBox = 0;
 // What a win handed over, for the settlement lines on the win screen.
 ItemKey wildDrops[4] = { ITEM_NONE, ITEM_NONE, ITEM_NONE, ITEM_NONE };
 uint8_t wildDropN = 0;
@@ -4317,13 +4321,40 @@ static void wildStoreCaught() {
   // NOT registered in the Pokedex here. Registration means "you raised this",
   // and switchTo() does it when the creature actually becomes the one you are
   // raising -- so catching one and leaving it in the box does not fill the dex.
-  if (party.add(m) || party.boxAdd(m)) return;
+  wildCaughtParty = wildCaughtBox = 0;
+  // Ask firstFree() / boxFirstFree() -- the same answer add() and boxAdd()
+  // place by -- so the sheet opened afterwards is the slot actually written.
+  int pi = party.firstFree();
+  if (party.add(m)) { wildCaughtParty = (uint8_t)(pi + 1); return; }
+  int bi = party.boxFirstFree();
+  if (party.boxAdd(m)) { wildCaughtBox = (uint8_t)(bi + 1); return; }
   // Both full: hand it to the chooser the endings already own. endedKind is
   // only ever tested against CER_NONE by that flow, so this is the intended
   // handover and not a borrowed meaning. Through setEnded() so it is written to
   // the pet checkpoint as well -- a creature you just caught and have not yet
   // found a slot for must not evaporate on a power cut either.
   pet.setEnded(m, CER_RELEASE);
+}
+
+// After a catch, the battle hands over to the new creature's detail sheet --
+// the same one tapping its party or box slot opens -- so its stats and moves are
+// the first thing you see. It stacks over Explore rather than going through
+// uiTileGo(), so backing out of the party lands where you were exploring.
+static void btlShowCatch() {
+  uint8_t ps = wildCaughtParty, bs = wildCaughtBox;
+  wildCaughtParty = wildCaughtBox = 0;
+  if (ps && !party.slots[ps - 1].empty()) {
+    partyOpen = true; boxOpen = false; boxDetail = 0;
+    partyDetail = ps;
+  } else if (bs && !party.box[bs - 1].empty()) {
+    partyOpen = true; boxOpen = true; partyDetail = 0;
+    boxPage = (uint8_t)((bs - 1) / BOX_PER_PAGE);
+    boxDetail = bs;
+  } else {
+    return;
+  }
+  releaseConfirm = false;
+  boxSwapFrom = boxSel = 0;
 }
 
 // Throwing a ball. Spends the turn either way: a free capture attempt every
@@ -5023,6 +5054,7 @@ void battleTap(int16_t x, int16_t y) {
       // straight into the main screen and whatever came after it.
       audioMusic(MUS_NONE);
       battleOpen = false;
+      if (btlWild && wildCaught) btlShowCatch();
       btlWild = false;
       // Back to the LAN screen rather than all the way out: that is where a
       // rematch is offered, and re-pairing for every fight would be tedious.
@@ -6611,6 +6643,7 @@ bool startWildBattle(uint8_t region, bool hard) {
   wildShiny = wildShinyForRoll((uint32_t)random(WILD_SHINY_SCALE), 0);
   wildApplyShiny(wildShiny, wildIv[0], wildIv[1], wildIv[2], wildIv[3]);
   wildCaught = false;
+  wildCaughtParty = wildCaughtBox = 0;
   wildDropN = 0;
 
   buildSquad(0, TRAINER_TEAM_MAX, squadMask);

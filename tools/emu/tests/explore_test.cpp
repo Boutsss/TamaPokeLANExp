@@ -4,7 +4,10 @@
 #include "Arduino_GFX_Library.h"
 #include "Preferences.h"
 #include "pet.h"
+#include "party.h"
+#include "inventory.h"
 #include <cstdio>
+#include <cstring>
 
 uint32_t g_seed = 0xE7A0;
 FakeSerial Serial;
@@ -25,6 +28,43 @@ extern Pet pet;
 extern bool exploreOpen;
 extern uint8_t exploreRegion;
 extern int16_t wildDex;
+extern bool battleOpen, partyOpen, boxOpen, btlOver;
+extern uint8_t partyDetail, boxDetail, boxPage, btlMsgCount;
+int btlCellIndexAt(int16_t x, int16_t y);
+uint8_t uiCurrentScreen();
+extern const char *const SCREEN_NAME[];
+
+// Centre of battle cell i, found by asking the firmware's own hit test rather
+// than re-typing the grid's geometry here.
+static void cellCentre(int i, int16_t &cx, int16_t &cy) {
+  long sx = 0, sy = 0, n = 0;
+  for (int16_t y = 0; y < 466; y += 2)
+    for (int16_t x = 0; x < 466; x += 2)
+      if (btlCellIndexAt(x, y) == i) { sx += x; sy += y; n++; }
+  cx = n ? (int16_t)(sx / n) : 0;
+  cy = n ? (int16_t)(sy / n) : 0;
+}
+
+// Start an encounter and catch it the way a player does: BAG, then the ball.
+// The bag holds only a MASTER BALL, so it is cell 0 and the catch cannot miss.
+// Then tap through every queued line until the fight lets go.
+static int16_t catchOne() {
+  exploreOpen = true;
+  partyOpen = boxOpen = false;
+  partyDetail = boxDetail = 0;
+  if (!startWildBattle(0, false)) return 0;
+  int16_t caught = wildDex;
+  bag.clear();
+  bag.add(IT_MASTERBALL);
+  btlMsgCount = 0;
+  int16_t bx, by, cx, cy;
+  cellCentre(1, bx, by);
+  cellCentre(0, cx, cy);
+  onTap(bx, by);            // BAG
+  onTap(cx, cy);            // the ball
+  for (int i = 0; i < 20 && battleOpen; i++) onTap(233, 233);
+  return caught;
+}
 
 static int bad = 0;
 static void ck(bool ok, const char *what) {
@@ -81,6 +121,28 @@ int main() {
   ck(startWildBattle(1, false), "an installed selected region starts an encounter");
   ck(wildDex >= REGIONS[1].lo && wildDex <= REGIONS[1].hi,
      "the encounter comes from the selected region, not the egg region");
+
+  // A catch opens the new creature's detail sheet, over Explore.
+  for (int i = 0; i < PARTY_SLOTS; i++) party.releaseAt(i);
+  for (int i = 0; i < BOX_SLOTS; i++) party.boxReleaseAt(i);
+  int16_t got = catchOne();
+  ck(got != 0 && !battleOpen, "a master ball catch ends the wild battle");
+  ck(partyOpen && !boxOpen && partyDetail == 1,
+     "dismissing the catch opens the party sheet for the slot it landed in");
+  ck(partyDetail && party.slots[partyDetail - 1].dex == got,
+     "and that sheet is the creature just caught, not some other slot");
+  ck(!strcmp(SCREEN_NAME[uiCurrentScreen()], "party") && exploreOpen,
+     "Explore is still underneath, so backing out returns there");
+
+  // Party full: the catch goes to the box, and the box sheet opens on it.
+  for (int i = 0; i < PARTY_SLOTS; i++)
+    if (party.slots[i].empty()) { PartyMon m = party.slots[0]; party.slots[i] = m; }
+  party.save();
+  got = catchOne();
+  ck(partyOpen && boxOpen && boxDetail == 1 && boxPage == 0,
+     "with the party full, the box sheet opens on the box slot it landed in");
+  ck(boxDetail && party.box[boxDetail - 1].dex == got,
+     "and that box sheet is the creature just caught");
 
   printf("%s\n", bad ? "FAILURES" : "all good");
   return bad ? 1 : 0;
