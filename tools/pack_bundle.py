@@ -66,7 +66,9 @@ def write_index():
             'crc32': format(zlib.crc32(blob) & 0xFFFFFFFF, '08x'),
             'sprites': count,
         }
-    with open(INDEX, 'w') as f:
+    # newline='': on Windows a plain 'w' turns every LF into CRLF, and the
+    # committed index is LF (CLAUDE.md, the v3.26 CRLF trap)
+    with open(INDEX, 'w', encoding='utf-8', newline='') as f:
         json.dump({'schema': 1, 'regions': regions}, f, indent=2)
         f.write('\n')
     print(f'{os.path.normpath(INDEX)}: {len(regions)} regions indexed')

@@ -1,13 +1,13 @@
 {
-  "name": "TamaPoke v3.55",
-  "version": "3.55",
+  "name": "TamaPoke v3.57",
+  "version": "3.57",
   "new_install_prompt_erase": true,
   "builds": [
     {
       "chipFamily": "ESP32-S3",
       "parts": [
         {
-          "path": "firmware/bootloader.bin?v=f3a3b23b66f05a3e",
+          "path": "firmware/bootloader.bin?v=31b3c1be45dc5a76",
           "offset": 0
         },
         {
@@ -19,7 +19,7 @@
           "offset": 57344
         },
         {
-          "path": "firmware/app.bin.enc?v=af7f167ca9a549da",
+          "path": "firmware/app.bin.enc?v=31eb2b44b76f8eb0",
           "offset": 65536
         }
       ]
@@ -29,9 +29,9 @@
     "v": 1,
     "kdf": "PBKDF2-SHA256",
     "iterations": 600000,
-    "salt": "fjIshnq6gs8yMBrDycUifw==",
-    "check": "VFBMS5o/IANKU/VOC6vuZDV8nco7I9cNuU2XPCV8injjaO02uEVNPz+Sqezo0oKc",
-    "size": 2700976,
-    "sha256": "44669436a288c6c5b917f08cabeb3914cca7edf794c965f28302645b2d2c15e0"
+    "salt": "Z1A8HwwMtXybnzzUqHHtAQ==",
+    "check": "VFBMS6lg0zQjRqgwpy70SZMCLrC0seaq4CPWkWAGqPTcDWVXKRMM5eTyGUu7oJ9U",
+    "size": 2883568,
+    "sha256": "81fa25a3f1df4cc3913a6570b4b4fbc06fd2e63abc19d6c34c2651918216df27"
   }
 }

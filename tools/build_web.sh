@@ -22,6 +22,8 @@ echo "Fusionando binarios..."
 # that matches the build we just made.
 ESPTOOL="$(ls ~/Library/Arduino15/packages/esp32/tools/esptool_py/*/esptool 2>/dev/null | head -1)"
 [ -z "$ESPTOOL" ] && ESPTOOL="$(ls ~/.arduino15/packages/esp32/tools/esptool_py/*/esptool 2>/dev/null | head -1)"
+# Windows (MSYS2 / Git Bash): the core lives under %LOCALAPPDATA%, not ~.
+[ -z "$ESPTOOL" ] && [ -n "$LOCALAPPDATA" ] && command -v cygpath >/dev/null &&   ESPTOOL="$(ls "$(cygpath -u "$LOCALAPPDATA")"/Arduino15/packages/esp32/tools/esptool_py/*/esptool.exe 2>/dev/null | head -1)"
 [ -z "$ESPTOOL" ] && ESPTOOL="$(command -v esptool.py || command -v esptool)"
 [ -z "$ESPTOOL" ] && { echo "no esptool found"; exit 1; }
 
