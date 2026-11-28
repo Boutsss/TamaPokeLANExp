@@ -80,9 +80,9 @@ the PMD sprites above: **ship `tools/gen_avatars.py` and not `avatars.h`**, so
 each user fetches the art themselves — the script needs only `curl` and takes a
 second to run.
 
-### RegentofRaios's sprites (Game Corner avatars)
+### RegentofRaios's sprites (prize avatars)
 
-56 of the Game Corner's prize avatars -- the ones that are not 16x16 -- come from
+56 of the prize avatars -- the ones that are not 16x16 -- come from
 [RegentofRaios's DeviantArt gallery](https://www.deviantart.com/regentofraios/gallery/all),
 fetched and converted by `tools/avatars_crossover.py` (imported by
 `gen_avatars.py`): characters from Street Fighter, Final Fantasy, Fate/Zero and
