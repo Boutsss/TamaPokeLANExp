@@ -41,6 +41,11 @@ extern uint32_t trnGoAt; extern uint16_t trnCombo, trnBestCombo;
 extern uint8_t arcGame; extern bool arcOver; extern uint32_t arcUntil, arcOverAt;
 extern uint16_t arcPts, arcBest[6], arcSessions; extern uint8_t arcGrade, arcJoyGot, arcBondGot, arcPrizeGot;
 extern uint32_t arcPrizeDay; extern bool arcNewHi, arcAllSGot; extern uint8_t arcFirstGot, arcFirstS, arcPaid[6];
+static bool heldPaid = false;
+static void noteHeld() {
+  if (arcPrizeGot && itemEntry((ItemKey)arcPrizeGot).category == IC_HELD) heldPaid = true;
+  if (arcFirstGot && itemEntry((ItemKey)arcFirstGot).category == IC_HELD) heldPaid = true;
+}
 void arcTile(uint8_t i, int *x, int *y, int *w, int *h);
 uint8_t arcPaidToday(uint8_t g); bool arcadePrizeToday();
 void arcStart(uint8_t); void arcFinish(); void arcLeave(); void arcLoad(); void renderArcade();
@@ -93,6 +98,8 @@ enum { G_CATCH = 0, G_MEMORY, G_ECHO, G_POP };
 #define POP_T_BOMB 3
 #define POP_T_WHIFF 4
 
+// v3.59: every held item comes from the Battle Tower. Set if ANY arcade payout
+// in this run is one -- the rule, not a list of today's prizes.
 static int bad = 0;
 static void ck(bool ok, const char *w) { printf("%s  %s\n", ok ? "PASS" : "FAIL", w); if (!ok) bad++; }
 static void slp(int ms) { std::this_thread::sleep_for(std::chrono::milliseconds(ms)); }
@@ -446,68 +453,82 @@ int main() {
   arcPrizeDay = 0; arcFirstS = 0; memset(arcPaid, 0, 6);
   bag.clear();
   joyB = pet.joy; bondB = pet.bond;
-  arcStart(G_POP); skipIntro(); arcPts = 70; arcFinish();
+  arcStart(G_POP); skipIntro(); arcPts = 70; arcFinish(); noteHeld();
   ck(arcGrade == 3 && pet.joy == joyB + 16 && pet.energy == eneB - 3, "an S pays 16 joy and costs 3 energy");
   ck(pet.bond == bondB + arcBondGot && arcBondGot <= 2, "the bond it reports is the bond the pet actually gained");
   ck(evPlay == 1 && evPlayArg == 70, "EV_PLAY is emitted with the score (tasks count it)");
-  ck(arcPrizeGot == IT_SITRUS_BERRY && bag.count(IT_SITRUS_BERRY) == 1 && arcPrizeDay == pet.currentDay() + 1,
-     "today's S prize: POP-UP pays a SITRUS BERRY");
-  ck(arcFirstGot == IT_LUM_BERRY && bag.count(IT_LUM_BERRY) == 1 && (arcFirstS & 8), "POP-UP's first S adds a LUM BERRY, once");
+  ck(arcPrizeGot == IT_SUPERPOTION && bag.count(IT_SUPERPOTION) == 1 && arcPrizeDay == pet.currentDay() + 1,
+     "today's S prize: POP-UP pays a SUPER POTION");
+  ck(arcFirstGot == IT_HYPERPOTION && bag.count(IT_HYPERPOTION) == 1 && (arcFirstS & 8), "POP-UP's first S adds a HYPER POTION, once");
   ck(arcPaidToday(G_POP) == 3, "the list knows POP-UP paid its S today");
   allFlush = flushes();
   arcGame = NONE; arcOver = false;
-  arcStart(G_POP); skipIntro(); arcPts = 70; arcFinish();
-  ck(arcGrade == 3 && arcPrizeGot == 0 && arcFirstGot == 0 && bag.count(IT_SITRUS_BERRY) == 1 && bag.count(IT_LUM_BERRY) == 1,
+  arcStart(G_POP); skipIntro(); arcPts = 70; arcFinish(); noteHeld();
+  ck(arcGrade == 3 && arcPrizeGot == 0 && arcFirstGot == 0 && bag.count(IT_SUPERPOTION) == 1 && bag.count(IT_HYPERPOTION) == 1,
      "a second S in the same game the same day: nothing more");
   arcGame = NONE; arcOver = false;
-  arcStart(G_POP); skipIntro(); arcPts = 45; arcFinish();
+  arcStart(G_POP); skipIntro(); arcPts = 45; arcFinish(); noteHeld();
   ck(arcGrade == 2 && arcPrizeGot == 0, "an A after today's S pays nothing more");
   arcGame = NONE; arcOver = false;
   // an A first, then the S upgrade, in another game
-  arcStart(G_CATCH); skipIntro(); arcPts = 55; arcFinish();
-  ck(arcGrade == 2 && arcPrizeGot == IT_ORAN_BERRY && arcFirstGot == 0 && arcPaidToday(G_CATCH) == 2, "an A pays its own prize (CATCH: ORAN BERRY)");
+  arcStart(G_CATCH); skipIntro(); arcPts = 55; arcFinish(); noteHeld();
+  ck(arcGrade == 2 && arcPrizeGot == IT_POTION && arcFirstGot == 0 && arcPaidToday(G_CATCH) == 2, "an A pays its own prize (CATCH: POTION)");
   arcGame = NONE; arcOver = false;
-  arcStart(G_CATCH); skipIntro(); arcPts = 52; arcFinish();
+  arcStart(G_CATCH); skipIntro(); arcPts = 52; arcFinish(); noteHeld();
   ck(arcPrizeGot == 0, "a second A the same day pays nothing");
   arcGame = NONE; arcOver = false;
-  arcStart(G_CATCH); skipIntro(); arcPts = 90; arcFinish();
-  ck(arcPrizeGot == IT_SITRUS_BERRY && arcFirstGot == IT_LEFTOVERS && arcPaidToday(G_CATCH) == 3,
-     "an S after the A still pays the S prize and the first-S LEFTOVERS");
+  arcStart(G_CATCH); skipIntro(); arcPts = 90; arcFinish(); noteHeld();
+  ck(arcPrizeGot == IT_SUPERPOTION && arcFirstGot == IT_IRON && arcPaidToday(G_CATCH) == 3,
+     "an S after the A still pays the S prize and the first-S IRON");
   ck(!arcadePrizeToday() && !arcAllSGot, "two games left: today's prizes are not all won");
   allFlush &= flushes();
   arcGame = NONE; arcOver = false;
-  arcStart(G_MEMORY); skipIntro(); arcPts = 200; arcFinish();
-  ck(arcPrizeGot == IT_GREATBALL && arcFirstGot == IT_QUICK_CLAW && !arcAllSGot, "MEMORY's S: GREAT BALL and QUICK CLAW");
+  arcStart(G_MEMORY); skipIntro(); arcPts = 200; arcFinish(); noteHeld();
+  ck(arcPrizeGot == IT_GREATBALL && arcFirstGot == IT_PROTEIN && !arcAllSGot, "MEMORY's S: GREAT BALL and PROTEIN");
   arcGame = NONE; arcOver = false;
   // the daily bond cap: Pet::addBond stops it, the arcade reports the truth
   {
     int got = 0; uint8_t b0 = pet.bond;
     for (int k = 0; k < 20; k++) {
-      arcStart(G_ECHO); skipIntro(); arcPts = 60; arcFinish(); got += arcBondGot;
+      arcStart(G_ECHO); skipIntro(); arcPts = 60; arcFinish(); noteHeld(); got += arcBondGot;
       if (k == 0) {
-        ck(arcPrizeGot == IT_GREATBALL && arcFirstGot == IT_FOCUS_SASH && arcAllSGot && bag.count(IT_ULTRABALL) == 3,
+        ck(arcPrizeGot == IT_GREATBALL && arcFirstGot == IT_CARBOS && arcAllSGot && bag.count(IT_ULTRABALL) == 3,
            "the fourth game's first S also pays the all-four bonus: 3 ULTRA BALLs");
         allFlush &= flushes();
       }
-      if (k == 1) ck(!arcAllSGot && bag.count(IT_ULTRABALL) == 3 && bag.count(IT_FOCUS_SASH) == 1, "the one-time bonuses pay once");
+      if (k == 1) ck(!arcAllSGot && bag.count(IT_ULTRABALL) == 3 && bag.count(IT_CARBOS) == 1, "the one-time bonuses pay once");
       arcGame = NONE; arcOver = false;
     }
     ck(pet.bond - b0 == got && got <= 20 && arcBondGot == 0, "twenty S sessions: the bond stops at the daily cap of 20");
   }
   ck(!arcadePrizeToday(), "four of six games' S prizes won: not done for today yet");
   // the two newer games' S prizes too (pinball points are score/100, surf as the others)
-  arcStart(4); skipIntro(); arcPts = 150; arcFinish(); arcGame = NONE; arcOver = false;
+  arcStart(4); skipIntro(); arcPts = 150; arcFinish(); noteHeld(); arcGame = NONE; arcOver = false;
   ck(arcFirstGot == IT_PROTEIN && (arcFirstS & 0x20), "PINBALL's first S: a PROTEIN, on its own bit (not the all-four bonus's)");
-  arcStart(5); skipIntro(); arcPts = 140; arcFinish(); arcGame = NONE; arcOver = false;
+  arcStart(5); skipIntro(); arcPts = 140; arcFinish(); noteHeld(); arcGame = NONE; arcOver = false;
   ck(arcFirstGot == IT_CARBOS && (arcFirstS & 0x40), "SURF's first S: a CARBOS");
   ck(arcadePrizeToday(), "all six S prizes won: the list says so");
   // next day: the prizes again, but not the one-time bonuses
   pet.dbgSetSeen(1700000000UL + 86400UL);
   ck(arcPaidToday(G_ECHO) == 0 && !arcadePrizeToday(), "a new day clears today's prizes");
   uint8_t gb = bag.count(IT_GREATBALL);
-  arcStart(G_ECHO); skipIntro(); arcPts = 60; arcFinish();
+  arcStart(G_ECHO); skipIntro(); arcPts = 60; arcFinish(); noteHeld();
   ck(arcPrizeGot == IT_GREATBALL && bag.count(IT_GREATBALL) == gb + 1 && arcFirstGot == 0 && !arcAllSGot,
      "a new day: the S prize is back, the first-S item is not");
+  // and every game's A prize, on another fresh day, so all three tables are paid
+  pet.dbgSetSeen(1700000000UL + 2 * 86400UL);
+  {
+    static const uint16_t A_PTS[6] = { 55, 95, 35, 45, 95, 95 };   // just past each game's A line
+    int paidA = 0;
+    for (uint8_t g = 0; g < 6; g++) {
+      arcGame = NONE; arcOver = false;
+      arcStart(g); skipIntro(); arcPts = A_PTS[g]; arcFinish(); noteHeld();
+      if (arcGrade == 2 && arcPrizeGot) paidA++;
+    }
+    arcGame = NONE; arcOver = false;
+    ck(paidA == 6, "every game's A prize pays (so the check below saw all of them)");
+  }
+  ck(!heldPaid, "the arcade never pays a HELD item: every one comes from the Battle Tower (v3.59)");
   arcGame = NONE; arcOver = false;
   // a lower score is not a new best
   uint16_t bestPop = arcBest[G_POP];

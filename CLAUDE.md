@@ -654,7 +654,9 @@ ESP32 toolchain. In order:
    (§ "Releasing"). `FW_VERSION`, the README badge and
    `docs/release-notes/v3.59.md` are already 3.59; `build_web.sh` does the manifest.
 
-What is on the branch: a catch opens the new creature's STATS page; a boxed
+What is on the branch: the arcade pays no held items any more (they come from the
+Battle Tower only; `arcade_ui_test` checks every payout against `IC_HELD`); a
+catch opens the new creature's STATS page; a boxed
 creature's sheet opens even with a full party (TO PARTY then picks who swaps);
 561 prize avatars from RegentofRaios's DeviantArt gallery and PurpleZaffre's
 Gen 4/5 overworld packs (`tools/avatars_crossover.py`, `tools/avatars_zaffre.py`,

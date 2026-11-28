@@ -108,11 +108,16 @@ static const uint16_t ARC_GRADE_AT[ARC_GAMES][3] = {
 };
 // Rank prizes (v3.21). Each game pays once a day for an A and once more for an
 // S -- an S first pays the S prize, and an A after it pays nothing more that
-// day. The FIRST S ever in a game adds a held item, and S-ranking all four
-// adds ULTRA BALLs, once each. Existing items only.
-static const uint8_t ARC_PRIZE_A[ARC_GAMES] = { IT_ORAN_BERRY, IT_POKEBALL, IT_POKEBALL, IT_ORAN_BERRY, IT_POTION, IT_ORAN_BERRY };
-static const uint8_t ARC_PRIZE_S[ARC_GAMES] = { IT_SITRUS_BERRY, IT_GREATBALL, IT_GREATBALL, IT_SITRUS_BERRY, IT_SUPERPOTION, IT_SITRUS_BERRY };
-static const uint8_t ARC_FIRST_S[ARC_GAMES] = { IT_LEFTOVERS, IT_QUICK_CLAW, IT_FOCUS_SASH, IT_LUM_BERRY, IT_PROTEIN, IT_CARBOS };
+// day. The FIRST S ever in a game adds an item, and S-ranking all four adds
+// ULTRA BALLs, once each. Existing items only.
+//
+// NO HELD ITEMS (v3.59): the owner wants every held item to come from the
+// Battle Tower, so the berries, LEFTOVERS, QUICK CLAW and FOCUS SASH these
+// tables used to pay were swapped for potions and vitamins. arcade_ui_test
+// checks every prize it is paid against IC_HELD, so one cannot creep back.
+static const uint8_t ARC_PRIZE_A[ARC_GAMES] = { IT_POTION, IT_POKEBALL, IT_POKEBALL, IT_POTION, IT_POTION, IT_POTION };
+static const uint8_t ARC_PRIZE_S[ARC_GAMES] = { IT_SUPERPOTION, IT_GREATBALL, IT_GREATBALL, IT_SUPERPOTION, IT_SUPERPOTION, IT_SUPERPOTION };
+static const uint8_t ARC_FIRST_S[ARC_GAMES] = { IT_IRON, IT_PROTEIN, IT_CARBOS, IT_HYPERPOTION, IT_PROTEIN, IT_CARBOS };
 #define ARC_ALLS_ITEM IT_ULTRABALL
 #define ARC_ALLS_N 3
 #define ARC_ALLS_BIT 0x10        // arcFirstS: the all-four bonus has been paid

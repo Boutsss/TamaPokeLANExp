@@ -481,12 +481,15 @@ and records nothing):
 
   | game | A | S | first S ever (once) |
   |---|---|---|---|
-  | BERRY CATCH | ORAN BERRY | SITRUS BERRY | LEFTOVERS |
-  | MEMORY | POKE BALL | GREAT BALL | QUICK CLAW |
-  | ECHO | POKE BALL | GREAT BALL | FOCUS SASH |
-  | POP-UP | ORAN BERRY | SITRUS BERRY | LUM BERRY |
+  | BERRY CATCH | POTION | SUPER POTION | IRON |
+  | MEMORY | POKE BALL | GREAT BALL | PROTEIN |
+  | ECHO | POKE BALL | GREAT BALL | CARBOS |
+  | POP-UP | POTION | SUPER POTION | HYPER POTION |
   | PINBALL | POTION | SUPER POTION | PROTEIN |
-  | SURF | ORAN BERRY | SITRUS BERRY | CARBOS |
+  | SURF | POTION | SUPER POTION | CARBOS |
+
+  The arcade pays **no held items** (since v3.59): those come from the Battle
+  Tower.
 
 - **The first four games all S-ranked** (BERRY CATCH, MEMORY, ECHO, POP-UP):
   **3 ULTRA BALLs**, once. (PINBALL and SURF came later, in v3.33, and pay
