@@ -628,6 +628,49 @@ to live -- every gesture from the main screen is taken (see below).
 
 Working state, so it survives a closed session. Tick items off as they land.
 
+### NEXT: build and ship v3.59 from the owner's laptop (left 2026-11-28)
+
+Branch `claude/happy-darwin-5jzz4f`, built on `main` (v3.58). Done and pushed;
+verified in the emulator only -- **nothing here has been compiled for the ESP32
+or run on a board**, because the cloud session that wrote it could not reach the
+ESP32 toolchain. In order:
+
+1. `git fetch origin && git checkout claude/happy-darwin-5jzz4f && git pull`.
+2. `bash tools/emu/tests/run.sh` -- the full suite. With arduino-cli on PATH it
+   compiles the real firmware first, which is the first time anyone has. The
+   new prize avatars add ~296 KB of art to the 3 MB app slot; if the app no
+   longer fits, that is where it shows. `casino_mon_ui_test`, `dexentry_ui_test`
+   and `surf_test` fail on a fresh checkout until `python tools/unpack_bundle.py`
+   and `python tools/gen_dexinfo.py` have run (they fail on untouched `main` the
+   same way) -- run those first.
+3. `bash tools/build_web.sh` (asks for the install password), then
+   `tools\desktop_installer\package.bat`. The .exe program is unchanged; the new
+   firmware rides beside it in `dist\TamaPoke Installer\`. The owner wants that
+   folder.
+4. On a board: `EXPORT` first, install, then catch something (its STATS page
+   should open), and buy a crossover avatar in the Game Corner (they are at the
+   END of the avatar list) and wear it on the player card.
+5. Only if the owner says so: merge to `main` (fast-forward), push, tag `v3.59`
+   (§ "Releasing"). `FW_VERSION`, the README badge and
+   `docs/release-notes/v3.59.md` are already 3.59; `build_web.sh` does the manifest.
+
+What is on the branch: a catch opens the new creature's STATS page; a boxed
+creature's sheet opens even with a full party (TO PARTY then picks who swaps);
+561 prize avatars from RegentofRaios's DeviantArt gallery and PurpleZaffre's
+Gen 4/5 overworld packs (`tools/avatars_crossover.py`, `tools/avatars_zaffre.py`,
+both APPEND-ONLY lists). They keep their artists' pixels (~20x30, full palette)
+and `drawAvatarFitted()` fits them to the avatar square. **The shop is two blocks
+of `AVATARS[]` now** -- the crossovers sit after `AVATAR_YOU` so no stored index
+moved -- and `shopAvatar()` / `shopIndexOfAvatar()` are the only mapping. The
+release notes deliberately do NOT mention the avatars: they are Game Corner
+prizes, and the Game Corner is hidden (§ "Hard rules"). Ask the owner before
+announcing them.
+
+Found, not fixed: with a move-learn prompt pending, the party screen draws ON
+TOP of it (`uiCurrentScreen()` tests `partyOpen` first) while `onTap()` sends
+taps to the hidden prompt (it tests `hasLearnOffer()` first) -- trap 1 again.
+Not seen on a board yet.
+
 ### Done: the Poke Mart, and a real pedometer fight (2026-09-11)
 
 `FW_VERSION` 3.24 -> 3.26. A new tile, `PLAYER . PARTY . [PET] . EXPLORE .
