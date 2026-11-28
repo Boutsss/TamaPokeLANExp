@@ -1,8 +1,15 @@
-"""Fan-made trainer avatars from RegentofRaios's DeviantArt gallery: characters
-from other franchises drawn as Pokemon Black/White overworld sprites, the
-Pokemon Conquest warlords, and HeartGold/SoulSilver-style overworld sheets of
-the Kanto and Johto leaders, the Elite 4, Silver, Eusine and the Rocket
-executives.
+"""Fan-made trainer avatars, from two sources, in this order:
+
+  1. RegentofRaios's DeviantArt gallery (CROSSOVERS below): characters from
+     other franchises drawn as Pokemon Black/White overworld sprites, the
+     Pokemon Conquest warlords, and HeartGold/SoulSilver-style overworld sheets
+     of the Kanto and Johto leaders, the Elite 4, Silver, Eusine and the Rocket
+     executives.
+  2. PurpleZaffre's "ULTIMATE Gen 4 / Gen 5 Overworlds Pack" on Eevee Expo
+     (avatars_zaffre.py, PACKS below): every human overworld of
+     Diamond/Pearl/Platinum, HeartGold/SoulSilver, Black/White and B2W2, the
+     Diamond/Pearl beta trainers and PurpleZaffre's own Gen 4-style characters.
+     Credit PurpleZaffre wherever these are seen.
 
     https://www.deviantart.com/regentofraios/gallery/all
 
@@ -36,14 +43,19 @@ URLs are signed and expire, so they cannot be pinned) and cached in
 tools/crossover_cache/, which is gitignored.
 
 SOURCE AND LICENCE: fan art of Capcom, Square Enix, Type-Moon and Shueisha
-characters in Game Freak's sprite style, by a DeviantArt user. NOT licensed to
-this project -- see CREDITS.md. Ship this script, not its output.
+characters in Game Freak's sprite style, by a DeviantArt user, and sprites
+ripped from the Nintendo DS games by PurpleZaffre, who asks for credit and that
+the pack itself not be redistributed. NOT licensed to this project -- see
+CREDITS.md. Ship this script, not its output.
 """
 import os
 import re
 import struct
 import subprocess
 import time
+import zipfile
+
+from avatars_zaffre import ZAFFRE
 import zlib
 from collections import Counter
 
@@ -120,6 +132,20 @@ CROSSOVERS = [
     ('BROCK+',     636441844, 'ow'),
 ]
 
+# PurpleZaffre's two Eevee Expo packs ("ULTIMATE Gen 4/5 Overworlds Pack",
+# eeveeexpo.com/resources/609 and /619). The packs are zips on MediaFire, whose
+# direct link comes from a different numbered server on every visit -- so
+# _fetch_pack() reads it off the page each time. If that host is not reachable
+# (a limited network), download the two zips by hand into tools/crossover_cache/
+# under these names. Their author asks that the PACK not be redistributed:
+# the cache is gitignored, and only the converted avatars are built from it.
+PACKS = {
+    'gen4': ('zaffre_gen4.zip', 'https://www.mediafire.com/file/vmrjeckhz5dclzr/'
+             'Ultimate_Gen_4_Overworlds_Pack.zip/file', 'Ultimate Gen 4 Overworlds Pack/'),
+    'gen5': ('zaffre_gen5.zip', 'https://www.mediafire.com/file/ft6mdl0fuxsfxqj/'
+             'Ultimate+Gen+5+Overworlds+Pack.zip/file', 'Ultimate Gen 5 Overworlds Pack/'),
+}
+
 # Evil Ryu's flame colours, told apart from his own reds (eyes, gloves).
 FIRE = {(255, 118, 84), (255, 51, 0), (255, 158, 133)}
 
@@ -161,6 +187,24 @@ def _fetch_all():
             if d not in urls:
                 raise SystemExit('crossover %d: not in the gallery feed any more' % d)
             open(os.path.join(CACHE, '%d.png' % d), 'wb').write(_curl(urls[d]))
+
+
+def _fetch_pack(key):
+    name, page, _ = PACKS[key]
+    path = os.path.join(CACHE, name)
+    if os.path.exists(path):
+        return path
+    os.makedirs(CACHE, exist_ok=True)
+    html = _curl(page).decode('utf-8', 'replace')
+    m = re.search(r'https://download\d+\.mediafire\.com/[^"\s]+', html)
+    if not m:
+        raise SystemExit('PurpleZaffre pack %s: no download link on %s -- download it by hand '
+                         'into %s' % (key, page, path))
+    data = _curl(m.group(0))
+    if data[:2] != b'PK':
+        raise SystemExit('PurpleZaffre pack %s: the download is not a zip' % key)
+    open(path, 'wb').write(data)
+    return path
 
 
 def _read_png(data):
@@ -309,12 +353,26 @@ def _rgb565(r, g, b):
     return ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3)
 
 
+def _sources():
+    """(label, decoded rows, how) for every avatar, in the frozen shop order:
+    the DeviantArt gallery first, then PurpleZaffre's packs (avatars_zaffre.py)."""
+    _fetch_all()
+    for label, dev, how in CROSSOVERS:
+        yield label, _read_png(open(os.path.join(CACHE, '%d.png' % dev), 'rb').read()), how
+    zips = {k: zipfile.ZipFile(_fetch_pack(k)) for k in PACKS}
+    for label, pack, inner in ZAFFRE:
+        z, prefix = zips[pack], PACKS[pack][2]
+        try:
+            data = z.read(prefix + inner)
+        except KeyError:
+            raise SystemExit('PurpleZaffre pack %s has no %s' % (pack, inner))
+        yield label, _read_png(data), 'ow'
+
+
 def crossovers():
     """[(label, w, h, palette RGB565, pixel indices 0xFF = transparent)]"""
-    _fetch_all()
     out = []
-    for label, dev, how in CROSSOVERS:
-        rows = _read_png(open(os.path.join(CACHE, '%d.png' % dev), 'rb').read())
+    for label, rows, how in _sources():
         if how == 'evilryu':
             rows = _evil_ryu(rows)
         elif how == 'ow':

@@ -100,6 +100,24 @@ for a private, non-commercial build shared with a few friends, and this entry
 records that choice. Do not ship `avatars.h` any further: ship the script, which
 fetches the art itself, and credit RegentofRaios wherever the sprites are seen.
 
+### PurpleZaffre's overworld packs (prize avatars)
+
+505 more prize avatars come from **PurpleZaffre**'s two packs on Eevee Expo,
+[ULTIMATE Gen 4 Overworlds Pack](https://eeveeexpo.com/resources/609/) and
+[ULTIMATE Gen 5 Overworlds Pack](https://eeveeexpo.com/resources/619/): every
+human overworld from Diamond/Pearl/Platinum, HeartGold/SoulSilver, Black/White
+and Black 2/White 2, the Diamond/Pearl beta trainers, and PurpleZaffre's own
+Gen 4-style characters. `tools/avatars_crossover.py` takes each character's
+standing front frame (`tools/avatars_zaffre.py` lists which, and the names
+they get) and undoes the packs' 2x upscale.
+
+**PurpleZaffre's terms: credit PurpleZaffre, and do not redistribute the
+pack.** This entry is the credit, and it must travel with anything that shows
+these sprites. The packs are only ever read from the gitignored
+`tools/crossover_cache/`. The sprites themselves are ripped from Nintendo's
+games and are not licensed to this project; the owner chose to use them for a
+private, non-commercial build shared with a few friends.
+
 ### The CUSTOM trainer and its wardrobe
 
 `pokemmo_art.h` — the CUSTOM avatar's body, skin tones, hair dyes and every
