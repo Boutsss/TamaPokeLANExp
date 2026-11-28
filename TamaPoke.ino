@@ -880,6 +880,10 @@ uint8_t wildLvl = 1;
 uint8_t wildIv[4] = { 0, 0, 0, 0 };   // atk, def, spe, hp
 bool wildShiny = false;
 bool wildCaught = false;
+// Where the catch landed, so dismissing the battle can open its STATS page: a
+// party slot + 1, or a box slot + 1, or 0 for neither (the both-full chooser
+// owns that case). Set by wildStoreCaught(), consumed once by btlShowCatch().
+uint16_t wildCaughtParty = 0, wildCaughtBox = 0;
 // What a win handed over, for the settlement lines on the win screen.
 ItemKey wildDrops[4] = { ITEM_NONE, ITEM_NONE, ITEM_NONE, ITEM_NONE };
 uint8_t wildDropN = 0;
@@ -2339,7 +2343,12 @@ void renderMonSheet(const PartyMon &m, bool fromBox) {
   //
   // A box creature still goes to the party first: one rule per screen, and the
   // swap is then offered from the party sheet like any other member.
-  bool leftOk = fromBox ? (party.firstFree() >= 0)
+  // From the box the button is ALWAYS live: with a free slot it moves the
+  // creature straight in, and with a full party it goes on to choose who steps
+  // out -- the swap the box used to jump to from the slot tap, before the sheet
+  // (and so the STATS page) could be opened at all. The hint says which.
+  bool partyFull = fromBox && party.firstFree() < 0;
+  bool leftOk = fromBox ? true
                         : (pet.ceremony == CER_NONE && !pet.awaitingStarter());
   const char *leftLbl = fromBox ? T(S_BOX_TAKE) : T(S_FOCUS);
   gfx->fillRoundRect(PDET_L_X, PDET_BTN_Y, PDET_L_W, PDET_BTN_H, 10,
@@ -2387,10 +2396,10 @@ void renderMonSheet(const PartyMon &m, bool fromBox) {
     const char *lk = boxFavLockLine();
     gfx->setTextColor(UI_BAR_WARN);
     gfx->setTextSize(1);
-    gfx->setCursor(CX - (int)strlen(lk) * 3, PDET_BTN_Y + PDET_BTN_H + (leftOk ? 6 : 18));
+    gfx->setCursor(CX - (int)strlen(lk) * 3, PDET_BTN_Y + PDET_BTN_H + ((leftOk && !partyFull) ? 6 : 18));
     gfx->print(lk);
   }
-  if (!leftOk) {
+  if (!leftOk || partyFull) {
     const char *why = fromBox ? T(S_PARTY_FULL) : T(S_FOCUS_NOW);
     gfx->setTextColor(UI_BAR_WARN);
     gfx->setTextSize(1);
@@ -5352,13 +5361,48 @@ static void wildStoreCaught() {
   // NOT registered in the Pokedex here. Registration means "you raised this",
   // and switchTo() does it when the creature actually becomes the one you are
   // raising -- so catching one and leaving it in the box does not fill the dex.
-  if (party.add(m) || party.boxAdd(m)) return;
+  wildCaughtParty = wildCaughtBox = 0;
+  // Ask firstFree() / boxFirstFree() -- the same answer add() and boxAdd()
+  // place by -- so the page opened afterwards is the slot actually written.
+  int pi = party.firstFree();
+  if (party.add(m)) { wildCaughtParty = (uint16_t)(pi + 1); return; }
+  int bi = party.boxFirstFree();
+  if (party.boxAdd(m)) { wildCaughtBox = (uint16_t)(bi + 1); return; }
   // Both full: hand it to the chooser the endings already own. endedKind is
   // only ever tested against CER_NONE by that flow, so this is the intended
   // handover and not a borrowed meaning. Through setEnded() so it is written to
   // the pet checkpoint as well -- a creature you just caught and have not yet
   // found a slot for must not evaporate on a power cut either.
   pet.setEnded(m, CER_RELEASE);
+}
+
+// After a catch the battle hands over to the new creature's STATS page, with
+// its sheet (moves, typing, TO PARTY / RELEASE) underneath: one tap goes back
+// to the sheet, the next to the party or box.
+//
+// Through uiTileGo(), NOT by stacking partyOpen over Explore: onTap() tests
+// exploreOpen BEFORE partyOpen, so a stacked page drew correctly while every
+// tap on it went to Explore underneath. explore_test taps the page to prove it.
+static void btlShowCatch() {
+  uint16_t ps = wildCaughtParty, bs = wildCaughtBox;
+  wildCaughtParty = wildCaughtBox = 0;
+  bool inParty = ps && ps <= PARTY_SLOTS && !party.slots[ps - 1].empty();
+  bool inBox = !inParty && bs && bs <= BOX_SLOTS && party.box && !party.box[bs - 1].empty();
+  if (!inParty && !inBox) return;
+  for (int t = 0; t < TILE_COUNT; t++)
+    if (TILE[t].scr == SCR_PARTY) { uiTileGo(t); break; }
+  if (inParty) {
+    partyOpen = true; boxOpen = false; boxDetail = 0;
+    partyDetail = (uint8_t)ps;
+    monStats = MS_PARTY;
+  } else {
+    partyOpen = true; boxOpen = true; partyDetail = 0;
+    boxPage = (uint8_t)((bs - 1) / BOX_PER_PAGE);
+    boxDetail = bs;
+    monStats = MS_BOX;
+  }
+  releaseConfirm = false;
+  boxSwapFrom = boxSel = 0;
 }
 
 // Throwing a ball. Spends the turn either way: a free capture attempt every
@@ -6327,6 +6371,7 @@ void battleTap(int16_t x, int16_t y) {
       // straight into the main screen and whatever came after it.
       audioMusic(MUS_NONE);
       battleOpen = false;
+      if (btlWild && wildCaught) btlShowCatch();
       btlWild = false;
       // Back to the LAN screen rather than all the way out: that is where a
       // rematch is offered, and re-pairing for every fight would be tedious.
@@ -9261,6 +9306,7 @@ bool startWildBattle(uint8_t region, bool hard) {
                                     bag.has(IT_SHINY_CHARM));
   wildApplyShiny(wildShiny, wildIv[0], wildIv[1], wildIv[2], wildIv[3]);
   wildCaught = false;
+  wildCaughtParty = wildCaughtBox = 0;
   wildDropN = 0;
 
   buildSquad(0, TRAINER_TEAM_MAX, squadMask);
@@ -9539,7 +9585,13 @@ void boxTap(int16_t x, int16_t y) {
     if (releaseConfirm) { monSheetConfirmTap(x, y, true); return; }
     if (monSheetBtn(x, y, true)) {          // TO PARTY
       int free = party.firstFree();
-      if (free < 0) { sfxPlay(SFX_DENY); return; }
+      if (free < 0) {            // party is full: go choose who steps out
+        boxSel = boxDetail;
+        boxDetail = 0;
+        boxOpen = false;
+        sfxPlay(SFX_TAP);
+        return;
+      }
       party.swapPartyBox((uint8_t)free, boxDetail - 1);
       boxDetail = 0;
       boxSel = 0;
@@ -9604,16 +9656,12 @@ void boxTap(int16_t x, int16_t y) {
       sfxPlay(SFX_MEDAL);
       return;
     }
-    // Otherwise open its SHEET. It used to go straight to the party, which is a
-    // lot to happen from one tap and left nowhere to put RELEASE; the sheet
-    // offers TO PARTY explicitly and shows what you are about to move.
+    // Otherwise open its SHEET -- always, full party or not, so a boxed
+    // creature's sheet and STATS page can be read without moving it. A full
+    // party used to skip the sheet and jump straight to choosing who steps out,
+    // which made everything in the box uninspectable once the party was full.
+    // That choice now hangs off the sheet's TO PARTY button.
     if (party.box[idx].empty()) { sfxPlay(SFX_DENY); return; }
-    if (party.firstFree() < 0) {
-      boxSel = idx + 1;          // party is full: go choose who steps out
-      boxOpen = false;
-      sfxPlay(SFX_TAP);
-      return;
-    }
     boxDetail = idx + 1;
     releaseConfirm = false;
     sfxPlay(SFX_TAP);
