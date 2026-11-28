@@ -650,9 +650,10 @@ ESP32 toolchain. In order:
 4. On a board: `EXPORT` first, install, then catch something (its STATS page
    should open), and buy a crossover avatar in the Game Corner (they are at the
    END of the avatar list) and wear it on the player card.
-5. Only if the owner says so: merge to `main` (fast-forward), push, tag `v3.59`
-   (§ "Releasing"). `FW_VERSION`, the README badge and
-   `docs/release-notes/v3.59.md` are already 3.59; `build_web.sh` does the manifest.
+5. **Do NOT merge to `main` or tag.** The owner decided (2026-11-28) this stays on
+   the branch: it is for their own device, installed from the .exe. `FW_VERSION`,
+   the README badge and `docs/release-notes/v3.59.md` say 3.59 anyway, so the
+   board reports which build it runs; leave them.
 
 What is on the branch: the arcade pays no held items any more (they come from the
 Battle Tower only; `arcade_ui_test` checks every payout against `IC_HELD`); a
