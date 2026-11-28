@@ -999,14 +999,14 @@ static void renderCasShop() {
     int x, y, w, h; casTile(t, &x, &y, &w, &h);
     bool own = casinoOwns(casShopKind, i);
     bool eq = (casShopKind == PK_BACK && casino.back == i) || (casShopKind == PK_CARDBG && casino.bg == i) ||
-              (casShopKind == PK_AVATAR && pet.avatar == SHOP_AVATAR_FIRST + i);
+              (casShopKind == PK_AVATAR && pet.avatar == shopAvatar(i));
     bool armed = casArmed == (int16_t)i;
     gfx->fillRoundRect(x, y, w, h, 10, armed ? CAS_GOLD : UI_BG_DAY);
     gfx->drawRoundRect(x, y, w, h, 10, eq ? CAS_RED : UI_INK);
     if (eq) gfx->drawRoundRect(x + 1, y + 1, w - 2, h - 2, 9, CAS_RED);
     // the preview, left
     if (casShopKind == PK_BACK) casDrawBack(x + 6, y + 6, 44, 64, i);
-    else if (casShopKind == PK_AVATAR) drawAvatar(SHOP_AVATAR_FIRST + i, x + 6, y + 10, 3);
+    else if (casShopKind == PK_AVATAR) drawAvatar(shopAvatar(i), x + 6, y + 10, 3);
     else if (casShopKind == PK_MON) casDrawPrizeMon(x + 4, y + 10, i);
     else casDrawBgSwatch(x + 6, y + 8, 50, 62, i);
     // the name and the price / state, right
@@ -1046,7 +1046,7 @@ static void casShopTap(int16_t px, int16_t py) {
     int x, y, w, h; casTile(t, &x, &y, &w, &h);
     if (!inBox(px, py, x, y, w, h)) continue;
     if (casinoOwns(casShopKind, i)) {    // owned: equip it
-      if (casShopKind == PK_AVATAR) { pet.avatar = SHOP_AVATAR_FIRST + i; pet.saveNow(); }
+      if (casShopKind == PK_AVATAR) { pet.avatar = shopAvatar(i); pet.saveNow(); }
       else casinoEquip(casShopKind, i);
       casArmed = -1;
       sfxPlay(SFX_TAP);
@@ -1066,7 +1066,7 @@ static void casShopTap(int16_t px, int16_t py) {
     bool ok = casinoBuy(casShopKind, i, coins, casSpendCoins);
     casArmed = -1;
     if (ok) {
-      if (casShopKind == PK_AVATAR) { pet.avatar = SHOP_AVATAR_FIRST + i; pet.saveNow(); }
+      if (casShopKind == PK_AVATAR) { pet.avatar = shopAvatar(i); pet.saveNow(); }
       else casinoEquip(casShopKind, i);
       casSetMood(DM_GRUMBLE);
       sfxPlay(SFX_TAP);

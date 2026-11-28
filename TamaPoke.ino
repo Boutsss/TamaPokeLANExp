@@ -10815,12 +10815,45 @@ static void drawAvatarAura(const AvatarArt &a, int x, int y, int s) {
     }
 }
 
+// A crossover avatar (avatars_crossover.py) keeps its artist's pixels -- about
+// 22x30 rather than 16x16 -- so it is FITTED into the same box*box square every
+// other avatar fills, by the rule drawWardrobeTrainer() uses for CUSTOM: a whole
+// zoom where one fits (every source pixel the same size), nearest-neighbour
+// below that. Centred, so it lines up with the 16x16 ones beside it.
+static void drawAvatarFitted(const AvatarArt &a, int bx, int by, int box) {
+  const int w = a.w, h = a.h, side = w > h ? w : h;
+  if (!side) return;
+  int k = box / side;
+  if (k >= 2) {
+    int ox = bx + (box - w * k) / 2, oy = by + (box - h * k) / 2;
+    for (int r = 0; r < h; r++)
+      for (int c = 0; c < w; c++) {
+        uint8_t v = a.idx[r * w + c];
+        if (v != 0xFF) gfx->fillRect(ox + c * k, oy + r * k, k, k, a.pal[v]);
+      }
+    return;
+  }
+  const int dw = w * box / side, dh = h * box / side;
+  const int ox = bx + (box - dw) / 2, oy = by + (box - dh) / 2;
+  for (int dy = 0; dy < dh; dy++) {
+    const int sy = dy * h / dh;
+    for (int dx = 0; dx < dw; dx++) {
+      uint8_t v = a.idx[sy * w + dx * w / dw];
+      if (v != 0xFF) gfx->drawPixel(ox + dx, oy + dy, a.pal[v]);
+    }
+  }
+}
+
 void drawAvatar(uint16_t which, int x, int y, int s) {
   if (which == AVATAR_YOU) {   // CUSTOM: PokeMMO's trainer, composed from the wardrobe,
     drawWardrobeTrainer(x, y, AVATAR_PX * s);   // in the same square every avatar fills
     return;
   }
   const AvatarArt &a = AVATARS[which % AVATAR_COUNT];
+  if (a.w != AVATAR_PX || a.h != AVATAR_PX) {   // a crossover: its own size, fitted
+    drawAvatarFitted(a, x, y, AVATAR_PX * s);
+    return;
+  }
   if (a.fx & AVFX_AURA) drawAvatarAura(a, x, y, s);
   for (int r = 0; r < AVATAR_PX; r++)
     for (int c = 0; c < AVATAR_PX; c++) {

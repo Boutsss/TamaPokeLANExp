@@ -162,8 +162,12 @@ bool rankAvatarUnlocked(uint16_t avatar) {
   if (isStarterAvatar(avatar)) return true;
   // The Game Corner's prizes are unlocked by buying them, not by rank -- and
   // only the shop range is the casino's; anything past it is not a shop index.
-  if (avatar >= AVATAR_BASE_COUNT + SHOP_AVATAR_COUNT) return false;
-  if (avatar >= AVATAR_BASE_COUNT) return casinoOwns(PK_AVATAR, avatar - AVATAR_BASE_COUNT);
+  // shopIndexOfAvatar() is the one mapping: the shop is two blocks (the
+  // crossovers sit after AVATAR_YOU), so subtracting AVATAR_BASE_COUNT is wrong.
+  if (avatar >= AVATAR_BASE_COUNT) {
+    int si = shopIndexOfAvatar(avatar);
+    return si >= 0 && casinoOwns(PK_AVATAR, (uint16_t)si);
+  }
   if ((s_avGrant >> avatar) & 1) return true;
   return s_top >= AVATAR_NEEDS[avatar];
 }

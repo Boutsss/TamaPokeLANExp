@@ -168,8 +168,16 @@ int main() {
     bool shopLocked = true;
     // (the free starters and the CUSTOM trainer sit past the base set too, and
     // are open from the start: they are not shop stock)
-    for (uint16_t a = AVATAR_BASE_COUNT; a < STARTER_AVATAR_FIRST; a++)
-      if (rankAvatarUnlocked(a) != casinoOwns(PK_AVATAR, a - AVATAR_BASE_COUNT)) shopLocked = false;
+    // Every avatar the shop sells, in BOTH blocks (the crossovers sit after
+    // CUSTOM), asked through the one mapping rather than by subtraction.
+    int shopChecked = 0;
+    for (uint16_t a = 0; a < AVATAR_COUNT; a++) {
+      int si = shopIndexOfAvatar(a);
+      if (si < 0) continue;
+      shopChecked++;
+      if (rankAvatarUnlocked(a) != casinoOwns(PK_AVATAR, (uint16_t)si)) shopLocked = false;
+    }
+    if (shopChecked != SHOP_AVATAR_COUNT) shopLocked = false;
     ck(AVATAR_COUNT > AVATAR_BASE_COUNT && shopLocked, "a shop avatar is open exactly when it has been bought");
   }
   ck(rankNextAvatar(2) == STARTER_AVATAR_FIRST,

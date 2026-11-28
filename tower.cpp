@@ -352,7 +352,7 @@ int16_t towerGrantAvatar() {
   for (uint16_t k = 0; k < TOWER_AVATAR_COUNT; k++) {
     uint16_t i = TOWER_AVATARS[k];
     if (casinoOwns(PK_AVATAR, i)) continue;
-    if (pick-- == 0) return casinoGrantAvatar(i) ? (int16_t)(AVATAR_BASE_COUNT + i) : -1;
+    if (pick-- == 0) return casinoGrantAvatar(i) ? (int16_t)shopAvatar(i) : -1;
   }
   return -1;
 }

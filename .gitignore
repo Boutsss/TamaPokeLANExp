@@ -97,3 +97,4 @@ web/firmware/tamapoke.bin
 /tools/desktop_installer/dist/
 /tools/desktop_installer/*.spec
 /tools/desktop_installer/__pycache__/
+tools/crossover_cache/

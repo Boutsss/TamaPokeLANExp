@@ -80,6 +80,26 @@ the PMD sprites above: **ship `tools/gen_avatars.py` and not `avatars.h`**, so
 each user fetches the art themselves — the script needs only `curl` and takes a
 second to run.
 
+### RegentofRaios's sprites (Game Corner avatars)
+
+56 of the Game Corner's prize avatars -- the ones that are not 16x16 -- come from
+[RegentofRaios's DeviantArt gallery](https://www.deviantart.com/regentofraios/gallery/all),
+fetched and converted by `tools/avatars_crossover.py` (imported by
+`gen_avatars.py`): characters from Street Fighter, Final Fantasy, Fate/Zero and
+Naruto drawn as Pokémon Black/White overworld sprites, the Pokémon Conquest
+warlords, and HeartGold/SoulSilver-style overworld sheets of the Kanto and Johto
+leaders, the Elite 4, Silver, Eusine and the Team Rocket executives (the ones
+named with a trailing "+"). The conversion only undoes the published 2x
+upscale, takes each walking sheet's front frame, removes backgrounds and drop
+shadows, and trims Evil Ryu's flames to the ones around him.
+
+**This is a fan artist's work, of characters owned by Capcom, Square Enix,
+Type-Moon, Shueisha, Koei Tecmo and Nintendo, and it is _not_ licensed to this
+project.** The gallery states no terms of use. The owner asked for these sprites
+for a private, non-commercial build shared with a few friends, and this entry
+records that choice. Do not ship `avatars.h` any further: ship the script, which
+fetches the art itself, and credit RegentofRaios wherever the sprites are seen.
+
 ### The CUSTOM trainer and its wardrobe
 
 `pokemmo_art.h` — the CUSTOM avatar's body, skin tones, hair dyes and every

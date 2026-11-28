@@ -174,19 +174,20 @@ int main(){
     // here whatever it is called.
     {
       int dup = 0;
-      for (uint8_t p = 0; p < casinoShopCount(PK_AVATAR); p++) {
+      for (uint16_t p = 0; p < casinoShopCount(PK_AVATAR); p++) {
         int i = casinoShopAt(PK_AVATAR, p);
+        const AvatarArt &x = AVATARS[shopAvatar((uint16_t)i)];
         for (uint8_t b = 0; b < AVATAR_BASE_COUNT; b++)
-          if (!memcmp(AVATARS[SHOP_AVATAR_FIRST + i].idx, AVATARS[b].idx, AVATAR_PX * AVATAR_PX)) {
+          if (x.w == AVATARS[b].w && x.h == AVATARS[b].h && !memcmp(x.idx, AVATARS[b].idx, x.w * x.h)) {
             printf("      the shop lists %s, which is the rank avatar %s\n", SHOP_AVATAR_NAMES[i], AVATARS[b].name);
             dup++;
           }
       }
       ck(dup == 0, "no listed shop avatar is a rank avatar");
       int champ = -1;
-      for (uint8_t i = 0; i < SHOP_AVATAR_COUNT; i++) if (!strcmp(SHOP_AVATAR_NAMES[i], "CHAMP RED")) champ = i;
+      for (uint16_t i = 0; i < SHOP_AVATAR_COUNT; i++) if (!strcmp(SHOP_AVATAR_NAMES[i], "CHAMP RED")) champ = i;
       bool listed = false;
-      for (uint8_t p = 0; p < casinoShopCount(PK_AVATAR); p++) if (casinoShopAt(PK_AVATAR, p) == champ) listed = true;
+      for (uint16_t p = 0; p < casinoShopCount(PK_AVATAR); p++) if (casinoShopAt(PK_AVATAR, p) == champ) listed = true;
       uint32_t c2 = 60000;
       ck(champ >= 0 && casinoPrizeRetired(PK_AVATAR, champ) && !listed && !casinoBuy(PK_AVATAR, champ, c2, spend) && c2 == 60000,
          "CHAMP RED (the same sprite as RED) is not listed and cannot be bought");
@@ -194,11 +195,12 @@ int main(){
       // Two listed prizes that draw the same (pixels AND colours) would be paying
       // twice for one look.
       int twins = 0;
-      for (uint8_t p = 0; p < casinoShopCount(PK_AVATAR); p++)
-        for (uint8_t q = p + 1; q < casinoShopCount(PK_AVATAR); q++) {
+      for (uint16_t p = 0; p < casinoShopCount(PK_AVATAR); p++)
+        for (uint16_t q = p + 1; q < casinoShopCount(PK_AVATAR); q++) {
           int i = casinoShopAt(PK_AVATAR, p), j = casinoShopAt(PK_AVATAR, q);
-          const AvatarArt &x = AVATARS[SHOP_AVATAR_FIRST + i], &y = AVATARS[SHOP_AVATAR_FIRST + j];
-          if (!memcmp(x.idx, y.idx, AVATAR_PX * AVATAR_PX) && !memcmp(x.pal, y.pal, 3 * sizeof(uint16_t))) {
+          const AvatarArt &x = AVATARS[shopAvatar((uint16_t)i)], &y = AVATARS[shopAvatar((uint16_t)j)];
+          if (x.w == y.w && x.h == y.h && !memcmp(x.idx, y.idx, x.w * x.h) &&
+              !memcmp(x.pal, y.pal, 3 * sizeof(uint16_t))) {
             printf("      %s and %s draw the same\n", SHOP_AVATAR_NAMES[i], SHOP_AVATAR_NAMES[j]);
             twins++;
           }
@@ -209,9 +211,50 @@ int main(){
       ck(!strcmp(SHOP_AVATAR_NAMES[0], "AGATHA") && !strcmp(SHOP_AVATAR_NAMES[3], "LANCE") &&
          !strcmp(SHOP_AVATAR_NAMES[81], "CAL") && SHOP_AVATAR_COUNT > 82 && !strcmp(SHOP_AVATAR_NAMES[82], "NINJA"),
          "the shop's frozen order is unchanged and new avatars were appended");
+      // The shop is TWO blocks of AVATARS[] (the crossovers sit after CUSTOM).
+      // shopAvatar()/shopIndexOfAvatar() must be exact inverses, never land on
+      // a free avatar, and every shop index must reach a distinct avatar.
+      bool inverse = true, clash = false;
+      static bool seen[AVATAR_COUNT];
+      memset(seen, 0, sizeof(seen));
+      for (uint16_t i = 0; i < SHOP_AVATAR_COUNT; i++) {
+        uint16_t a = shopAvatar(i);
+        if (a >= AVATAR_COUNT || shopIndexOfAvatar(a) != (int)i) inverse = false;
+        else if (seen[a] || a < AVATAR_BASE_COUNT || a == AVATAR_YOU ||
+                 (a >= STARTER_AVATAR_FIRST && a < STARTER_AVATAR_FIRST + STARTER_AVATAR_COUNT)) clash = true;
+        else seen[a] = true;
+        if (strcmp(AVATARS[a % AVATAR_COUNT].name, SHOP_AVATAR_NAMES[i])) inverse = false;
+      }
+      int shopSeen = 0;
+      for (uint16_t a = 0; a < AVATAR_COUNT; a++) {
+        if (shopIndexOfAvatar(a) >= 0) shopSeen++;
+        if ((shopIndexOfAvatar(a) >= 0) != seen[a]) inverse = false;
+      }
+      ck(inverse && !clash && shopSeen == SHOP_AVATAR_COUNT,
+         "every shop index maps to its own named avatar and back, across both blocks");
+      ck(SHOP_AVATAR_COUNT > SHOP_AVATAR_SPLIT && SHOP2_AVATAR_FIRST == AVATAR_YOU + 1 &&
+         !strcmp(SHOP_AVATAR_NAMES[SHOP_AVATAR_SPLIT], "SEPHIROTH"),
+         "the crossovers start right after CUSTOM, so no stored avatar index moved");
+      // A crossover keeps its own size and is fitted; it must still be art.
+      bool sized = true;
+      for (uint16_t i = SHOP_AVATAR_SPLIT; i < SHOP_AVATAR_COUNT; i++) {
+        const AvatarArt &x = AVATARS[shopAvatar(i)];
+        int solid = 0;
+        for (int k = 0; k < x.w * x.h; k++) solid += x.idx[k] != 0xFF;
+        if (x.w < 8 || x.h < 8 || x.w > 64 || x.h > 64 || solid < x.w * x.h / 4) sized = false;
+      }
+      ck(sized, "every crossover avatar has a real size and is mostly drawn");
+      int xo = casinoShopAt(PK_AVATAR, casinoShopCount(PK_AVATAR) - 1);
+      ck(xo >= SHOP_AVATAR_SPLIT, "the crossovers are listed in the shop");
+      uint32_t c3 = 20000;
+      wallet = 20000; spendWorks = true;
+      // (the last listed one was already bought above, so take the first)
+      ck(!casinoOwns(PK_AVATAR, SHOP_AVATAR_SPLIT) && casinoBuy(PK_AVATAR, SHOP_AVATAR_SPLIT, c3, spend) &&
+         casinoOwns(PK_AVATAR, SHOP_AVATAR_SPLIT),
+         "a crossover can be bought (rank_test checks it then unlocks THAT avatar)");
     }
     bool ascii = true;
-    for (uint8_t k=0;k<PK_KINDS;k++) for (uint8_t i=0;i<casinoPrizeCount(k);i++)
+    for (uint8_t k=0;k<PK_KINDS;k++) for (uint16_t i=0;i<casinoPrizeCount(k);i++)
       for (const char *c = casinoPrizeName(k,i); *c; c++) if ((uint8_t)*c > 126) ascii = false;
     ck(ascii, "every prize name is plain ASCII (the bitmap font has nothing else)");
   }
