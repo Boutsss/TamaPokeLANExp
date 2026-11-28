@@ -1707,7 +1707,12 @@ void renderMonSheet(const PartyMon &m, bool fromBox) {
   //
   // A box creature still goes to the party first: one rule per screen, and the
   // swap is then offered from the party sheet like any other member.
-  bool leftOk = fromBox ? (party.firstFree() >= 0)
+  // From the box the button is ALWAYS live: with a free slot it moves the
+  // creature straight in, and with a full party it goes on to choose who steps
+  // out -- the same swap the box used to jump to from the slot tap, before the
+  // sheet could be opened at all. The hint below says which it will be.
+  bool partyFull = fromBox && party.firstFree() < 0;
+  bool leftOk = fromBox ? true
                         : (pet.ceremony == CER_NONE && !pet.awaitingStarter());
   const char *leftLbl = fromBox ? T(S_BOX_TAKE) : T(S_FOCUS);
   gfx->fillRoundRect(PDET_L_X, PDET_BTN_Y, PDET_L_W, PDET_BTN_H, 10,
@@ -1727,7 +1732,7 @@ void renderMonSheet(const PartyMon &m, bool fromBox) {
                  PDET_BTN_Y + PDET_BTN_H / 2 - 4);
   gfx->print(T(S_RELEASE_BTN));
 
-  if (!leftOk) {
+  if (!leftOk || partyFull) {
     const char *why = fromBox ? T(S_PARTY_FULL) : T(S_FOCUS_NOW);
     gfx->setTextColor(UI_BAR_WARN);
     gfx->setTextSize(1);
@@ -6806,7 +6811,13 @@ void boxTap(int16_t x, int16_t y) {
     if (releaseConfirm) { monSheetConfirmTap(x, y, true); return; }
     if (monSheetBtn(x, y, true)) {          // TO PARTY
       int free = party.firstFree();
-      if (free < 0) { sfxPlay(SFX_DENY); return; }
+      if (free < 0) {            // party is full: go choose who steps out
+        boxSel = boxDetail;
+        boxDetail = 0;
+        boxOpen = false;
+        sfxPlay(SFX_TAP);
+        return;
+      }
       party.swapPartyBox((uint8_t)free, boxDetail - 1);
       boxDetail = 0;
       boxSel = 0;
@@ -6838,16 +6849,12 @@ void boxTap(int16_t x, int16_t y) {
       sfxPlay(SFX_MEDAL);
       return;
     }
-    // Otherwise open its SHEET. It used to go straight to the party, which is a
-    // lot to happen from one tap and left nowhere to put RELEASE; the sheet
-    // offers TO PARTY explicitly and shows what you are about to move.
+    // Otherwise open its SHEET -- always, full party or not, so a boxed
+    // creature's stats and moves can be read without moving it anywhere. A full
+    // party used to skip the sheet and jump straight to choosing who steps out,
+    // which made the stats of anything in the box unreachable once the party
+    // was full. That choice now hangs off the sheet's TO PARTY button.
     if (party.box[idx].empty()) { sfxPlay(SFX_DENY); return; }
-    if (party.firstFree() < 0) {
-      boxSel = idx + 1;          // party is full: go choose who steps out
-      boxOpen = false;
-      sfxPlay(SFX_TAP);
-      return;
-    }
     boxDetail = idx + 1;
     releaseConfirm = false;
     sfxPlay(SFX_TAP);

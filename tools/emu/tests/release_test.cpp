@@ -160,6 +160,31 @@ int main(){
     ck(party.boxCount()==0, "and the box slot is freed");
   }
 
+  // ---- a FULL party must not hide a boxed creature's sheet
+  //
+  // It used to: with no free slot the tap skipped the sheet and jumped straight
+  // to choosing who steps out, so nothing in the box could be inspected once
+  // the party was full -- which is most of the game.
+  {
+    clearAll();
+    for (int i = 0; i < PARTY_SLOTS; i++) party.slots[i]=mon(19,10,"RATTA");
+    party.save();
+    party.box[0]=mon(143,40,"SNORLAX");
+    party.boxSave();
+    partyOpen=true; boxOpen=true;
+    boxTap(SLOT_X(0), SLOT_Y(0));
+    ck(boxDetail==1 && boxOpen && boxSel==0,
+       "with the party full, tapping a box slot still opens its sheet");
+    ck(party.boxCount()==1 && party.slots[0].dex==19,
+       "and looking at it moves nothing");
+    boxTap(SHEET_L_X, SHEET_BTN_Y);              // TO PARTY
+    ck(boxSel==1 && !boxOpen && boxDetail==0,
+       "TO PARTY on a full party goes on to choose who steps out");
+    partyTap(SLOT_X(0), SLOT_Y(0));
+    ck(party.slots[0].dex==143 && party.box[0].dex==19 && boxSel==0,
+       "and picking a slot completes the swap");
+  }
+
   // ---- a released creature cannot leave a swap armed at an empty slot
   {
     clearAll();
