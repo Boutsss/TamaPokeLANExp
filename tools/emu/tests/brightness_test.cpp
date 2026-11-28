@@ -11,6 +11,7 @@
 #include "pet.h"
 #include "audio.h"
 #include <cstdio>
+extern Arduino_Canvas *gfx;
 uint32_t g_seed=61; FakeSerial Serial; FakeESP ESP; FakeWire Wire;
 volatile int g_touchX=0,g_touchY=0; volatile bool g_touchDown=false;
 void FakeESP::restart(){exit(0);}
@@ -71,6 +72,37 @@ int main(){
   for (int i = 0; i < 20; i++) clockTap(BRI_TEST_PLUS_X, BRI_TEST_Y);
   ck(maxBrightness() == 10, "and stops at 10");
   ck(clockOpen, "the settings screen stays open throughout");
+
+  // The firmware version is on this screen so a player can check their build.
+  // Measured off the drawn pixels: it must be at least size-2 tall (it was
+  // size 1, ~1 mm on the panel, and nobody found it) and stay on the glass.
+  {
+    extern const int CLK_TEST_VER_Y;
+    void renderClock();
+    renderClock();   // the settings screen itself: this harness never picks a starter,
+                     // so render() would draw the first-boot chooser instead
+    const uint16_t *fb = gfx->buffer();
+    uint16_t bg = fb[(CLK_TEST_VER_Y - 2) * 466 + 233];
+    int top = -1, bottom = -1, left = 466, right = -1;
+    for (int y = CLK_TEST_VER_Y - 2; y < CLK_TEST_VER_Y + 22 && y < 466; y++)
+      for (int x = 0; x < 466; x++) {
+        int dx = x - 233, dy = y - 233;
+        if (dx * dx + dy * dy > 228 * 228) continue;          // off the glass: the bezel
+        if (fb[y * 466 + x] == bg) continue;
+        if (top < 0) top = y;
+        bottom = y;
+        if (x < left) left = x;
+        if (x > right) right = x;
+      }
+    ck(top >= 0 && bottom - top + 1 >= 12, "the version line is drawn at least size-2 tall");
+    int ok = 1;
+    for (int y = top; y >= 0 && y <= bottom; y++) {
+      int dy = y - 233, half = 0;
+      while ((half + 1) * (half + 1) + dy * dy <= 226 * 226) half++;
+      if (left < 233 - half || right > 233 + half) ok = 0;
+    }
+    ck(ok && right > left, "and it stays inside the round glass");
+  }
 
   printf("%s\n", bad?"FAILURES":"all good");
   return bad?1:0;

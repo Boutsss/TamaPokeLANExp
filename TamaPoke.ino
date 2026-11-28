@@ -4299,6 +4299,8 @@ void drawClockBtn(int x, int y, const char *l) {
 #define VOL_MINUS_X 146
 #define VOL_PLUS_X 276
 #define VOL_BTN_W 48
+#define CLK_VER_Y 428   // the version line on the settings screen (renderClock)
+extern const int CLK_TEST_VER_Y = CLK_VER_Y;
 static const char *const LANG_CODES[LANG_COUNT] = { "ES", "EN", "FR", "DE", "IT", "PT" };
 
 void renderClock() {
@@ -4414,11 +4416,18 @@ void renderClock() {
   gfx->setCursor(CX - strlen(T(S_CLOCK_CANCEL)) * 6, 410);
   gfx->print(T(S_CLOCK_CANCEL));
 
-  // version del firmware (discreta, abajo del todo)
+  // The firmware version, so a player can check which build the board runs.
+  // It was size 1 in the soft grey here -- about a millimetre tall on this
+  // panel, and nobody found it. Size 2 in ink now; the row is free because the
+  // settings screen has no held BACK pill (uiBackShownOn). It sits just under
+  // the cancel hint because the glass narrows fast down here: at y 430 its
+  // lowest row already clipped the bezel. brightness_test holds it to size 2
+  // and to the chord.
   char ver[20];
   snprintf(ver, sizeof(ver), "TamaPoke v%s", FW_VERSION);
-  gfx->setTextSize(1);
-  gfx->setCursor(CX - (int)strlen(ver) * 3, 436);
+  gfx->setTextColor(UI_INK);
+  gfx->setTextSize(2);
+  gfx->setCursor(CX - (int)strlen(ver) * 6, CLK_VER_Y);
   gfx->print(ver);
   gfx->flush();
 }
